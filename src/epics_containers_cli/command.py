@@ -1,15 +1,15 @@
-import logging
 import os
 import subprocess
 from typing import Optional
 
 import typer
 
-log = logging.getLogger(__name__)
+from .logging import log
 
 K8S_HELM_REGISTRY: Optional[str] = ""
 DOCKER_CMD: Optional[str] = ""
 HELM_CMD: Optional[str] = ""
+K8S_BEAMLINE: Optional[str] = ""
 
 
 def run_command(command: str, error_OK=False) -> Optional[str]:
@@ -22,7 +22,23 @@ def run_command(command: str, error_OK=False) -> Optional[str]:
     elif error_OK:
         return None
     else:
-        raise RuntimeError(f"Command failed: {command} {result.stderr.decode('utf-8')}")
+        typer.echo(f"Command failed: {command} {result.stderr.decode('utf-8')}")
+        raise typer.Exit(1)
+
+
+def check_beamline(beamline: Optional[str]):
+    if beamline is None and K8S_BEAMLINE is None:
+        typer.echo("Please set K8S_BEAMLINE or pass --beamline")
+        raise typer.Exit(1)
+    else:
+        global K8S_BEAMLINE
+        K8S_BEAMLINE = beamline
+
+
+def check_docker():
+    if DOCKER_CMD is None:
+        typer.echo("This command requires docker or podman, neither were found")
+        raise typer.Exit(1)
 
 
 def check_helm(registry: Optional[str]):
@@ -36,9 +52,10 @@ def check_helm(registry: Optional[str]):
 
 def check_tools():
 
-    global K8S_HELM_REGISTRY, DOCKER_CMD, HELM_CMD
+    global K8S_HELM_REGISTRY, DOCKER_CMD, HELM_CMD, K8S_BEAMLINE
 
     K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
+    K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None)
 
     DOCKER_CMD = run_command("which podman", error_OK=True)
     if DOCKER_CMD is None:
@@ -46,5 +63,5 @@ def check_tools():
 
     HELM_CMD = run_command("which helm", error_OK=True)
 
-    log.warn("DOCKER_CMD=%s", DOCKER_CMD)
-    log.warn("HELM_CMD=%s", HELM_CMD)
+    log.info("DOCKER_CMD=%s", DOCKER_CMD)
+    log.info("HELM_CMD=%s", HELM_CMD)

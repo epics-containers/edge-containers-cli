@@ -1,0 +1,26 @@
+import logging
+
+log = logging.getLogger("epics-containers-cli")
+handler = logging.StreamHandler()
+
+
+def exception_handler(exception_type, exception, traceback):
+    if log.root.level > logging.DEBUG:
+        log.error("%s: %s", exception_type.__name__, exception)
+    log.debug("", exc_info=True)
+
+
+def init_logging(level: str):
+
+    log.setLevel(level)
+    if log.level == logging.DEBUG:
+        formatter = logging.Formatter(
+            "%(levelname)s: %(pathname)s:%(lineno)d %(funcName)s " "\n\t%(message)s"
+        )
+    else:
+        formatter = logging.Formatter("%(levelname)s:\t%(message)s")
+
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
+
+    log.debug("Debugging logging initialized")
