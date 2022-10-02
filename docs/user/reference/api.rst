@@ -1,14 +1,14 @@
 API
 ===
 
-.. automodule:: python3_pip_skeleton
+.. automodule:: epics_containers_cli
 
-    ``python3_pip_skeleton``
+    ``epics_containers_cli``
     -----------------------------------
 
-This is the internal API reference for python3_pip_skeleton
+This is the internal API reference for epics_containers_cli
 
-.. data:: python3_pip_skeleton.__version__
+.. data:: epics_containers_cli.__version__
     :type: str
 
     Version number as calculated by https://github.com/pypa/setuptools_scm
