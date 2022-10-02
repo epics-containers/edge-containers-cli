@@ -3,14 +3,8 @@ epics-containers-cli
 
 |code_ci| |docs_ci| |coverage| |pypi_version| |license|
 
-.. note::
-
-    This project contains template code only. For documentation on how to
-    adopt this skeleton project see
-    https://epics-containers.github.io/epics-containers-cli-cli
-
-This is where you should write a short paragraph that describes what your module does,
-how it does it, and why people should use it.
+A simple CLI with shortcuts for common operations when developing epics-containers
+projects.
 
 ============== ==============================================================
 PyPI           ``pip install epics-containers-cli``
@@ -19,19 +13,13 @@ Documentation  https://epics-containers.github.io/epics-containers-cli
 Releases       https://github.com/epics-containers/epics-containers-cli/releases
 ============== ==============================================================
 
-This is where you should put some images or code snippets that illustrate
-some relevant examples. If it is a library then you might put some
-introductory code here:
 
-.. code-block:: python
+An example invocation. Calling the deploy command will execute helm and prints 
+the helm command that it makes ::
 
-    from epics_containers_cli import __version__
-
-    print(f"Hello epics_containers_cli {__version__}")
-
-Or if it is a commandline tool then you might put some example commands here::
-
-    $ python -m epics_containers_cli --version
+    $ ec deploy bl45p-mo-ioc-01 0.0.1-b0
+    + helm upgrade --install bl45p-mo-ioc-01 oci://ghcr.io/epics-
+    containers/bl45p-mo-ioc-01 --version 0.0.1-b0
 
 .. |code_ci| image:: https://github.com/epics-containers/epics-containers-cli/actions/workflows/code.yml/badge.svg?branch=main
     :target: https://github.com/epics-containers/epics-containers-cli/actions/workflows/code.yml
