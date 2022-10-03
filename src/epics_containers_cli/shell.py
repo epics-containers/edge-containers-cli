@@ -55,10 +55,14 @@ def check_ioc(ioc_name: str, bl: str):
 
 
 def check_beamline(beamline: Optional[str]) -> Optional[str]:
-    if beamline is not None:
+    if beamline is None:
         beamline = K8S_BEAMLINE
     if beamline is None:
         print("Please set K8S_BEAMLINE or pass --beamline")
+        raise typer.Exit(1)
+
+    if not run_command(f"kubectl get namespace {beamline} -o name", error_OK=True):
+        print(f"beamline {beamline} does not exist")
         raise typer.Exit(1)
 
     log.info("beamline = %s", beamline)
@@ -87,18 +91,19 @@ def check_kubectl():
     log.info("kubectl command = %s", kube_cmd)
 
 
-def check_helm(registry: Optional[str]):
+def check_helm(registry: Optional[str] = None, local=False):
     helm_cmd = run_command("which helm", error_OK=True)
 
     if helm_cmd is None:
         print("This command requires helm, helm not found")
         raise typer.Exit(1)
 
-    if registry is None:
-        registry = K8S_HELM_REGISTRY
-    if registry is None:
-        print("Please set K8S_HELM_REGISTRY or pass --helm-registry")
-        raise typer.Exit(1)
+    if not local:
+        if registry is None:
+            registry = K8S_HELM_REGISTRY
+        if registry is None:
+            print("Please set K8S_HELM_REGISTRY or pass --helm-registry")
+            raise typer.Exit(1)
 
     log.info("helm command = %s", helm_cmd)
     log.info("helm registry = %s", registry)
