@@ -11,6 +11,7 @@ from .shell import (
     check_beamline,
     check_helm,
     check_ioc,
+    check_kubectl,
     run_command,
 )
 
@@ -35,6 +36,7 @@ def version_callback(value: bool):
 
 @cli.callback()
 def main(
+    ctx: typer.Context,
     version: Optional[bool] = typer.Option(
         None,
         "--version",
@@ -54,22 +56,37 @@ def main(
 ):
     """EPICS Containers assistant CLI"""
     init_logging(log_level)
-    check_beamline(beamline)
+
+    # create a context dictionary to pass to all sub commands
+    # TODO review this - better to have our own dataclass for context
+    ctx.ensure_object(dict)
+    ctx.obj["beamline"] = check_beamline(beamline)
 
 
 @cli.command()
 def attach(
+    ctx: typer.Context,
     ioc_name: str = typer.Argument(
         ...,
         help="Name of the IOC to attach to",
     ),
 ):
     """Attach to the IOC shell of a live IOC"""
+
     log.info("attaching to %s", ioc_name)
+    check_kubectl()
+    bl = ctx.obj["beamline"]
+
+    run_command(
+        f"kubectl -it -n {bl} attach  deploy/{ioc_name}",
+        show=True,
+        interactive=True,
+    )
 
 
 @cli.command()
 def deploy(
+    ctx: typer.Context,
     ioc_name: str = typer.Argument(
         ...,
         help="Name of the IOC to deploy",
@@ -84,12 +101,14 @@ def deploy(
     ),
 ):
     """Pulls an IOC helm chart and deploys it to the cluster"""
-    check_helm(helm_registry)
-    check_ioc(ioc_name)
+
     log.info("deploying %s, version %s", ioc_name, version)
+    registry = check_helm(helm_registry)
+    bl = ctx.obj["beamline"]
+    check_ioc(ioc_name, bl)
 
     run_command(
-        f"helm upgrade -n {K8S_BEAMLINE} --install {ioc_name} "
-        f"oci://{helm_registry}/{ioc_name} --version {version}",
+        f"helm upgrade -n {bl} --install {ioc_name} "
+        f"oci://{registry}/{ioc_name} --version {version}",
         show=True,
     )
