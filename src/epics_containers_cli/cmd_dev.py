@@ -20,7 +20,7 @@ def launch(
     ),
     start: bool = typer.Option(
         True,
-        help="IOC instance config folder",
+        help="Set to true to launch the IOC",
     ),
 ):
     """Launch a generic IOC container"""
@@ -48,3 +48,13 @@ def debug_build():
     """Launches a container with the most recent image build.
     Useful for debugging failed builds"""
     log.info("debugging last build")
+
+
+@dev.command()
+def make(
+    target: str = typer.Option(
+        None,
+        help="IOC project folder",
+    ),
+):
+    """make the generic IOC source code inside its container"""
