@@ -130,9 +130,8 @@ jobs:
         run: for i in ${{ steps.meta.outputs.tags }}; do docker run ${i} --version; done
 
       - name: Test cli works in sdist installed in local python
-        # ${GITHUB_REPOSITORY##*/} is the repo name without org
-        # Replace this with the cli command if different to the repo name
-        run: pip install dist/*.gz && ${GITHUB_REPOSITORY##*/} --version
+        # CLI entrypoint is ec
+        run: pip install dist/*.gz && ec --version
 
       - name: Upload build files
         uses: actions/upload-artifact@v3
