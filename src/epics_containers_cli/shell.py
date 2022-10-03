@@ -1,3 +1,7 @@
+"""
+functions for executing commands in the linux shell
+"""
+
 import os
 import subprocess
 from typing import Optional
@@ -27,11 +31,11 @@ def run_command(command: str, error_OK=False) -> Optional[str]:
 
 
 def check_beamline(beamline: Optional[str]):
+    global K8S_BEAMLINE
     if beamline is None and K8S_BEAMLINE is None:
         typer.echo("Please set K8S_BEAMLINE or pass --beamline")
         raise typer.Exit(1)
     else:
-        global K8S_BEAMLINE
         K8S_BEAMLINE = beamline
 
 

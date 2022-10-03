@@ -1,19 +1,19 @@
-from pathlib import Path
 from typing import Optional
 
 import typer
 
 from . import __version__
-from .command import check_helm, check_tools
-from .logging import init_logging, log
+from .cmd_dev import dev
+from .cmd_k8s import k8s
+from .logging import init_logging
+from .shell import check_tools
 
 __all__ = ["main"]
 
-cli = typer.Typer()  # for first level sub commands
-dev = typer.Typer()  # for nested sub commands of 'dev'
-cli.add_typer(
-    dev, name="dev", help="Sub-commands for building and debugging IOCs"
-)  # add the nested sub commands to the cli level
+cli = typer.Typer()
+
+cli.add_typer(dev, name="dev", help="Commands for building and debugging IOCs")
+cli.add_typer(k8s, name="k8s", help="Commands for interacting with the cluster")
 
 
 def version_callback(value: bool):
@@ -38,47 +38,6 @@ def main(
     """EPICS Containers assistant CLI"""
     init_logging(log_level)
     check_tools()
-
-
-@dev.command()
-def launch(
-    folder: Path = typer.Option(Path("."), help="generic IOC container project folder"),
-    config: Optional[Path] = typer.Option(None, help="IOC instance config folder"),
-    start: bool = typer.Option(True, help="IOC instance config folder"),
-):
-    """Launch a generic IOC container"""
-    log.info(
-        "launching generic IOC in %s with config %s (starting = %s)",
-        folder,
-        config,
-        start,
-    )
-
-
-@dev.command()
-def build(
-    folder: Path = typer.Option(Path("."), help="IOC project folder"),
-):
-    """Build a generic IOC container image"""
-    log.info("building %s", folder)
-
-
-@dev.command()
-def debug_build():
-    """Launches a container with the most recent image build.
-    Useful for debugging failed builds"""
-    log.info("debugging last build")
-
-
-@cli.command()
-def deploy(
-    ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
-    version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
-    helm_registry: Optional[str] = typer.Option(None, help="Helm repo to pull from"),
-):
-    """Pulls an IOC helm chart and deploys it to the cluster"""
-    check_helm(helm_registry)
-    log.info("deploying %s, version %s", ioc_name, version)
 
 
 # test with:
