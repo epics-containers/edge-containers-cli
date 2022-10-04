@@ -1,4 +1,5 @@
 import os
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -8,7 +9,14 @@ import ruamel.yaml as yaml
 import typer
 
 from .logging import log
-from .shell import K8S_HELM_REGISTRY, check_helm, check_ioc, check_kubectl, run_command
+from .shell import (
+    K8S_GRAYLOG_URL,
+    K8S_HELM_REGISTRY,
+    check_helm,
+    check_ioc,
+    check_kubectl,
+    run_command,
+)
 
 ioc = typer.Typer()
 
@@ -16,10 +24,7 @@ ioc = typer.Typer()
 @ioc.command()
 def attach(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
-        ...,
-        help="Name of the IOC to attach to",
-    ),
+    ioc_name: str = typer.Argument(..., help="Name of the IOC to attach to"),
 ):
     """Attach to the IOC shell of a live IOC"""
 
@@ -38,12 +43,9 @@ def attach(
 @ioc.command()
 def delete(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
-        ...,
-        help="Name of the IOC to delete",
-    ),
+    ioc_name: str = typer.Argument(..., help="Name of the IOC to delete"),
 ):
-    """removes an IOC helm deployment from the cluster"""
+    """Remove an IOC helm deployment from the cluster"""
 
     log.info("deleting %s", ioc_name)
     check_helm(local=True)
@@ -67,11 +69,10 @@ def delete(
 def deploy_local(
     ctx: typer.Context,
     ioc_path: Path = typer.Argument(
-        ...,
-        help="root folder of local helm chart to deploy",
+        ..., help="root folder of local helm chart to deploy"
     ),
 ):
-    """Deploys a local IOC helm chart directly to the cluster with dated beta version"""
+    """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
 
     version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
     log.info("deploying %s, to temporary version %s", ioc_path, version)
@@ -99,26 +100,24 @@ def deploy_local(
             show=True,
             show_cmd=ctx.obj.show_cmd,
         )
-        run_command(f"helm upgrade --install {ioc_name} *.tgz", show=True)
+        package = list(Path(".").glob("*.tgz"))[0]
+        run_command(
+            f"helm upgrade --install {ioc_name} {package}",
+            show=True,
+            show_cmd=ctx.obj.show_cmd,
+        )
 
 
 @ioc.command()
 def deploy(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
-        ...,
-        help="Name of the IOC to deploy",
-    ),
-    version: str = typer.Argument(
-        ...,
-        help="Version tag of the IOC to deploy",
-    ),
+    ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
+    version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
     helm_registry: Optional[str] = typer.Option(
-        K8S_HELM_REGISTRY,
-        help="Helm registry to pull from",
+        K8S_HELM_REGISTRY, help="Helm registry to pull from"
     ),
 ):
-    """Pulls an IOC helm chart and deploys it to the cluster"""
+    """Pull an IOC helm chart and deploy it to the cluster"""
 
     log.info("deploying %s, version %s", ioc_name, version)
     registry = check_helm(helm_registry)
@@ -136,10 +135,7 @@ def deploy(
 @ioc.command()
 def exec(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
-        ...,
-        help="Name of the IOC container to run in",
-    ),
+    ioc_name: str = typer.Argument(..., help="Name of the IOC container to run in"),
 ):
     """Execute a bash prompt in a live IOC's container"""
 
@@ -157,15 +153,115 @@ def exec(
 
 
 @ioc.command()
-def versions(
+def graylog(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
         ...,
         help="Name of the IOC to inspect",
     ),
+):
+    """Open graylog historical logs for an IOC"""
+
+    if K8S_GRAYLOG_URL is None:
+        print("K8S_GRAYLOG_URL environment not set")
+        raise typer.Exit(1)
+
+    log.info("graylog for %s", ioc_name)
+    webbrowser.open(
+        f"{K8S_GRAYLOG_URL}/search?rangetype=relative&fields=message%2Csource"
+        f"&width=1489&highlightMessage=&relative=172800&q=pod_name%3A{ioc_name}*"
+    )
+
+
+@ioc.command()
+def logs(
+    ctx: typer.Context,
+    ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
+    prev: bool = typer.Option(
+        False, "--previous", "-p", help="Show log from the previous instance of the IOC"
+    ),
+):
+    """Show logs for current and previous instances of an IOC"""
+
+    check_kubectl()
+    bl = ctx.obj.beamline
+    check_ioc(ioc_name, bl)
+
+    log.info("log for %s", ioc_name)
+
+    previous = "-p" if prev else ""
+
+    run_command(
+        f"kubectl -n {bl} logs deploy/{ioc_name} {previous}",
+        show=True,
+        show_cmd=ctx.obj.show_cmd,
+    )
+
+
+@ioc.command()
+def restart(
+    ctx: typer.Context,
+    ioc_name: str = typer.Argument(..., help="Name of the IOC container to restart"),
+):
+    """Restart an IOC"""
+
+    log.info("restarting %s", ioc_name)
+    check_kubectl()
+    bl = ctx.obj.beamline
+    check_ioc(ioc_name, bl)
+
+    podname = run_command(f"kubectl get -n {bl} pod -l app={ioc_name} -o name")
+    run_command(
+        f"kubectl delete -n {bl} {podname}",
+        show=True,
+        show_cmd=ctx.obj.show_cmd,
+    )
+
+
+@ioc.command()
+def start(
+    ctx: typer.Context,
+    ioc_name: str = typer.Argument(..., help="Name of the IOC container to start"),
+):
+    """Start an IOC"""
+
+    log.info("starting %s", ioc_name)
+    check_kubectl()
+    bl = ctx.obj.beamline
+    check_ioc(ioc_name, bl)
+
+    run_command(
+        f"kubectl scale -n {bl} deploy --replicas=1 {ioc_name}",
+        show=True,
+        show_cmd=ctx.obj.show_cmd,
+    )
+
+
+@ioc.command()
+def stop(
+    ctx: typer.Context,
+    ioc_name: str = typer.Argument(..., help="Name of the IOC container to stop"),
+):
+    """Stop an IOC"""
+
+    log.info("stopping %s", ioc_name)
+    check_kubectl()
+    bl = ctx.obj.beamline
+    check_ioc(ioc_name, bl)
+
+    run_command(
+        f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}",
+        show=True,
+        show_cmd=ctx.obj.show_cmd,
+    )
+
+
+@ioc.command()
+def versions(
+    ctx: typer.Context,
+    ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
     helm_registry: Optional[str] = typer.Option(
-        K8S_HELM_REGISTRY,
-        help="Helm registry to pull from",
+        K8S_HELM_REGISTRY, help="Helm registry to pull from"
     ),
 ):
     """List all versions of the IOC available in the helm registry"""

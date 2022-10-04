@@ -28,13 +28,9 @@ def info(ctx: typer.Context):
 def ps(
     ctx: typer.Context,
     all: bool = typer.Option(
-        False,
-        help="list stopped IOCs as well as running IOCs",
+        False, "-a", "--all", help="list stopped IOCs as well as running IOCs"
     ),
-    wide: bool = typer.Option(
-        False,
-        help="use a wide format with additional fields",
-    ),
+    wide: bool = typer.Option(False, help="use a wide format with additional fields"),
 ):
     """list the IOCs running on a beamline"""
 

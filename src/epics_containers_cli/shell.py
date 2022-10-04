@@ -13,6 +13,7 @@ from .logging import log
 
 K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None)
 K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
+K8S_GRAYLOG_URL = os.environ.get("K8S_GRAYLOG_URL", None)
 K8S_QUIET = os.environ.get("K8S_QUIET", None)
 
 ERROR = """
