@@ -46,11 +46,8 @@ def run_command(
 
 
 def check_ioc(ioc_name: str, bl: str):
-    if bl not in ioc_name:
-        print(
-            f"IOC {ioc_name} does name does not match beamline {bl}\n"
-            f"set K8S_BEAMLINE or pass --beamline to match"
-        )
+    if not run_command(f"kubectl get -n {bl} deploy/{ioc_name}", error_OK=True):
+        print(f"ioc {ioc_name} does not exist in beamline {bl}")
         raise typer.Exit(1)
 
 
