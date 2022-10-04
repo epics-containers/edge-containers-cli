@@ -3,7 +3,9 @@ functions for executing commands and querying environment in the linux shell
 """
 
 import os
+import re
 import subprocess
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -13,6 +15,7 @@ from .logging import log
 
 K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None)
 K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
+K8S_IMAGE_REGISTRY = os.environ.get("K8S_IMAGE_REGISTRY", None)
 K8S_GRAYLOG_URL = os.environ.get("K8S_GRAYLOG_URL", None)
 K8S_QUIET = os.environ.get("K8S_QUIET", None)
 
@@ -111,3 +114,44 @@ def check_helm(registry: Optional[str] = None, local=False):
     log.info("helm command = %s", helm_cmd)
     log.info("helm registry = %s", registry)
     return registry
+
+
+def check_image(repo_name: str, registry: Optional[str] = None) -> str:
+    if registry is None:
+        registry = K8S_HELM_REGISTRY
+    if registry is None:
+        print("Please set K8S_image_REGISTRY or pass --image-registry")
+        raise typer.Exit(1)
+
+    image = f"{registry}/{repo_name}-linux-developer"
+    log.info("image  = %s", image)
+    return image
+
+
+regex_git = re.compile(r"\/(.*)\.git")
+
+
+def check_git(folder: Path = Path(".")) -> str:
+    git_cmd = run_command("which git", error_OK=True)
+
+    if git_cmd is None:
+        print("This command requires git, git not found")
+        raise typer.Exit(1)
+
+    log.info("git command = %s", git_cmd)
+
+    if not folder.joinpath(".git").exists():
+        print(f"folder {folder.absolute()} is not a git repository")
+        raise typer.Exit(1)
+
+    remotes = str(run_command("git remote -v"))
+    log.debug(f"remotes = {remotes}")
+
+    matches = regex_git.findall(remotes)
+    if len(matches) > 0:
+        repo_basename = matches[0]
+    else:
+        print(f"folder {folder.absolute()} cannot get repo name")
+        raise typer.Exit(1)
+
+    return repo_basename

@@ -50,3 +50,9 @@ def ps(
             show=True,
             show_cmd=ctx.obj.show_cmd,
         )
+
+
+@bl.command()
+def monitor(ctx: typer.Context):
+    """Monitor the status of iocs on a beamline"""
+    print("Not yet implemented - will be a rich text resizable terminal UI")
