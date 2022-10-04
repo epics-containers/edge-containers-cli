@@ -13,6 +13,7 @@ from .logging import log
 
 K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None)
 K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
+K8S_QUIET = os.environ.get("K8S_QUIET", None)
 
 ERROR = """
 [bold red]Command failed: [/bold red][gray37]{0}[/gray37]
@@ -20,11 +21,15 @@ ERROR = """
 
 
 def run_command(
-    command: str, error_OK=False, show=False, interactive=False
+    command: str,
+    error_OK=False,
+    show=False,
+    show_cmd=False,
+    interactive=False,
 ) -> Optional[str]:
     """Run a command and return the output"""
 
-    if show:
+    if show_cmd:
         print(f"[gray37]{command}[/gray37]")
 
     result = subprocess.run(command.split(), capture_output=not interactive)
@@ -51,7 +56,7 @@ def check_ioc(ioc_name: str, bl: str):
         raise typer.Exit(1)
 
 
-def check_beamline(beamline: Optional[str]) -> Optional[str]:
+def check_beamline(beamline: Optional[str]) -> str:
     if beamline is None:
         beamline = K8S_BEAMLINE
     if beamline is None:

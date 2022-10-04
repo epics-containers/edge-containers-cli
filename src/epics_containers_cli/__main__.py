@@ -6,8 +6,9 @@ from . import __version__
 from .cmd_bl import bl
 from .cmd_dev import dev
 from .cmd_ioc import ioc
+from .context import Context
 from .logging import init_logging
-from .shell import K8S_BEAMLINE, check_beamline
+from .shell import K8S_BEAMLINE, K8S_QUIET, check_beamline
 
 __all__ = ["main"]
 
@@ -46,6 +47,12 @@ def main(
         "--beamline",
         help="Beamline namespace to use",
     ),
+    quiet: bool = typer.Option(
+        False,
+        "-q",
+        "--quiet",
+        help="Suppress printing of commands executed",
+    ),
     log_level: str = typer.Option(
         "WARN", help="log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
     ),
@@ -53,7 +60,10 @@ def main(
     """EPICS Containers assistant CLI"""
     init_logging(log_level)
 
+    beamline = check_beamline(beamline)
+    quiet = quiet or bool(K8S_QUIET)
+
     # create a context dictionary to pass to all sub commands
-    # TODO review this - better to have our own dataclass for context
-    ctx.ensure_object(dict)
-    ctx.obj["beamline"] = check_beamline(beamline)
+    ctx.ensure_object(Context)
+    context = Context(beamline, not quiet)
+    ctx.obj = context

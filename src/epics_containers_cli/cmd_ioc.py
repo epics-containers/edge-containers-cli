@@ -25,7 +25,7 @@ def attach(
 
     log.info("attaching to %s", ioc_name)
     check_kubectl()
-    bl = ctx.obj["beamline"]
+    bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
     run_command(
@@ -47,7 +47,7 @@ def delete(
 
     log.info("deleting %s", ioc_name)
     check_helm(local=True)
-    bl = ctx.obj["beamline"]
+    bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
     if not typer.confirm(
@@ -59,6 +59,7 @@ def delete(
     run_command(
         f"helm delete -n {bl} {ioc_name}",
         show=True,
+        show_cmd=ctx.obj.show_cmd,
     )
 
 
@@ -74,7 +75,7 @@ def deploy_local(
 
     version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
     log.info("deploying %s, to temporary version %s", ioc_path, version)
-    bl = ctx.obj["beamline"]
+    bl = ctx.obj.beamline
     check_helm(local=True)
 
     # verify this is a helm chart and extract the IOC name from it
@@ -96,6 +97,7 @@ def deploy_local(
         run_command(
             f"helm package -u {ioc_path} --version {version} --app-version {version}",
             show=True,
+            show_cmd=ctx.obj.show_cmd,
         )
         run_command(f"helm upgrade --install {ioc_name} *.tgz", show=True)
 
@@ -120,13 +122,14 @@ def deploy(
 
     log.info("deploying %s, version %s", ioc_name, version)
     registry = check_helm(helm_registry)
-    bl = ctx.obj["beamline"]
+    bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
     run_command(
         f"helm upgrade -n {bl} --install {ioc_name} "
         f"oci://{registry}/{ioc_name} --version {version}",
         show=True,
+        show_cmd=ctx.obj.show_cmd,
     )
 
 
@@ -142,13 +145,14 @@ def exec(
 
     log.info("execing bash in %s", ioc_name)
     check_kubectl()
-    bl = ctx.obj["beamline"]
+    bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
     run_command(
         f"kubectl -it -n {bl} exec  deploy/{ioc_name} -- bash",
         show=True,
         interactive=True,
+        show_cmd=ctx.obj.show_cmd,
     )
 
 
@@ -173,4 +177,5 @@ def versions(
         f"podman run --rm quay.io/skopeo/stable "
         f"list-tags docker://{registry}/{ioc_name}",
         show=True,
+        show_cmd=ctx.obj.show_cmd,
     )
