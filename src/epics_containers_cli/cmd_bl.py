@@ -1,7 +1,6 @@
 import typer
 
 from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
-from .logging import log
 from .shell import run_command
 
 bl = typer.Typer()
@@ -11,17 +10,18 @@ bl = typer.Typer()
 def info(ctx: typer.Context):
     """Output information about a beamline's cluster resources"""
 
-    bl = ctx.obj["beamline"]
-    log.info("beamline info for %s", bl)
+    bl = ctx.obj.beamline
 
     print("\nDeployments")
-    print(run_command(f"kubectl get deployment -l beamline={bl} -o {fmt_deploys}"))
+    print(
+        run_command(f"kubectl get -n {bl} deployment -l beamline={bl} -o {fmt_deploys}")
+    )
     print("\nPods")
-    print(run_command(f"kubectl get pod -l beamline={bl} -o {fmt_pods}"))
+    print(run_command(f"kubectl get -n {bl} pod -l beamline={bl} -o {fmt_pods}"))
     print("\nconfigMaps")
-    print(run_command(f"kubectl get configmap -l beamline={bl}"))
-    print("\nPeristent Volume Claims")
-    print(run_command(f"kubectl get pvc -l beamline={bl}"))
+    print(run_command(f"kubectl get -n {bl} configmap -l beamline={bl}"))
+    print("\nPersistent Volume Claims")
+    print(run_command(f"kubectl get -n {bl} pvc -l beamline={bl}"))
 
 
 @bl.command()
@@ -35,21 +35,14 @@ def ps(
     """list the IOCs running on a beamline"""
 
     bl = ctx.obj.beamline
-    log.info("ps for beamline %s", bl)
 
     if all:
         run_command(
-            f"kubectl -n {bl} get deploy -l is_ioc==True -o {fmt_deploys}",
-            show=True,
-            show_cmd=ctx.obj.show_cmd,
+            f"kubectl -n {bl} get deploy -l is_ioc==True -o {fmt_deploys}", show=True
         )
     else:
         format = fmt_pods_wide if wide else fmt_pods
-        run_command(
-            f"kubectl -n {bl} get pod -l is_ioc==True -o {format}",
-            show=True,
-            show_cmd=ctx.obj.show_cmd,
-        )
+        run_command(f"kubectl -n {bl} get pod -l is_ioc==True -o {format}", show=True)
 
 
 @bl.command()
