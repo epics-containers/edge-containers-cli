@@ -4,10 +4,9 @@ from typing import Optional
 
 import typer
 
-from .logging import log
 from .shell import K8S_IMAGE_REGISTRY, check_git, check_image, run_command
 
-dev = typer.Typer()  # for nested sub commands of 'dev'
+dev = typer.Typer()
 
 IMAGE_TAG = "work"
 REPOS_FOLDER = "{folder}/repos"
@@ -99,14 +98,34 @@ def build(
 def debug_build():
     """Launches a container with the most recent image build.
     Useful for debugging failed builds"""
-    log.info("debugging last build")
 
 
 @dev.command()
 def make(
-    target: str = typer.Option(
-        None,
-        help="IOC project folder",
+    folder: Path = typer.Option(Path("."), help="IOC project folder"),
+    image_registry: Optional[str] = typer.Option(
+        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
     ),
 ):
     """make the generic IOC source code inside its container"""
+
+    repo = check_git(folder)
+    image = check_image(repo, image_registry)
+
+    params = ALL_PARAMS.format(folder=folder.absolute())
+
+    prepare(folder, image_registry)
+
+    # TODO this is not working - bash just exits with no error
+    command = (
+        "cd /repos/epics/support && "
+        "python module.py dependencies && "
+        "make && "
+        "cd /repos/epics/ioc && "
+        "make"
+    )
+    run_command(
+        f"podman run --rm -it {params} {image}:{IMAGE_TAG} bash -c {command}",
+        show_cmd=True,
+        interactive=True,
+    )
