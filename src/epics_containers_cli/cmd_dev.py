@@ -34,11 +34,6 @@ def prepare(folder: Path, registry: Optional[str]):
     1st make sure that the container image is present and tagged "work"
     2nd extract the contents of repos to a local folder
     """
-
-    # TODO this belongs in shell.py really
-    if registry is None:
-        print("K8S_IMAGE_REGISTRY is not set")
-
     repo = check_git(folder)
     image = check_image(repo, registry)
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
@@ -77,12 +72,6 @@ def launch(
     ),
 ):
     """Launch a generic IOC container"""
-    log.info(
-        "launching generic IOC in %s with config %s (starting = %s)",
-        folder,
-        config,
-        start,
-    )
 
     repo = check_git(folder)
     image = check_image(repo, image_registry)
@@ -104,7 +93,6 @@ def build(
     folder: Path = typer.Option(Path("."), help="IOC project folder"),
 ):
     """Build a generic IOC container image"""
-    log.info("building %s", folder)
 
 
 @dev.command()

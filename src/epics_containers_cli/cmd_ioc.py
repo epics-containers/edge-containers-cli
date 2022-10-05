@@ -8,7 +8,6 @@ from typing import Optional
 import ruamel.yaml as yaml
 import typer
 
-from .logging import log
 from .shell import (
     K8S_GRAYLOG_URL,
     K8S_HELM_REGISTRY,
@@ -28,7 +27,6 @@ def attach(
 ):
     """Attach to the IOC shell of a live IOC"""
 
-    log.info("attaching to %s", ioc_name)
     check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
@@ -47,7 +45,6 @@ def delete(
 ):
     """Remove an IOC helm deployment from the cluster"""
 
-    log.info("deleting %s", ioc_name)
     check_helm(local=True)
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
@@ -75,7 +72,6 @@ def deploy_local(
     """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
 
     version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
-    log.info("deploying %s, to temporary version %s", ioc_path, version)
     bl = ctx.obj.beamline
     check_helm(local=True)
 
@@ -119,7 +115,6 @@ def deploy(
 ):
     """Pull an IOC helm chart and deploy it to the cluster"""
 
-    log.info("deploying %s, version %s", ioc_name, version)
     registry = check_helm(helm_registry)
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
@@ -139,7 +134,6 @@ def exec(
 ):
     """Execute a bash prompt in a live IOC's container"""
 
-    log.info("execing bash in %s", ioc_name)
     check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
@@ -166,7 +160,6 @@ def graylog(
         print("K8S_GRAYLOG_URL environment not set")
         raise typer.Exit(1)
 
-    log.info("graylog for %s", ioc_name)
     webbrowser.open(
         f"{K8S_GRAYLOG_URL}/search?rangetype=relative&fields=message%2Csource"
         f"&width=1489&highlightMessage=&relative=172800&q=pod_name%3A{ioc_name}*"
@@ -187,8 +180,6 @@ def logs(
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
-    log.info("log for %s", ioc_name)
-
     previous = "-p" if prev else ""
 
     run_command(
@@ -205,7 +196,6 @@ def restart(
 ):
     """Restart an IOC"""
 
-    log.info("restarting %s", ioc_name)
     check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
@@ -225,7 +215,6 @@ def start(
 ):
     """Start an IOC"""
 
-    log.info("starting %s", ioc_name)
     check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
@@ -244,7 +233,6 @@ def stop(
 ):
     """Stop an IOC"""
 
-    log.info("stopping %s", ioc_name)
     check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
@@ -266,7 +254,6 @@ def versions(
 ):
     """List all versions of the IOC available in the helm registry"""
 
-    log.info("getting versions for %s", ioc_name)
     registry = check_helm(helm_registry)
 
     run_command(

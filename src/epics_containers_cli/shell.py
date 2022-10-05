@@ -144,6 +144,7 @@ def check_git(folder: Path = Path(".")) -> str:
         print(f"folder {folder.absolute()} is not a git repository")
         raise typer.Exit(1)
 
+    os.chdir(folder)
     remotes = str(run_command("git remote -v"))
     log.debug(f"remotes = {remotes}")
 
