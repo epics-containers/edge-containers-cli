@@ -6,8 +6,9 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
+import ruamel.yaml as yaml
 import typer
 from rich import print
 
@@ -30,13 +31,19 @@ def run_command(
     show=False,
     show_cmd=False,
     interactive=False,
+    shell=True,
 ) -> Optional[str]:
     """Run a command and return the output"""
 
     if show_cmd:
         print(f"[gray37]{command}[/gray37]")
 
-    result = subprocess.run(command.split(), capture_output=not interactive)
+    if not shell:
+        commands = command.split()
+    else:
+        commands = [command]
+
+    result = subprocess.run(commands, capture_output=not interactive, shell=shell)
 
     if interactive:
         return None
@@ -128,9 +135,6 @@ def check_image(repo_name: str, registry: Optional[str] = None) -> str:
     return image
 
 
-regex_git = re.compile(r"\/(.*)\.git")
-
-
 def check_git(folder: Path = Path(".")) -> str:
     git_cmd = run_command("which git", error_OK=True)
 
@@ -148,7 +152,7 @@ def check_git(folder: Path = Path(".")) -> str:
     remotes = str(run_command("git remote -v"))
     log.debug(f"remotes = {remotes}")
 
-    matches = regex_git.findall(remotes)
+    matches = re.findall(r"\/(.*)\.git", remotes)
     if len(matches) > 0:
         repo_basename = matches[0]
     else:
@@ -156,3 +160,33 @@ def check_git(folder: Path = Path(".")) -> str:
         raise typer.Exit(1)
 
     return repo_basename
+
+
+def check_helm_chart(folder: Path) -> Tuple[str, str, str]:
+    # verify this is a helm chart and extract the IOC name from it
+    with open(folder / "Chart.yaml", "r") as stream:
+        chart = yaml.safe_load(stream)
+
+    bl_chart_loc = ""
+    for dep in chart["dependencies"]:
+        if dep["name"] == "beamline-chart":
+            bl_chart_loc = dep["repository"]
+            break
+
+    if not bl_chart_loc:
+        print("invalid Chart.yaml. Can't find beamline chart dependency")
+        raise typer.Exit(1)
+
+    bl_values_yaml = folder / bl_chart_loc[7:] / "values.yaml"
+
+    with open(bl_values_yaml, "r") as stream:
+        bl_values = yaml.safe_load(stream)
+
+    with open(folder / "values.yaml", "r") as stream:
+        ioc_values = yaml.safe_load(stream)
+
+    namespace = bl_values["exports"]["beamline_defaults"]["namespace"]
+    ioc_name = chart["name"]
+    generic_image = ioc_values["base_image"]
+
+    return namespace, ioc_name, generic_image

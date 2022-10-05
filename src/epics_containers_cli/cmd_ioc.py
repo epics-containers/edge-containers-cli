@@ -5,13 +5,13 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
 
-import ruamel.yaml as yaml
 import typer
 
 from .shell import (
     K8S_GRAYLOG_URL,
     K8S_HELM_REGISTRY,
     check_helm,
+    check_helm_chart,
     check_ioc,
     check_kubectl,
     run_command,
@@ -75,11 +75,7 @@ def deploy_local(
     bl = ctx.obj.beamline
     check_helm(local=True)
 
-    # verify this is a helm chart and extract the IOC name from it
-    with open(ioc_path / "Chart.yaml", "r") as stream:
-        chart = yaml.safe_load(stream)
-
-    ioc_name = chart["name"]
+    bl, ioc_name, _ = check_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
     print(
@@ -98,7 +94,7 @@ def deploy_local(
         )
         package = list(Path(".").glob("*.tgz"))[0]
         run_command(
-            f"helm upgrade --install {ioc_name} {package}",
+            f"helm upgrade -n {bl} --install {ioc_name} {package}",
             show=True,
             show_cmd=ctx.obj.show_cmd,
         )
