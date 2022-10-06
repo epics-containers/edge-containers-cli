@@ -67,14 +67,12 @@ def prepare(folder: Path, registry: Optional[str]):
 
 @dev.command()
 def launch(
-    folder: Path = typer.Argument(
-        Path("."), help="generic IOC container project folder"
-    ),
+    folder: Path = typer.Argument(Path("."), help="container project folder"),
     image_registry: Optional[str] = typer.Option(
         K8S_IMAGE_REGISTRY, help="Image registry to pull from"
     ),
 ):
-    """Launch a bash prompt in a generic IOC container"""
+    """Launch a bash prompt in a container"""
 
     repo = check_git(folder)
     image = check_image(repo, image_registry)
@@ -93,44 +91,80 @@ def launch(
 
 @dev.command()
 def ioc_launch(
-    folder: Path = typer.Argument(..., help="root folder of local helm chart to use"),
-    tag: str = typer.Argument(IMAGE_TAG, help="version of the generic IOC to use"),
+    helm_chart: Path = typer.Argument(..., help="root folder of local ioc helm chart"),
+    folder: Optional[Path] = typer.Argument(
+        None, help="folder for generic IOC project"
+    ),
+    tag: str = typer.Option(IMAGE_TAG, help="version of the generic IOC to use"),
     image_registry: Optional[str] = typer.Option(
         K8S_IMAGE_REGISTRY, help="Image registry to pull from"
     ),
+    debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
-    """Launch an IOC instance using a local helm chart definition"""
+    """Launch an IOC instance using a local helm chart definition.
+    Set folder for a locally editable generic IOC or tag to choose any
+    version from the registry."""
 
-    bl, ioc_name, image = check_helm_chart(folder)
+    if tag == IMAGE_TAG and folder is None:
+        print(
+            "You must specify a version tag for the generic IOC\n"
+            "or a folder with a local clone of the generic IOC project"
+        )
+        raise (typer.Exit(1))
+
+    bl, ioc_name, image = check_helm_chart(helm_chart)
     # switch to the developer target and requested tag for generic IOC image
     image = re.findall(r"[^:]*", image)[0].replace("runtime", "developer")
 
     # make sure there are not 2 copies running
     run_command(f"podman rm -ft0 {ioc_name}", show_cmd=True)
 
-    folder = folder.absolute()
+    helm_chart = helm_chart.absolute()
     config_folder = "/repos/epics/ioc/config"
-    config = f'-v {folder / "config"}:{config_folder}'
+    config = f'-v {helm_chart / "config"}:{config_folder}'
 
-    run_command(
-        f"podman run -it --name {ioc_name} {config} {ALL_PARAMS} {image}:{tag} "
-        f"bash {config_folder}/start.sh",
-        show_cmd=True,
-        interactive=True,
-    )
+    if folder is None:
+        # launch the requested version of the generic IOC only
+        run_command(
+            f"podman run -it --name {ioc_name} {config} {ALL_PARAMS} {image}:{tag} "
+            f"bash {config_folder}/start.sh",
+            show_cmd=True,
+            interactive=True,
+        )
+    else:
+        # launch the local work version of the generic IOC with locally mounted
+        # /repos folder - useful for testing changes to repos folder
+        repos = REPOS.format(folder=folder.absolute())
+        command = (
+            f"bash {config_folder}/start.sh; "
+            f"echo IOC EXITED - hit ctrl D to leave IOC container; "
+            f"bash"
+        )
+        run_command(
+            f"podman run -it --name {ioc_name} {repos} {config} {ALL_PARAMS}"
+            f" {image}:{IMAGE_TAG} bash -c '{command}'",
+            show_cmd=True,
+            interactive=True,
+        )
+
+    # TODO look into debugging
 
 
-@dev.command()
 def build(
-    folder: Path = typer.Option(Path("."), help="IOC project folder"),
+    folder: Path = typer.Option(Path("."), help="Container project folder"),
 ):
-    """Build a generic IOC container image"""
+    """Build a container image"""
 
 
 @dev.command()
 def debug_build():
     """Launches a container with the most recent image build.
     Useful for debugging failed builds"""
+
+
+@dev.command()
+def build():
+    """Build a container locally from a container project."""
 
 
 @dev.command()

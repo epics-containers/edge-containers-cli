@@ -1,13 +1,10 @@
+"""
+Setup logging for the project
+"""
 import logging
 
 log = logging.getLogger("epics-containers-cli")
 handler = logging.StreamHandler()
-
-
-def exception_handler(exception_type, exception, traceback):
-    if log.root.level > logging.DEBUG:
-        log.error("%s: %s", exception_type.__name__, exception)
-    log.debug("", exc_info=True)
 
 
 def init_logging(level: str):

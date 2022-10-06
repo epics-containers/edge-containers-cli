@@ -14,9 +14,9 @@ __all__ = ["main"]
 
 
 cli = typer.Typer()
-cli.add_typer(dev, name="dev", help="Commands for building and debugging IOCs")
-cli.add_typer(ioc, name="ioc", help="Commands managing IOCs in the cluster")
-cli.add_typer(bl, name="bl", help="Commands managing beamlines")
+cli.add_typer(dev, name="dev", help="Commands for building, debugging containers")
+cli.add_typer(ioc, name="ioc", help="Commands for managing IOCs in the cluster")
+cli.add_typer(bl, name="bl", help="Commands for managing beamlines")
 
 
 # test with:
@@ -39,7 +39,7 @@ def main(
         "--version",
         callback=version_callback,
         is_eager=True,
-        help="log the version of ec and exit",
+        help="Log the version of ec and exit",
     ),
     beamline: Optional[str] = typer.Option(
         K8S_BEAMLINE,
@@ -54,11 +54,11 @@ def main(
         help="Suppress printing of commands executed",
     ),
     log_level: str = typer.Option(
-        "WARN", help="log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
+        "WARN", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
     ),
 ):
     """EPICS Containers assistant CLI"""
-    init_logging(log_level)
+    init_logging(log_level.upper())
 
     beamline = check_beamline(beamline)
     quiet = quiet or bool(K8S_QUIET)

@@ -32,7 +32,7 @@ def ps(
     ),
     wide: bool = typer.Option(False, help="use a wide format with additional fields"),
 ):
-    """list the IOCs running on a beamline"""
+    """List the IOCs running on a beamline"""
 
     bl = ctx.obj.beamline
 
@@ -49,3 +49,5 @@ def ps(
 def monitor(ctx: typer.Context):
     """Monitor the status of iocs on a beamline"""
     print("Not yet implemented - will be a rich text resizable terminal UI")
+
+    # TODO
