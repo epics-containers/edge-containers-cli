@@ -16,6 +16,8 @@ dev = typer.Typer()
 
 IMAGE_TAG = "work"
 REPOS_FOLDER = "{folder}/repos"
+IMAGE_TARGETS = ["developer", "runtime"]
+IMAGE_SUFFIX = ["-linux-developer", "-linux-runtime"]
 
 # parameters for container launches
 REPOS = f" -v {REPOS_FOLDER}:/repos "
@@ -150,21 +152,60 @@ def ioc_launch(
     # TODO look into debugging
 
 
-def build(
-    folder: Path = typer.Option(Path("."), help="Container project folder"),
-):
-    """Build a container image"""
-
-
 @dev.command()
-def debug_build():
+def build_debug_last(
+    folder: Path = typer.Argument(Path("."), help="Container project folder"),
+    mount_repos: bool = typer.Option(
+        True, help="Mount the repos folder into the container"
+    ),
+    image_registry: Optional[str] = typer.Option(
+        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
+    ),
+):
     """Launches a container with the most recent image build.
     Useful for debugging failed builds"""
+    last_image = run_command("podman images | awk '{print $3}' | awk 'NR==2'")
+
+    params = ALL_PARAMS
+    if mount_repos:
+        # rsync the state of the container's repos folder to the local folder
+        repos = (folder / "repos-build").absolute()
+        repos.mkdir(exist_ok=True)
+        run_command(
+            f"podman run --rm {OPTS} -v {repos}:/copy {last_image} "
+            "rsync -a /repos/ /copy",
+            interactive=True,
+            show_cmd=True,
+        )
+
+        params += f" -v{repos}:/repos "
+
+    run_command(
+        f"podman run --rm -it --name debug_build  {params} {last_image}",
+        show_cmd=True,
+        interactive=True,
+    )
 
 
 @dev.command()
-def build():
+def build(
+    folder: Path = typer.Option(Path("."), help="Container project folder"),
+    image_registry: Optional[str] = typer.Option(
+        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
+    ),
+):
     """Build a container locally from a container project."""
+    repo = check_git(folder)
+
+    prepare(folder, image_registry)
+
+    for target, suffix in zip(IMAGE_TARGETS, IMAGE_SUFFIX):
+        image_name = f"{repo}{suffix}:{IMAGE_TAG}"
+        run_command(
+            f"podman build --target {target} -t {image_name} {folder}",
+            show_cmd=True,
+            interactive=True,
+        )
 
 
 @dev.command()

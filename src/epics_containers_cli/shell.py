@@ -46,6 +46,8 @@ def run_command(
     result = subprocess.run(commands, capture_output=not interactive, shell=shell)
 
     if interactive:
+        if result.returncode != 0 and not error_OK:
+            raise typer.Exit(1)
         return None
     else:
         if result.returncode == 0:
