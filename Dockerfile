@@ -7,7 +7,8 @@ FROM python:3.10 as build
 
 # Add any system dependencies for the developer/build environment here
 RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends \    
+    autossh \
     build-essential \
     busybox \
     git \
