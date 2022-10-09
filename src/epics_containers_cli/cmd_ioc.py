@@ -7,7 +7,13 @@ from tempfile import TemporaryDirectory
 import typer
 
 from .context import Context
-from .shell import K8S_GRAYLOG_URL, check_ioc, get_helm_chart, run_command
+from .shell import (
+    K8S_GRAYLOG_URL,
+    check_beamline,
+    check_ioc,
+    get_helm_chart,
+    run_command,
+)
 
 ioc = typer.Typer()
 
@@ -18,13 +24,15 @@ def attach(
     ioc_name: str = typer.Argument(..., help="Name of the IOC to attach to"),
 ):
     """Attach to the IOC shell of a live IOC"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
     check_ioc(ioc_name, bl)
 
     run_command(
         f"kubectl -it -n {bl} attach  deploy/{ioc_name}",
-        show=True,
+        show_cmd=c.show_cmd,
         interactive=True,
     )
 
@@ -35,8 +43,10 @@ def delete(
     ioc_name: str = typer.Argument(..., help="Name of the IOC to delete"),
 ):
     """Remove an IOC helm deployment from the cluster"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
     check_ioc(ioc_name, bl)
 
     if not typer.confirm(
@@ -48,7 +58,7 @@ def delete(
     run_command(
         f"helm delete -n {bl} {ioc_name}",
         show=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )
 
 
@@ -60,9 +70,11 @@ def deploy_local(
     ),
 ):
     """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
+    c: Context = ctx.obj
 
     version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
 
     bl, ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
@@ -79,13 +91,13 @@ def deploy_local(
         run_command(
             f"helm package -u {ioc_path} --version {version} --app-version {version}",
             show=True,
-            show_cmd=ctx.obj.show_cmd,
+            show_cmd=c.show_cmd,
         )
         package = list(Path(".").glob("*.tgz"))[0]
         run_command(
             f"helm upgrade -n {bl} --install {ioc_name} {package}",
             show=True,
-            show_cmd=ctx.obj.show_cmd,
+            show_cmd=c.show_cmd,
         )
 
 
@@ -96,15 +108,16 @@ def deploy(
     version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
 ):
     """Pull an IOC helm chart and deploy it to the cluster"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
-    check_ioc(ioc_name, bl)
+    bl = c.beamline
+    check_beamline(bl)
 
     run_command(
         f"helm upgrade -n {bl} --install {ioc_name} "
         f"oci://{ctx.obj.helm_registry}/{ioc_name} --version {version}",
         show=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )
 
 
@@ -114,21 +127,22 @@ def exec(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to run in"),
 ):
     """Execute a bash prompt in a live IOC's container"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
     check_ioc(ioc_name, bl)
 
     run_command(
         f"kubectl -it -n {bl} exec  deploy/{ioc_name} -- bash",
         show=True,
         interactive=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )
 
 
 @ioc.command()
 def graylog(
-    ctx: typer.Context,
     ioc_name: str = typer.Argument(
         ...,
         help="Name of the IOC to inspect",
@@ -155,8 +169,10 @@ def logs(
     ),
 ):
     """Show logs for current and previous instances of an IOC"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
     check_ioc(ioc_name, bl)
 
     previous = "-p" if prev else ""
@@ -164,7 +180,7 @@ def logs(
     run_command(
         f"kubectl -n {bl} logs deploy/{ioc_name} {previous}",
         show=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )
 
 
@@ -174,15 +190,17 @@ def restart(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to restart"),
 ):
     """Restart an IOC"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
     check_ioc(ioc_name, bl)
 
-    podname = run_command(f"kubectl get -n {bl} pod -l app={ioc_name} -o name")
+    pod_name = run_command(f"kubectl get -n {bl} pod -l app={ioc_name} -o name")
     run_command(
-        f"kubectl delete -n {bl} {podname}",
+        f"kubectl delete -n {bl} {pod_name}",
         show=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )
 
 
@@ -192,14 +210,16 @@ def start(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to start"),
 ):
     """Start an IOC"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
     check_ioc(ioc_name, bl)
 
     run_command(
         f"kubectl scale -n {bl} deploy --replicas=1 {ioc_name}",
         show=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )
 
 
@@ -209,14 +229,16 @@ def stop(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to stop"),
 ):
     """Stop an IOC"""
+    c: Context = ctx.obj
 
-    bl = ctx.obj.beamline
+    bl = c.beamline
+    check_beamline(bl)
     check_ioc(ioc_name, bl)
 
     run_command(
         f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}",
         show=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )
 
 
@@ -232,5 +254,5 @@ def versions(
         f"podman run --rm quay.io/skopeo/stable "
         f"list-tags docker://{c.helm_registry}/{ioc_name}",
         show=True,
-        show_cmd=ctx.obj.show_cmd,
+        show_cmd=c.show_cmd,
     )

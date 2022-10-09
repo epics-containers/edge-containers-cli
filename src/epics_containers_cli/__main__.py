@@ -72,8 +72,6 @@ def main(
     """EPICS Containers assistant CLI"""
     init_logging(log_level.upper())
 
-    quiet = quiet or bool(K8S_QUIET)
-
     if beamline is None:
         print("Please set K8S_BEAMLINE or pass --beamline")
         raise typer.Exit(1)

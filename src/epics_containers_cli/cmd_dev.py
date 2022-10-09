@@ -33,7 +33,7 @@ VOLUMES = (
 ALL_PARAMS = f"{ENVIRON} {VOLUMES} {OPTS}"
 
 
-def prepare(folder: Path, registry: Optional[str]):
+def prepare(folder: Path, registry: str):
     """
     Prepare a generic IOC project folder for launching
 
@@ -76,7 +76,7 @@ def launch(
     c: Context = ctx.obj
 
     repo = get_git_name(folder)
-    image = get_image_name(repo, ctx.obj.image_registry)
+    image = get_image_name(repo, c.image_registry)
 
     params = ALL_PARAMS + REPOS.format(folder=folder.absolute())
 
@@ -92,6 +92,7 @@ def launch(
 
 @dev.command()
 def ioc_launch(
+    ctx: typer.Context,
     helm_chart: Path = typer.Argument(..., help="root folder of local ioc helm chart"),
     folder: Optional[Path] = typer.Argument(
         None, help="folder for generic IOC project"
@@ -102,6 +103,7 @@ def ioc_launch(
     """Launch an IOC instance using a local helm chart definition.
     Set folder for a locally editable generic IOC or tag to choose any
     version from the registry."""
+    c: Context = ctx.obj
 
     if tag == IMAGE_TAG and folder is None:
         print(
@@ -133,6 +135,9 @@ def ioc_launch(
         # launch the local work version of the generic IOC with locally mounted
         # /repos folder - useful for testing changes to repos folder
         repos = REPOS.format(folder=folder.absolute())
+
+        prepare(folder, c.image_registry)
+
         command = (
             f"bash {config_folder}/start.sh; "
             f"echo IOC EXITED - hit ctrl D to leave IOC container; "
