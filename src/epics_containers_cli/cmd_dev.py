@@ -28,7 +28,6 @@ VOLUMES = (
     " -v=/home/$USER:/home/$USER"
     " -v=/home/$USER/.bashrc_dev:/root/.bashrc"
     " -v=/home/$USER/.inputrc:/root/.inputrc"
-    " -v=/scratch:/scratch"
 )
 ALL_PARAMS = f"{ENVIRON} {VOLUMES} {OPTS}"
 
