@@ -187,15 +187,14 @@ def build_debug_last(
 
 @dev.command()
 def build(
+    ctx: typer.Context,
     folder: Path = typer.Option(Path("."), help="Container project folder"),
-    image_registry: Optional[str] = typer.Option(
-        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
-    ),
 ):
     """Build a container locally from a container project."""
     repo = get_git_name(folder)
+    c: Context = ctx.obj
 
-    prepare(folder, image_registry)
+    prepare(folder, c.image_registry)
 
     for target, suffix in zip(IMAGE_TARGETS, IMAGE_SUFFIX):
         image_name = f"{repo}{suffix}:{IMAGE_TAG}"
@@ -224,7 +223,7 @@ def make(
 
     command = (
         "cd /repos/epics/support && "
-        "python module.py dependencies && "
+        "python modules.py dependencies && "
         "make && "
         "cd /repos/epics/ioc && "
         "make; "
