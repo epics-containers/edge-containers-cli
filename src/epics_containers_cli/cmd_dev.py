@@ -4,11 +4,12 @@ from typing import Optional
 
 import typer
 
+from .context import Context
 from .shell import (
     K8S_IMAGE_REGISTRY,
-    check_git,
-    check_helm_chart,
-    check_image,
+    get_git_name,
+    get_helm_chart,
+    get_image_name,
     run_command,
 )
 
@@ -39,8 +40,8 @@ def prepare(folder: Path, registry: Optional[str]):
     1st make sure that the container image is present and tagged "work"
     2nd extract the contents of repos to a local folder
     """
-    repo = check_git(folder)
-    image = check_image(repo, registry)
+    repo = get_git_name(folder)
+    image = get_image_name(repo, registry)
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
     # make sure the image with tag "work" is present
@@ -68,23 +69,22 @@ def prepare(folder: Path, registry: Optional[str]):
 
 @dev.command()
 def launch(
+    ctx: typer.Context,
     folder: Path = typer.Argument(Path("."), help="container project folder"),
-    image_registry: Optional[str] = typer.Option(
-        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
-    ),
 ):
     """Launch a bash prompt in a container"""
+    c: Context = ctx.obj
 
-    repo = check_git(folder)
-    image = check_image(repo, image_registry)
+    repo = get_git_name(folder)
+    image = get_image_name(repo, ctx.obj.image_registry)
 
     params = ALL_PARAMS + REPOS.format(folder=folder.absolute())
 
-    prepare(folder, image_registry)
+    prepare(folder, c.image_registry)
 
-    run_command(f"podman rm -ft0 {repo}", show_cmd=True)
+    run_command(f"podman rm -f {repo}", show_cmd=True)
     run_command(
-        f"podman run -it --name {repo} {params} {image}:{IMAGE_TAG} bash",
+        f"podman run --rm -it --name {repo} {params} {image}:{IMAGE_TAG} bash",
         show_cmd=True,
         interactive=True,
     )
@@ -97,9 +97,6 @@ def ioc_launch(
         None, help="folder for generic IOC project"
     ),
     tag: str = typer.Option(IMAGE_TAG, help="version of the generic IOC to use"),
-    image_registry: Optional[str] = typer.Option(
-        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
-    ),
     debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
     """Launch an IOC instance using a local helm chart definition.
@@ -113,12 +110,12 @@ def ioc_launch(
         )
         raise (typer.Exit(1))
 
-    bl, ioc_name, image = check_helm_chart(helm_chart)
+    bl, ioc_name, image = get_helm_chart(helm_chart)
     # switch to the developer target and requested tag for generic IOC image
     image = re.findall(r"[^:]*", image)[0].replace("runtime", "developer")
 
     # make sure there are not 2 copies running
-    run_command(f"podman rm -ft0 {ioc_name}", show_cmd=True)
+    run_command(f"podman rm -f {ioc_name}", show_cmd=True)
 
     helm_chart = helm_chart.absolute()
     config_folder = "/repos/epics/ioc/config"
@@ -127,8 +124,8 @@ def ioc_launch(
     if folder is None:
         # launch the requested version of the generic IOC only
         run_command(
-            f"podman run -it --name {ioc_name} {config} {ALL_PARAMS} {image}:{tag} "
-            f"bash {config_folder}/start.sh",
+            f"podman run --rm -it --name {ioc_name} {config} {ALL_PARAMS}"
+            f" {image}:{tag} bash {config_folder}/start.sh",
             show_cmd=True,
             interactive=True,
         )
@@ -156,9 +153,6 @@ def build_debug_last(
     folder: Path = typer.Argument(Path("."), help="Container project folder"),
     mount_repos: bool = typer.Option(
         True, help="Mount the repos folder into the container"
-    ),
-    image_registry: Optional[str] = typer.Option(
-        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
     ),
 ):
     """Launches a container with the most recent image build.
@@ -194,7 +188,7 @@ def build(
     ),
 ):
     """Build a container locally from a container project."""
-    repo = check_git(folder)
+    repo = get_git_name(folder)
 
     prepare(folder, image_registry)
 
@@ -209,20 +203,19 @@ def build(
 
 @dev.command()
 def make(
+    ctx: typer.Context,
     folder: Path = typer.Option(Path("."), help="IOC project folder"),
-    image_registry: Optional[str] = typer.Option(
-        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
-    ),
 ):
     """make the generic IOC source code inside its container"""
+    c: Context = ctx.obj
 
-    repo = check_git(folder)
-    image = check_image(repo, image_registry)
+    repo = get_git_name(folder)
+    image = get_image_name(repo, c.image_registry)
 
     params = ALL_PARAMS + REPOS.format(folder=folder.absolute())
     container_name = f"build-{repo}"
 
-    prepare(folder, image_registry)
+    prepare(folder, c.image_registry)
 
     command = (
         "cd /repos/epics/support && "
@@ -235,7 +228,7 @@ def make(
     )
 
     # make sure we dont run > 1 build at a time
-    run_command(f"podman rm -ft0 {container_name}")
+    run_command(f"podman rm -f {container_name}")
 
     run_command(
         f"podman run --rm --name {container_name} -it {params} "

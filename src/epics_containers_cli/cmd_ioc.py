@@ -3,19 +3,11 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional
 
 import typer
 
-from .shell import (
-    K8S_GRAYLOG_URL,
-    K8S_HELM_REGISTRY,
-    check_helm,
-    check_helm_chart,
-    check_ioc,
-    check_kubectl,
-    run_command,
-)
+from .context import Context
+from .shell import K8S_GRAYLOG_URL, check_ioc, get_helm_chart, run_command
 
 ioc = typer.Typer()
 
@@ -27,7 +19,6 @@ def attach(
 ):
     """Attach to the IOC shell of a live IOC"""
 
-    check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
@@ -45,7 +36,6 @@ def delete(
 ):
     """Remove an IOC helm deployment from the cluster"""
 
-    check_helm(local=True)
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
@@ -73,9 +63,8 @@ def deploy_local(
 
     version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
     bl = ctx.obj.beamline
-    check_helm(local=True)
 
-    bl, ioc_name, _ = check_helm_chart(ioc_path)
+    bl, ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
     print(
@@ -105,19 +94,15 @@ def deploy(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
     version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
-    helm_registry: Optional[str] = typer.Option(
-        K8S_HELM_REGISTRY, help="Helm registry to pull from"
-    ),
 ):
     """Pull an IOC helm chart and deploy it to the cluster"""
 
-    registry = check_helm(helm_registry)
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
     run_command(
         f"helm upgrade -n {bl} --install {ioc_name} "
-        f"oci://{registry}/{ioc_name} --version {version}",
+        f"oci://{ctx.obj.helm_registry}/{ioc_name} --version {version}",
         show=True,
         show_cmd=ctx.obj.show_cmd,
     )
@@ -130,7 +115,6 @@ def exec(
 ):
     """Execute a bash prompt in a live IOC's container"""
 
-    check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
@@ -172,7 +156,6 @@ def logs(
 ):
     """Show logs for current and previous instances of an IOC"""
 
-    check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
@@ -192,7 +175,6 @@ def restart(
 ):
     """Restart an IOC"""
 
-    check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
@@ -211,7 +193,6 @@ def start(
 ):
     """Start an IOC"""
 
-    check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
@@ -229,7 +210,6 @@ def stop(
 ):
     """Stop an IOC"""
 
-    check_kubectl()
     bl = ctx.obj.beamline
     check_ioc(ioc_name, bl)
 
@@ -244,17 +224,13 @@ def stop(
 def versions(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
-    helm_registry: Optional[str] = typer.Option(
-        K8S_HELM_REGISTRY, help="Helm registry to pull from"
-    ),
 ):
     """List all versions of the IOC available in the helm registry"""
-
-    registry = check_helm(helm_registry)
+    c: Context = ctx.obj
 
     run_command(
         f"podman run --rm quay.io/skopeo/stable "
-        f"list-tags docker://{registry}/{ioc_name}",
+        f"list-tags docker://{c.helm_registry}/{ioc_name}",
         show=True,
         show_cmd=ctx.obj.show_cmd,
     )

@@ -69,83 +69,21 @@ def check_ioc(ioc_name: str, bl: str):
         raise typer.Exit(1)
 
 
-def check_beamline(beamline: Optional[str]) -> str:
-    if beamline is None:
-        beamline = K8S_BEAMLINE
-    if beamline is None:
-        print("Please set K8S_BEAMLINE or pass --beamline")
-        raise typer.Exit(1)
-
+def check_beamline(beamline: str):
     if not run_command(f"kubectl get namespace {beamline} -o name", error_OK=True):
         print(f"beamline {beamline} does not exist")
         raise typer.Exit(1)
 
     log.info("beamline = %s", beamline)
-    return beamline
 
 
-def check_docker():
-    docker_cmd = run_command("which podman", error_OK=True)
-    if docker_cmd is None:
-        docker_cmd = run_command("which docker", error_OK=True)
-
-    if docker_cmd is None:
-        print("This command requires docker or podman, neither were found")
-        raise typer.Exit(1)
-
-    log.info("docker command = %s", docker_cmd)
-
-
-def check_kubectl():
-    kube_cmd = run_command("which kubectl", error_OK=True)
-
-    if kube_cmd is None:
-        print("This command requires kubectl, kubectl not found")
-        raise typer.Exit(1)
-
-    log.info("kubectl command = %s", kube_cmd)
-
-
-def check_helm(registry: Optional[str] = None, local=False):
-    helm_cmd = run_command("which helm", error_OK=True)
-
-    if helm_cmd is None:
-        print("This command requires helm, helm not found")
-        raise typer.Exit(1)
-
-    if not local:
-        if registry is None:
-            registry = K8S_HELM_REGISTRY
-        if registry is None:
-            print("Please set K8S_HELM_REGISTRY or pass --helm-registry")
-            raise typer.Exit(1)
-
-    log.info("helm command = %s", helm_cmd)
-    log.info("helm registry = %s", registry)
-    return registry
-
-
-def check_image(repo_name: str, registry: Optional[str] = None) -> str:
-    if registry is None:
-        registry = K8S_HELM_REGISTRY
-    if registry is None:
-        print("Please set K8S_image_REGISTRY or pass --image-registry")
-        raise typer.Exit(1)
-
+def get_image_name(repo_name: str, registry) -> str:
     image = f"{registry}/{repo_name}-linux-developer"
     log.info("image  = %s", image)
     return image
 
 
-def check_git(folder: Path = Path(".")) -> str:
-    git_cmd = run_command("which git", error_OK=True)
-
-    if git_cmd is None:
-        print("This command requires git, git not found")
-        raise typer.Exit(1)
-
-    log.info("git command = %s", git_cmd)
-
+def get_git_name(folder: Path = Path(".")) -> str:
     if not folder.joinpath(".git").exists():
         print(f"folder {folder.absolute()} is not a git repository")
         raise typer.Exit(1)
@@ -164,7 +102,7 @@ def check_git(folder: Path = Path(".")) -> str:
     return repo_basename
 
 
-def check_helm_chart(folder: Path) -> Tuple[str, str, str]:
+def get_helm_chart(folder: Path) -> Tuple[str, str, str]:
     # verify this is a helm chart and extract the IOC name from it
     with open(folder / "Chart.yaml", "r") as stream:
         chart = yaml.safe_load(stream)
