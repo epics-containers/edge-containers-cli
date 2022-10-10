@@ -17,7 +17,7 @@ IMAGE_SUFFIX = ["-linux-developer", "-linux-runtime"]
 # parameters for container launches
 REPOS = f" -v {REPOS_FOLDER}:/repos "
 ENVIRON = "-e DISPLAY -e USER -e SHELL"
-OPTS = "--security-opt=label=type:container_runtime_t"
+OPTS = "--security-opt=label=type:container_runtime_t --net=podman"
 VOLUMES = (
     " -v=/tmp:/tmp"
     " -v=/home/$USER:/home/$USER"
