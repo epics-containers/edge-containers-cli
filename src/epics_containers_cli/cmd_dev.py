@@ -5,13 +5,7 @@ from typing import Optional
 import typer
 
 from .context import Context
-from .shell import (
-    K8S_IMAGE_REGISTRY,
-    get_git_name,
-    get_helm_chart,
-    get_image_name,
-    run_command,
-)
+from .shell import get_git_name, get_helm_chart, get_image_name, run_command
 
 dev = typer.Typer()
 

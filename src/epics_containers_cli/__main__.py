@@ -8,13 +8,7 @@ from .cmd_dev import dev
 from .cmd_ioc import ioc
 from .context import Context
 from .logging import init_logging
-from .shell import (
-    K8S_BEAMLINE,
-    K8S_HELM_REGISTRY,
-    K8S_IMAGE_REGISTRY,
-    K8S_QUIET,
-    check_beamline,
-)
+from .shell import K8S_BEAMLINE, K8S_HELM_REGISTRY, K8S_IMAGE_REGISTRY
 
 __all__ = ["main"]
 
