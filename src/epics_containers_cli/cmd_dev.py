@@ -23,6 +23,7 @@ VOLUMES = (
     " -v=/home/$USER:/home/$USER"
     " -v=/home/$USER/.bashrc_dev:/root/.bashrc"
     " -v=/home/$USER/.inputrc:/root/.inputrc"
+    " -v=/home/$USER/.bash_history:/root/.bash_history"
 )
 ALL_PARAMS = f"{ENVIRON} {VOLUMES} {OPTS}"
 
@@ -42,7 +43,8 @@ def prepare(folder: Path, registry: str):
     if run_command("podman images -q {image}:{IMAGE_TAG}", error_OK=True):
         print(f"Image {image}:{IMAGE_TAG} not found, pulling ...")
 
-        run_command(f"podman pull {image}:main", interactive=True, show_cmd=True)
+        if run_command(f"podman pull {image}:main", interactive=True, show_cmd=True):
+            raise RuntimeError(f"No container image found for {image}")
         run_command(
             f"podman tag {image}:main {image}:{IMAGE_TAG}",
             interactive=True,
@@ -50,15 +52,14 @@ def prepare(folder: Path, registry: str):
         )
 
     # rsync the repos folder to the local folder
-    if not repos.exists():
-        print(f"syncing container folder /repos to host folder {repos}")
-        repos.mkdir(parents=True)
-        run_command(
-            f"podman run --rm {OPTS} -v {repos}:/copy {image}:{IMAGE_TAG} "
-            f"rsync -a /repos/ /copy",
-            interactive=True,
-            show_cmd=True,
-        )
+    repos.mkdir(parents=True, exist_ok=True)
+    run_command(
+        f"podman run --rm {OPTS} -v {repos}:/copy {image}:{IMAGE_TAG} "
+        # this command refreshes repos but does not overwrite local changes
+        f"rsync -au /repos/ /copy",
+        interactive=True,
+        show_cmd=True,
+    )
 
 
 @dev.command()
