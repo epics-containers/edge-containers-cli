@@ -186,10 +186,11 @@ def build(
     folder: Path = typer.Option(Path("."), help="Container project folder"),
 ):
     """Build a container locally from a container project."""
+    c: Context = ctx.obj
     repo = get_git_name(folder)
 
     for target, suffix in zip(IMAGE_TARGETS, IMAGE_SUFFIX):
-        image_name = f"{repo}{suffix}:{IMAGE_TAG}"
+        image_name = f"{c.image_registry}/{repo}{suffix}:{IMAGE_TAG}"
         run_command(
             f"podman build --target {target} -t {image_name} {folder}",
             show_cmd=True,
