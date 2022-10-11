@@ -186,9 +186,6 @@ def build(
 ):
     """Build a container locally from a container project."""
     repo = get_git_name(folder)
-    c: Context = ctx.obj
-
-    prepare(folder, c.image_registry)
 
     for target, suffix in zip(IMAGE_TARGETS, IMAGE_SUFFIX):
         image_name = f"{repo}{suffix}:{IMAGE_TAG}"
