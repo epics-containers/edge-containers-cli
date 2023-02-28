@@ -14,11 +14,28 @@ from rich import print
 
 from .logging import log
 
-K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None)
+
+def beamline_str() -> Optional[str]:
+    """convert BEAMLINE of the form i16 to a K8S_BEAMLINE form bl16i"""
+
+    parts = re.compile(r"([a-z])(\d\d)")
+
+    if BEAMLINE:
+        match = parts.match(BEAMLINE)
+        if match:
+            return f"bl{match.group(2).zfill(2)}{match.group(1).lower()}"
+
+    return None
+
+
+BEAMLINE = os.environ.get("BEAMLINE", None)
 K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
 K8S_IMAGE_REGISTRY = os.environ.get("K8S_IMAGE_REGISTRY", None)
 K8S_GRAYLOG_URL = os.environ.get("K8S_GRAYLOG_URL", None)
 K8S_QUIET = os.environ.get("K8S_QUIET", None)
+K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None) or beamline_str()
+if os.environ.get("K8S_HELM_REGISTRY_ADD_BEAMLINE", False) is not False:
+    K8S_HELM_REGISTRY = f"{K8S_HELM_REGISTRY}/{K8S_BEAMLINE}"
 
 ERROR = """
 [bold red]Command failed: [/bold red][gray37]{0}[/gray37]
