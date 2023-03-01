@@ -19,12 +19,6 @@ cli.add_typer(ioc, name="ioc", help="Commands for managing IOCs in the cluster")
 cli.add_typer(bl, name="bl", help="Commands for managing beamlines")
 
 
-# test with:
-#     python -m epics_containers_cli
-if __name__ == "__main__":
-    cli()
-
-
 def version_callback(value: bool):
     if value:
         typer.echo(__version__)
@@ -80,3 +74,9 @@ def main(
     ctx.ensure_object(Context)
     context = Context(beamline, helm_registry, image_registry, not quiet)
     ctx.obj = context
+
+
+# test with:
+#     python -m epics_containers_cli
+if __name__ == "__main__":
+    cli()

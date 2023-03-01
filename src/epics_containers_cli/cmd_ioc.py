@@ -7,13 +7,7 @@ from tempfile import TemporaryDirectory
 import typer
 
 from .context import Context
-from .shell import (
-    K8S_GRAYLOG_URL,
-    check_beamline,
-    check_ioc,
-    get_helm_chart,
-    run_command,
-)
+from .shell import K8S_LOG_URL, check_beamline, check_ioc, get_helm_chart, run_command
 
 ioc = typer.Typer()
 
@@ -142,22 +136,20 @@ def exec(
 
 
 @ioc.command()
-def graylog(
+def log_history(
     ioc_name: str = typer.Argument(
         ...,
         help="Name of the IOC to inspect",
     ),
 ):
-    """Open graylog historical logs for an IOC"""
+    """Open historical logs for an IOC"""
 
-    if K8S_GRAYLOG_URL is None:
-        print("K8S_GRAYLOG_URL environment not set")
+    if K8S_LOG_URL is None:
+        print("K8S_LOG_URL environment not set")
         raise typer.Exit(1)
 
-    webbrowser.open(
-        f"{K8S_GRAYLOG_URL}/search?rangetype=relative&fields=message%2Csource"
-        f"&width=1489&highlightMessage=&relative=172800&q=pod_name%3A{ioc_name}*"
-    )
+    url = K8S_LOG_URL.format(ioc_name=ioc_name)
+    webbrowser.open(url)
 
 
 @ioc.command()

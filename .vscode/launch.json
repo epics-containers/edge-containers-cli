@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "ec dev build ",
+            "type": "python",
+            "request": "launch",
+            "module": "epics_containers_cli",
+            "justMyCode": false,
+            "args": [
+                "dev",
+                "build"
+            ],
+            "cwd": "/scratch/hgv27681/work/ioc-pmac"
+        },
+        {
             "name": "Debug Unit Test",
             "type": "python",
             "request": "launch",

@@ -40,16 +40,16 @@ def prepare(folder: Path, registry: str):
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
     # make sure the image with tag "work" is present
-    if run_command("podman images -q {image}:{IMAGE_TAG}", error_OK=True):
-        print(f"Image {image}:{IMAGE_TAG} not found, pulling ...")
-
-        if run_command(f"podman pull {image}:main", interactive=True, show_cmd=True):
-            raise RuntimeError(f"No container image found for {image}")
-        run_command(
-            f"podman tag {image}:main {image}:{IMAGE_TAG}",
-            interactive=True,
-            show_cmd=True,
+    # TODO THIS IS BROKEN AND DOES NOT exit if the image is not present
+    if run_command("podman images -q {image}:{IMAGE_TAG}", error_OK=True) is None:
+        print(
+            f"""
+image {image}:{IMAGE_TAG} is not present.
+Please run "epics-containers-cli dev build" first.
+Or pull the latest built image from the registry and tag it as "work".
+"""
         )
+        exit(1)
 
     # rsync the repos folder to the local folder
     repos.mkdir(parents=True, exist_ok=True)
@@ -149,7 +149,7 @@ def ioc_launch(
 
 
 @dev.command()
-def build_debug_last(
+def debug_last(
     folder: Path = typer.Argument(Path("."), help="Container project folder"),
     mount_repos: bool = typer.Option(
         True, help="Mount the repos folder into the container"
@@ -187,6 +187,9 @@ def build(
 ):
     """Build a container locally from a container project."""
     c: Context = ctx.obj
+
+    prepare(folder, c.image_registry)
+
     repo = get_git_name(folder)
 
     for target, suffix in zip(IMAGE_TARGETS, IMAGE_SUFFIX):

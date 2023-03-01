@@ -31,7 +31,7 @@ def beamline_str() -> Optional[str]:
 BEAMLINE = os.environ.get("BEAMLINE", None)
 K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
 K8S_IMAGE_REGISTRY = os.environ.get("K8S_IMAGE_REGISTRY", None)
-K8S_GRAYLOG_URL = os.environ.get("K8S_GRAYLOG_URL", None)
+K8S_LOG_URL = os.environ.get("K8S_LOG_URL", None)
 K8S_QUIET = os.environ.get("K8S_QUIET", None)
 K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None) or beamline_str()
 if os.environ.get("K8S_HELM_REGISTRY_ADD_BEAMLINE", False) is not False:
