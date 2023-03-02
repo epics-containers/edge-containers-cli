@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Context:
-    beamline: str = ""
+    domain: str = ""
     helm_registry: str = ""
     image_registry: str = ""
     show_cmd: bool = False

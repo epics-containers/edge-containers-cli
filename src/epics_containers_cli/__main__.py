@@ -8,14 +8,22 @@ from .cmd_ioc import ioc
 from .context import Context
 from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
-from .shell import K8S_BEAMLINE, K8S_HELM_REGISTRY, K8S_IMAGE_REGISTRY, run_command
+from .shell import K8S_DOMAIN, K8S_HELM_REGISTRY, K8S_IMAGE_REGISTRY, run_command
 
 __all__ = ["main"]
 
 
 cli = typer.Typer()
-cli.add_typer(dev, name="dev", help="Commands for building, debugging containers")
-cli.add_typer(ioc, name="ioc", help="Commands for managing IOCs in the cluster")
+cli.add_typer(
+    dev,
+    name="dev",
+    help="Commands for building, debugging containers. See 'ec dev --help'",
+)
+cli.add_typer(
+    ioc,
+    name="ioc",
+    help="Commands for managing IOCs in the cluster. See 'ec ioc --help'",
+)
 
 
 def version_callback(value: bool):
@@ -34,11 +42,11 @@ def main(
         is_eager=True,
         help="Log the version of ec and exit",
     ),
-    beamline: str = typer.Option(
-        K8S_BEAMLINE,
-        "-b",
-        "--beamline",
-        help="Beamline namespace to use",
+    domain: str = typer.Option(
+        K8S_DOMAIN,
+        "-d",
+        "--domain",
+        help="Domain namespace to use",
     ),
     image_registry: str = typer.Option(
         K8S_IMAGE_REGISTRY, help="Image registry to pull from"
@@ -59,8 +67,8 @@ def main(
     """EPICS Containers assistant CLI"""
     init_logging(log_level.upper())
 
-    if beamline is None:
-        print("Please set K8S_BEAMLINE or pass --beamline")
+    if domain is None:
+        print("Please set K8S_DOMAIN or pass --domain")
         raise typer.Exit(1)
     if helm_registry is None:
         print("Please set K8S_HELM_REGISTRY or pass --helm-registry")
@@ -71,7 +79,7 @@ def main(
 
     # create a context dictionary to pass to all sub commands
     ctx.ensure_object(Context)
-    context = Context(beamline, helm_registry, image_registry, not quiet)
+    context = Context(domain, helm_registry, image_registry, not quiet)
     ctx.obj = context
 
 
@@ -81,11 +89,13 @@ def ps(
     all: bool = typer.Option(
         False, "-a", "--all", help="list stopped IOCs as well as running IOCs"
     ),
-    wide: bool = typer.Option(False, help="use a wide format with additional fields"),
+    wide: bool = typer.Option(
+        False, "--wide", "-w", help="use a wide format with additional fields"
+    ),
 ):
     """List the IOCs running in the current domain"""
 
-    bl = ctx.obj.beamline
+    bl = ctx.obj.domain
 
     if all:
         run_command(
@@ -100,7 +110,7 @@ def ps(
 def resources(ctx: typer.Context):
     """Output information about a domain's cluster resources"""
 
-    bl = ctx.obj.beamline
+    bl = ctx.obj.domain
 
     print("\nDeployments")
     print(
@@ -116,7 +126,7 @@ def resources(ctx: typer.Context):
 
 @cli.command()
 def monitor(ctx: typer.Context):
-    """Monitor the status of iocs in a domain"""
+    """Monitor the status of IOCs in a domain"""
     print("Not yet implemented - will be a rich text resizable terminal UI")
 
     # TODO

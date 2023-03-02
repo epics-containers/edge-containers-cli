@@ -16,7 +16,7 @@ from .logging import log
 
 
 def beamline_str() -> Optional[str]:
-    """convert BEAMLINE of the form i16 to a K8S_BEAMLINE form bl16i"""
+    """convert BEAMLINE of the form i16 to a K8S_DOMAIN form bl16i"""
 
     parts = re.compile(r"([a-z])(\d\d)")
 
@@ -33,9 +33,9 @@ K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
 K8S_IMAGE_REGISTRY = os.environ.get("K8S_IMAGE_REGISTRY", None)
 K8S_LOG_URL = os.environ.get("K8S_LOG_URL", None)
 K8S_QUIET = os.environ.get("K8S_QUIET", None)
-K8S_BEAMLINE = os.environ.get("K8S_BEAMLINE", None) or beamline_str()
-if os.environ.get("K8S_HELM_REGISTRY_ADD_BEAMLINE", False) is not False:
-    K8S_HELM_REGISTRY = f"{K8S_HELM_REGISTRY}/{K8S_BEAMLINE}"
+K8S_DOMAIN = os.environ.get("K8S_DOMAIN", None) or beamline_str()
+if os.environ.get("K8S_HELM_REGISTRY_ADD_DOMAIN", False) is not False:
+    K8S_HELM_REGISTRY = f"{K8S_HELM_REGISTRY}/{K8S_DOMAIN}"
 
 ERROR = """
 [bold red]Command failed: [/bold red][gray37]{0}[/gray37]
@@ -82,16 +82,16 @@ def run_command(
 
 def check_ioc(ioc_name: str, bl: str):
     if not run_command(f"kubectl get -n {bl} deploy/{ioc_name}", error_OK=True):
-        print(f"ioc {ioc_name} does not exist in beamline {bl}")
+        print(f"ioc {ioc_name} does not exist in domain {bl}")
         raise typer.Exit(1)
 
 
-def check_beamline(beamline: str):
-    if not run_command(f"kubectl get namespace {beamline} -o name", error_OK=True):
-        print(f"beamline {beamline} does not exist")
+def check_domain(domain: str):
+    if not run_command(f"kubectl get namespace {domain} -o name", error_OK=True):
+        print(f"domain {domain} does not exist")
         raise typer.Exit(1)
 
-    log.info("beamline = %s", beamline)
+    log.info("domain = %s", domain)
 
 
 def get_image_name(repo_name: str, registry) -> str:
@@ -124,19 +124,19 @@ def get_helm_chart(folder: Path) -> Tuple[str, str, str]:
     with open(folder / "Chart.yaml", "r") as stream:
         chart = yaml.safe_load(stream)
 
-    bl_chart_loc = ""
+    domain_chart_loc = ""
     for dep in chart["dependencies"]:
         if dep["name"] == "beamline-chart":
-            bl_chart_loc = dep["repository"]
+            domain_chart_loc = dep["repository"]
             break
 
-    if not bl_chart_loc:
-        print("invalid Chart.yaml. Can't find beamline chart dependency")
+    if not domain_chart_loc:
+        print("invalid Chart.yaml. Can't find domain chart dependency")
         raise typer.Exit(1)
 
-    bl_values_yaml = folder / bl_chart_loc[7:] / "values.yaml"
+    domain_values_yaml = folder / domain_chart_loc[7:] / "values.yaml"
 
-    with open(bl_values_yaml, "r") as stream:
+    with open(domain_values_yaml, "r") as stream:
         bl_values = yaml.safe_load(stream)
 
     with open(folder / "values.yaml", "r") as stream:

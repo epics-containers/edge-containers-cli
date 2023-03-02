@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import typer
 
 from .context import Context
-from .shell import K8S_LOG_URL, check_beamline, check_ioc, get_helm_chart, run_command
+from .shell import K8S_LOG_URL, check_domain, check_ioc, get_helm_chart, run_command
 
 ioc = typer.Typer()
 
@@ -20,12 +20,12 @@ def attach(
     """Attach to the IOC shell of a live IOC"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
-    check_ioc(ioc_name, bl)
+    domain = c.domain
+    check_domain(domain)
+    check_ioc(ioc_name, domain)
 
     run_command(
-        f"kubectl -it -n {bl} attach  deploy/{ioc_name}",
+        f"kubectl -it -n {domain} attach  deploy/{ioc_name}",
         show_cmd=c.show_cmd,
         interactive=True,
     )
@@ -39,8 +39,8 @@ def delete(
     """Remove an IOC helm deployment from the cluster"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
+    bl = c.domain
+    check_domain(bl)
     check_ioc(ioc_name, bl)
 
     if not typer.confirm(
@@ -67,15 +67,15 @@ def deploy_local(
     c: Context = ctx.obj
 
     version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
-    bl = c.beamline
-    check_beamline(bl)
+    domain = c.domain
+    check_domain(domain)
 
-    bl, ioc_name, _ = get_helm_chart(ioc_path)
+    domain, ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
     print(
         f"Deploy {ioc_name} TEMPORARY version {version} "
-        f"from {ioc_path} to beamline {bl}"
+        f"from {ioc_path} to domain {domain}"
     )
     if not typer.confirm("Are you sure ?"):
         raise typer.Abort()
@@ -89,7 +89,7 @@ def deploy_local(
         )
         package = list(Path(".").glob("*.tgz"))[0]
         run_command(
-            f"helm upgrade -n {bl} --install {ioc_name} {package}",
+            f"helm upgrade -n {domain} --install {ioc_name} {package}",
             show=True,
             show_cmd=c.show_cmd,
         )
@@ -104,8 +104,8 @@ def deploy(
     """Pull an IOC helm chart and deploy it to the cluster"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
+    bl = c.domain
+    check_domain(bl)
 
     run_command(
         f"helm upgrade -n {bl} --install {ioc_name} "
@@ -123,8 +123,8 @@ def exec(
     """Execute a bash prompt in a live IOC's container"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
+    bl = c.domain
+    check_domain(bl)
     check_ioc(ioc_name, bl)
 
     run_command(
@@ -163,8 +163,8 @@ def logs(
     """Show logs for current and previous instances of an IOC"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
+    bl = c.domain
+    check_domain(bl)
     check_ioc(ioc_name, bl)
 
     previous = "-p" if prev else ""
@@ -184,8 +184,8 @@ def restart(
     """Restart an IOC"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
+    bl = c.domain
+    check_domain(bl)
     check_ioc(ioc_name, bl)
 
     pod_name = run_command(f"kubectl get -n {bl} pod -l app={ioc_name} -o name")
@@ -204,8 +204,8 @@ def start(
     """Start an IOC"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
+    bl = c.domain
+    check_domain(bl)
     check_ioc(ioc_name, bl)
 
     run_command(
@@ -223,8 +223,8 @@ def stop(
     """Stop an IOC"""
     c: Context = ctx.obj
 
-    bl = c.beamline
-    check_beamline(bl)
+    bl = c.domain
+    check_domain(bl)
     check_ioc(ioc_name, bl)
 
     run_command(
