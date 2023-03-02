@@ -10,7 +10,7 @@ fmt_pods_wide = (
 )
 fmt_pods = (
     "custom-columns="
-    "POD:metadata.labels.app,"
+    "IOC_NAME:metadata.labels.app,"
     "VERSION:metadata.labels.ioc_version,"
     "STATE:status.phase,"
     "RESTARTS:status.containerStatuses[0].restartCount,"

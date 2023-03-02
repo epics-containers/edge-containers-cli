@@ -88,7 +88,7 @@ def launch(
 @dev.command()
 def ioc_launch(
     ctx: typer.Context,
-    helm_chart: Path = typer.Argument(..., help="root folder of local ioc helm chart"),
+    helm_chart: Path = typer.Argument(..., help="root folder of local IOC helm chart"),
     folder: Optional[Path] = typer.Argument(
         None, help="folder for generic IOC project"
     ),
