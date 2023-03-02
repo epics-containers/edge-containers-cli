@@ -1,7 +1,7 @@
 # kubectl format strings
 fmt_pods_wide = (
     "custom-columns="
-    "IOC:metadata.labels.app,"
+    "POD:metadata.name,"
     "VERSION:metadata.labels.ioc_version,"
     "STATE:status.phase,"
     "RESTARTS:status.containerStatuses[0].restartCount,"

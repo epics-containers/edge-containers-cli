@@ -8,7 +8,7 @@
             "name": "ec dev build ",
             "type": "python",
             "request": "launch",
-            "module": "epics_containers_cli",
+            "module": "epics_containers_cli.__main__",
             "justMyCode": false,
             "args": [
                 "dev",
