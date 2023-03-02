@@ -1,4 +1,5 @@
 import re
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +29,12 @@ VOLUMES = (
 ALL_PARAMS = f"{ENVIRON} {VOLUMES} {OPTS}"
 
 
+class Architecture(str, Enum):
+    linux = "linux"
+    rtems = "rtems"
+    arm = "arm"
+
+
 def prepare(folder: Path, registry: str):
     """
     Prepare a generic IOC project folder for launching
@@ -40,8 +47,7 @@ def prepare(folder: Path, registry: str):
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
     # make sure the image with tag "work" is present
-    # TODO THIS IS BROKEN AND DOES NOT exit if the image is not present
-    if run_command("podman images -q {image}:{IMAGE_TAG}", error_OK=True) is None:
+    if run_command(f"podman image exists {image}:{IMAGE_TAG}", error_OK=True) is None:
         print(
             f"""
 image {image}:{IMAGE_TAG} is not present.
@@ -94,6 +100,9 @@ def ioc_launch(
     ),
     tag: str = typer.Option(IMAGE_TAG, help="version of the generic IOC to use"),
     debug: bool = typer.Option(False, help="start a remote debug session"),
+    arch: Architecture = typer.Option(
+        Architecture.linux, help="choose target architecture"
+    ),
 ):
     """Launch an IOC instance using a local helm chart definition.
     Set folder for a locally editable generic IOC or tag to choose any
@@ -184,18 +193,20 @@ def debug_last(
 def build(
     ctx: typer.Context,
     folder: Path = typer.Option(Path("."), help="Container project folder"),
+    arch: Architecture = typer.Option(
+        Architecture.linux, help="choose target architecture"
+    ),
 ):
     """Build a container locally from a container project."""
     c: Context = ctx.obj
-
-    prepare(folder, c.image_registry)
 
     repo = get_git_name(folder)
 
     for target, suffix in zip(IMAGE_TARGETS, IMAGE_SUFFIX):
         image_name = f"{c.image_registry}/{repo}{suffix}:{IMAGE_TAG}"
         run_command(
-            f"podman build --target {target} -t {image_name} {folder}",
+            f"podman build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
+            f" -t {image_name} {folder}",
             show_cmd=True,
             interactive=True,
         )
@@ -205,6 +216,9 @@ def build(
 def make(
     ctx: typer.Context,
     folder: Path = typer.Option(Path("."), help="IOC project folder"),
+    arch: Architecture = typer.Option(
+        Architecture.linux, help="choose target architecture"
+    ),
 ):
     """make the generic IOC source code inside its container"""
     c: Context = ctx.obj
