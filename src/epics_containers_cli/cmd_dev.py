@@ -13,7 +13,6 @@ dev = typer.Typer()
 IMAGE_TAG = "work"
 REPOS_FOLDER = "{folder}/repos"
 IMAGE_TARGETS = ["developer", "runtime"]
-IMAGE_SUFFIX = ["-linux-developer", "-linux-runtime"]
 
 # parameters for container launches
 REPOS = f" -v {REPOS_FOLDER}:/repos "
@@ -196,14 +195,18 @@ def build(
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"
     ),
+    cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
 ):
     """Build a container locally from a container project."""
     c: Context = ctx.obj
 
     repo = get_git_name(folder)
 
-    for target, suffix in zip(IMAGE_TARGETS, IMAGE_SUFFIX):
-        image_name = f"{c.image_registry}/{repo}{suffix}:{IMAGE_TAG}"
+    for target in IMAGE_TARGETS:
+        image_name = (
+            f"{c.image_registry}/{repo}-{arch}-{target}:{IMAGE_TAG} "
+            f"{'--no-cache' if not cache else ''}"
+        )
         run_command(
             f"podman build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
             f" -t {image_name} {folder}",
