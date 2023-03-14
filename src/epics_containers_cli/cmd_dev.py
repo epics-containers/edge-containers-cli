@@ -1,5 +1,4 @@
 import re
-from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -7,6 +6,7 @@ import typer
 
 from .context import Context
 from .shell import get_git_name, get_helm_chart, get_image_name, run_command
+from .enums import Architecture
 
 dev = typer.Typer()
 
@@ -28,13 +28,7 @@ VOLUMES = (
 ALL_PARAMS = f"{ENVIRON} {VOLUMES} {OPTS}"
 
 
-class Architecture(str, Enum):
-    linux = "linux"
-    rtems = "rtems"
-    arm = "arm"
-
-
-def prepare(folder: Path, registry: str):
+def prepare(folder: Path, registry: str, arch: Architecture = Architecture.linux):
     """
     Prepare a generic IOC project folder for launching
 
@@ -42,7 +36,7 @@ def prepare(folder: Path, registry: str):
     2nd extract the contents of repos to a local folder
     """
     repo = get_git_name(folder)
-    image = get_image_name(repo, registry)
+    image = get_image_name(repo, registry, arch)
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
     # make sure the image with tag "work" is present
@@ -66,21 +60,27 @@ Or pull the latest built image from the registry and tag it as "work".
         show_cmd=True,
     )
 
+    # overwrite repos/epics/ioc folder with any local changes
+    run_command(f"rsync -au {folder}/ioc {repos}/epics/", show_cmd=True)
+
 
 @dev.command()
 def launch(
     ctx: typer.Context,
     folder: Path = typer.Argument(Path("."), help="container project folder"),
+    arch: Architecture = typer.Option(
+        Architecture.linux, help="choose target architecture"
+    ),
 ):
     """Launch a bash prompt in a container"""
     c: Context = ctx.obj
 
     repo = get_git_name(folder)
-    image = get_image_name(repo, c.image_registry)
+    image = get_image_name(repo, c.image_registry, arch)
 
     params = ALL_PARAMS + REPOS.format(folder=folder.absolute())
 
-    prepare(folder, c.image_registry)
+    prepare(folder, c.image_registry, arch)
 
     run_command(f"podman rm -f {repo}", show_cmd=True)
     run_command(
@@ -94,14 +94,9 @@ def launch(
 def ioc_launch(
     ctx: typer.Context,
     helm_chart: Path = typer.Argument(..., help="root folder of local IOC helm chart"),
-    folder: Optional[Path] = typer.Argument(
-        None, help="folder for generic IOC project"
-    ),
+    folder: Optional[Path] = typer.Argument(".", help="folder for generic IOC project"),
     tag: str = typer.Option(IMAGE_TAG, help="version of the generic IOC to use"),
     debug: bool = typer.Option(False, help="start a remote debug session"),
-    arch: Architecture = typer.Option(
-        Architecture.linux, help="choose target architecture"
-    ),
 ):
     """Launch an IOC instance using a local helm chart definition.
     Set folder for a locally editable generic IOC or tag to choose any
@@ -118,11 +113,14 @@ def ioc_launch(
     bl, ioc_name, image = get_helm_chart(helm_chart)
     # switch to the developer target and requested tag for generic IOC image
     image = re.findall(r"[^:]*", image)[0].replace("runtime", "developer")
+    # work out which architecture to use for prepare
+    arch = Architecture.rtems if "rtems" in image else Architecture.linux
 
     # make sure there are not 2 copies running
     run_command(f"podman rm -f {ioc_name}", show_cmd=True)
 
     helm_chart = helm_chart.absolute()
+    start_script = "/repos/epics/ioc/start.sh"
     config_folder = "/repos/epics/ioc/config"
     config = f'-v {helm_chart / "config"}:{config_folder}'
 
@@ -130,7 +128,7 @@ def ioc_launch(
         # launch the requested version of the generic IOC only
         run_command(
             f"podman run --rm -it --name {ioc_name} {config} {ALL_PARAMS}"
-            f" {image}:{tag} bash {config_folder}/start.sh",
+            f" {image}:{tag} bash {start_script}",
             show_cmd=True,
             interactive=True,
         )
@@ -139,10 +137,10 @@ def ioc_launch(
         # /repos folder - useful for testing changes to repos folder
         repos = REPOS.format(folder=folder.absolute())
 
-        prepare(folder, c.image_registry)
+        prepare(folder, c.image_registry, arch)
 
         command = (
-            f"bash {config_folder}/start.sh; "
+            f"bash {start_script}; "
             f"echo IOC EXITED - hit ctrl D to leave IOC container; "
             f"bash"
         )

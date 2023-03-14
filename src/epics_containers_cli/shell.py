@@ -13,6 +13,7 @@ import typer
 from rich import print
 
 from .logging import log
+from .enums import Architecture
 
 
 def beamline_str() -> Optional[str]:
@@ -94,8 +95,10 @@ def check_domain(domain: str):
     log.info("domain = %s", domain)
 
 
-def get_image_name(repo_name: str, registry) -> str:
-    image = f"{registry}/{repo_name}-linux-developer"
+def get_image_name(
+    repo_name: str, registry, arch: Architecture = Architecture.linux
+) -> str:
+    image = f"{registry}/{repo_name}-{arch}-developer"
     log.info("image  = %s", image)
     return image
 
