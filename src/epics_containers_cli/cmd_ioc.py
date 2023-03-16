@@ -57,11 +57,44 @@ def delete(
 
 
 @ioc.command()
+def template(
+    ctx: typer.Context,
+    ioc_path: Path = typer.Argument(
+        ..., help="root folder of local helm chart to deploy"
+    ),
+):
+    """print out the helm template generated from a local ioc helm chart"""
+    c: Context = ctx.obj
+
+    version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
+    domain = c.domain
+    check_domain(domain)
+
+    domain, ioc_name, _ = get_helm_chart(ioc_path)
+    ioc_path = ioc_path.absolute()
+
+    with TemporaryDirectory() as temp:
+        os.chdir(temp)
+        run_command(
+            f"helm package -u {ioc_path} --version {version} --app-version {version}",
+            show=True,
+            show_cmd=c.show_cmd,
+        )
+        package = list(Path(".").glob("*.tgz"))[0]
+        run_command(
+            f"helm template --debug -n {domain} {ioc_name} {package}",
+            show=True,
+            show_cmd=c.show_cmd,
+        )
+
+
+@ioc.command()
 def deploy_local(
     ctx: typer.Context,
     ioc_path: Path = typer.Argument(
         ..., help="root folder of local helm chart to deploy"
     ),
+    yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
 ):
     """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
     c: Context = ctx.obj
@@ -73,12 +106,13 @@ def deploy_local(
     domain, ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
-    print(
-        f"Deploy {ioc_name} TEMPORARY version {version} "
-        f"from {ioc_path} to domain {domain}"
-    )
-    if not typer.confirm("Are you sure ?"):
-        raise typer.Abort()
+    if not yes:
+        print(
+            f"Deploy {ioc_name} TEMPORARY version {version} "
+            f"from {ioc_path} to domain {domain}"
+        )
+        if not typer.confirm("Are you sure ?"):
+            raise typer.Abort()
 
     with TemporaryDirectory() as temp:
         os.chdir(temp)
