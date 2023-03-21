@@ -3,43 +3,32 @@
 # The devcontainer should use the build target and run as root with podman
 # or docker with user namespaces.
 #
-FROM python:3.10 as build
+FROM python:3.11 as build
 
-# Add any system dependencies for the developer/build environment here
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends \   
-    build-essential \
-    busybox \
-    git \
-    net-tools \
-    vim \
-    && rm -rf /var/lib/apt/lists/* \
-    && busybox --install
+ARG PIP_OPTIONS=.
 
-COPY . /project
+# Add any system dependencies for the developer/build environment here e.g.
+# RUN apt-get update && apt-get upgrade -y && \
+#     apt-get install -y --no-install-recommends \
+#     desired-packages \
+#     && rm -rf /var/lib/apt/lists/*
 
-RUN cd /project && \
-    pip install --upgrade pip build && \
-    export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) && \
-    python -m build --sdist --wheel && \
-    touch requirements.txt
-
+# set up a virtual environment and put it in PATH
 RUN python -m venv /venv
 ENV PATH=/venv/bin:$PATH
-ENV TOX_DIRECT=1
 
-RUN cd /project && \
-    pip install --upgrade pip && \
-    pip install -r requirements.txt dist/*.whl && \
-    pip freeze  > dist/requirements.txt && \
-    # we don't want to include our own wheel in requirements - remove with sed
-    # and replace with a comment to avoid a zero length asset upload later
-    sed -i '/file:/s/^/# Requirements for /' dist/requirements.txt
+# Copy any required context for the pip install over
+COPY . /context
+WORKDIR /context
 
-FROM python:3.10-slim as runtime
+# install python package into /venv
+RUN pip install ${PIP_OPTIONS}
+
+FROM python:3.11-slim as runtime
 
 # Add apt-get system dependecies for runtime here if needed
 
+# copy the virtual environment from the build stage and put it in PATH
 COPY --from=build /venv/ /venv/
 ENV PATH=/venv/bin:$PATH
 
