@@ -8,7 +8,6 @@ handler = logging.StreamHandler()
 
 
 def init_logging(level: str):
-
     log.setLevel(level)
     if log.level == logging.DEBUG:
         formatter = logging.Formatter(
