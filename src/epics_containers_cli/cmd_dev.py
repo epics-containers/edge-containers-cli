@@ -5,8 +5,8 @@ from typing import Optional
 import typer
 
 from .context import Context
-from .shell import get_git_name, get_helm_chart, get_image_name, run_command
 from .enums import Architecture
+from .shell import get_git_name, get_helm_chart, get_image_name, run_command
 
 dev = typer.Typer()
 

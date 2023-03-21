@@ -12,8 +12,8 @@ import ruamel.yaml as yaml
 import typer
 from rich import print
 
-from .logging import log
 from .enums import Architecture
+from .logging import log
 
 
 def beamline_str() -> Optional[str]:

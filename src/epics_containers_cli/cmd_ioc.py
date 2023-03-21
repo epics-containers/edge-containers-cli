@@ -193,6 +193,7 @@ def logs(
     prev: bool = typer.Option(
         False, "--previous", "-p", help="Show log from the previous instance of the IOC"
     ),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Follow the log stream"),
 ):
     """Show logs for current and previous instances of an IOC"""
     c: Context = ctx.obj
@@ -202,11 +203,13 @@ def logs(
     check_ioc(ioc_name, bl)
 
     previous = "-p" if prev else ""
+    fol = "-f" if follow else ""
 
     run_command(
-        f"kubectl -n {bl} logs deploy/{ioc_name} {previous}",
+        f"kubectl -n {bl} logs deploy/{ioc_name} {previous} {fol}",
         show=True,
         show_cmd=c.show_cmd,
+        interactive=True,
     )
 
 
