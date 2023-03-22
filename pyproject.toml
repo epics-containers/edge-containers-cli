@@ -47,8 +47,8 @@ ec = "epics_containers_cli.__main__:cli"
 GitHub = "https://github.com/epics-containers/epics-containers-cli"
 
 [[project.authors]] # Further authors may be added by duplicating this section
-email = "email@address.com"
-name = "Firstname Lastname"
+email = "giles.knap@diamond.ac.uk"
+name = "Giles Knap"
 
 
 [tool.setuptools_scm]
