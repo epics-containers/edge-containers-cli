@@ -1,4 +1,5 @@
 import re
+from os import environ
 from pathlib import Path
 from typing import Optional
 
@@ -16,16 +17,30 @@ IMAGE_TARGETS = ["developer", "runtime"]
 
 # parameters for container launches
 REPOS = f" -v {REPOS_FOLDER}:/repos "
-ENVIRON = "-e DISPLAY -e USER -e SHELL"
-OPTS = "--security-opt=label=type:container_runtime_t --net=podman"
-VOLUMES = (
-    " -v=/tmp:/tmp"
-    " -v=/home/$USER:/home/$USER"
-    " -v=/home/$USER/.bashrc_dev:/root/.bashrc"
-    " -v=/home/$USER/.inputrc:/root/.inputrc"
-    " -v=/home/$USER/.bash_history:/root/.bash_history"
-)
-ALL_PARAMS = f"{ENVIRON} {VOLUMES} {OPTS}"
+OPTS = "--security-opt=label=type:container_runtime_t --net=host"
+
+
+def all_params():
+    env = "-e DISPLAY -e USER -e SHELL"
+    volumes = (
+        " -v=/tmp:/tmp"
+        " -v=/home/$USER:/home/$USER"
+        " -v=/home/$USER/.bashrc_dev:/root/.bashrc"
+        " -v=/home/$USER/.inputrc:/root/.inputrc"
+        " -v=/home/$USER/.bash_history:/root/.bash_history"
+    )
+
+    # To make containers in containers nice we need to have some consitency
+    # with prompt and history - but we need to get files for that from the
+    # host filesystem - hence this slightly ugly check:
+    for f in [".bashrc_dev", ".inputrc", ".bash_history"]:
+        p = Path("/home") / environ.get("USER") / f
+        if not p.exists():
+            raise RuntimeError(
+                f"Missing file {p}, please copy from .devcontainer or create your own"
+            )
+
+    return f"{env} {volumes} {OPTS}"
 
 
 def prepare(folder: Path, registry: str, arch: Architecture = Architecture.linux):
@@ -78,7 +93,7 @@ def launch(
     repo = get_git_name(folder)
     image = get_image_name(repo, c.image_registry, arch)
 
-    params = ALL_PARAMS + REPOS.format(folder=folder.absolute())
+    params = all_params() + REPOS.format(folder=folder.absolute())
 
     prepare(folder, c.image_registry, arch)
 
@@ -110,7 +125,7 @@ def ioc_launch(
         )
         raise (typer.Exit(1))
 
-    bl, ioc_name, image = get_helm_chart(helm_chart)
+    ioc_name, image = get_helm_chart(helm_chart)
     # switch to the developer target and requested tag for generic IOC image
     image = re.findall(r"[^:]*", image)[0].replace("runtime", "developer")
     # work out which architecture to use for prepare
@@ -127,7 +142,7 @@ def ioc_launch(
     if folder is None:
         # launch the requested version of the generic IOC only
         run_command(
-            f"podman run --rm -it --name {ioc_name} {config} {ALL_PARAMS}"
+            f"podman run --rm -it --name {ioc_name} {config} {all_params()}"
             f" {image}:{tag} bash {start_script}",
             show_cmd=True,
             interactive=True,
@@ -145,7 +160,7 @@ def ioc_launch(
             f"bash"
         )
         run_command(
-            f"podman run -it --name {ioc_name} {repos} {config} {ALL_PARAMS}"
+            f"podman run -it --name {ioc_name} {repos} {config} {all_params()}"
             f" {image}:{IMAGE_TAG} bash -c '{command}'",
             show_cmd=True,
             interactive=True,
@@ -165,7 +180,7 @@ def debug_last(
     Useful for debugging failed builds"""
     last_image = run_command("podman images | awk '{print $3}' | awk 'NR==2'")
 
-    params = ALL_PARAMS
+    params = all_params()
     if mount_repos:
         # rsync the state of the container's repos folder to the local folder
         repos = (folder / "repos-build").absolute()
@@ -227,7 +242,7 @@ def make(
     repo = get_git_name(folder)
     image = get_image_name(repo, c.image_registry)
 
-    params = ALL_PARAMS + REPOS.format(folder=folder.absolute())
+    params = all_params() + REPOS.format(folder=folder.absolute())
     container_name = f"build-{repo}"
 
     prepare(folder, c.image_registry)
