@@ -3,6 +3,7 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import List
 
 import typer
 
@@ -95,6 +96,7 @@ def deploy_local(
         ..., help="root folder of local helm chart to deploy"
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+    args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
     c: Context = ctx.obj
@@ -123,7 +125,7 @@ def deploy_local(
         )
         package = list(Path(".").glob("*.tgz"))[0]
         run_command(
-            f"helm upgrade -n {domain} --install {ioc_name} {package}",
+            f"helm upgrade -n {domain} --install {ioc_name} {args} {package}",
             show=True,
             show_cmd=c.show_cmd,
         )
@@ -134,6 +136,7 @@ def deploy(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
     version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
+    args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """Pull an IOC helm chart and deploy it to the cluster"""
     c: Context = ctx.obj
@@ -142,7 +145,7 @@ def deploy(
     check_domain(bl)
 
     run_command(
-        f"helm upgrade -n {bl} --install {ioc_name} "
+        f"helm upgrade -n {bl} --install {ioc_name} {args} "
         f"oci://{ctx.obj.helm_registry}/{ioc_name} --version {version}",
         show=True,
         show_cmd=c.show_cmd,
