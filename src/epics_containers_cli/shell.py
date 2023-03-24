@@ -122,7 +122,7 @@ def get_git_name(folder: Path = Path(".")) -> str:
     return repo_basename
 
 
-def get_helm_chart(folder: Path) -> Tuple[str, str, str]:
+def get_helm_chart(folder: Path) -> Tuple[str, str]:
     # verify this is a helm chart and extract the IOC name from it
     with open(folder / "Chart.yaml", "r") as stream:
         chart = yaml.safe_load(stream)
@@ -139,14 +139,16 @@ def get_helm_chart(folder: Path) -> Tuple[str, str, str]:
 
     domain_values_yaml = folder / domain_chart_loc[7:] / "values.yaml"
 
+    # this would allow us to read information from the beamline default
+    # values - but we have dropped the requirement to supply domain / beamline
+    # in the yaml so it can be overriden by helm.
     with open(domain_values_yaml, "r") as stream:
-        bl_values = yaml.safe_load(stream)
+        _ = yaml.safe_load(stream)
 
     with open(folder / "values.yaml", "r") as stream:
         ioc_values = yaml.safe_load(stream)
 
-    namespace = bl_values["exports"]["beamline_defaults"]["namespace"]
     ioc_name = chart["name"]
     generic_image = ioc_values["base_image"]
 
-    return namespace, ioc_name, generic_image
+    return ioc_name, generic_image

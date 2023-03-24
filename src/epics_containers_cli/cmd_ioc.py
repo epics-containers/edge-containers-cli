@@ -70,7 +70,7 @@ def template(
     domain = c.domain
     check_domain(domain)
 
-    domain, ioc_name, _ = get_helm_chart(ioc_path)
+    ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
     with TemporaryDirectory() as temp:
@@ -103,7 +103,7 @@ def deploy_local(
     domain = c.domain
     check_domain(domain)
 
-    domain, ioc_name, _ = get_helm_chart(ioc_path)
+    ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
     if not yes:
