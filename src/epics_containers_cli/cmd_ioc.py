@@ -3,12 +3,18 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import List
 
 import typer
 
 from .context import Context
-from .shell import K8S_LOG_URL, check_domain, check_ioc, get_helm_chart, run_command
+from .shell import (
+    K8S_HELM_ROOT,
+    K8S_LOG_URL,
+    check_domain,
+    check_ioc,
+    get_helm_chart,
+    run_command,
+)
 
 ioc = typer.Typer()
 
@@ -136,6 +142,7 @@ def deploy(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
     version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
+    helm_folder: str = typer.Option("", help="Override the extra level of helm path"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """Pull an IOC helm chart and deploy it to the cluster"""
@@ -144,9 +151,13 @@ def deploy(
     bl = c.domain
     check_domain(bl)
 
+    helm_path = ctx.obj.helm_registry
+    if helm_folder != "":
+        helm_path = f"{K8S_HELM_ROOT}/{helm_folder}"
+
     run_command(
         f"helm upgrade -n {bl} --install {ioc_name} {args} "
-        f"oci://{ctx.obj.helm_registry}/{ioc_name} --version {version}",
+        f"oci://{helm_path}/{ioc_name} --version {version}",
         show=True,
         show_cmd=c.show_cmd,
     )
