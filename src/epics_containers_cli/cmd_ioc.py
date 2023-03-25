@@ -7,7 +7,14 @@ from tempfile import TemporaryDirectory
 import typer
 
 from .context import Context
-from .shell import K8S_LOG_URL, check_domain, check_ioc, get_helm_chart, run_command
+from .shell import (
+    K8S_HELM_ROOT,
+    K8S_LOG_URL,
+    check_domain,
+    check_ioc,
+    get_helm_chart,
+    run_command,
+)
 
 ioc = typer.Typer()
 
@@ -70,7 +77,7 @@ def template(
     domain = c.domain
     check_domain(domain)
 
-    domain, ioc_name, _ = get_helm_chart(ioc_path)
+    ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
     with TemporaryDirectory() as temp:
@@ -95,6 +102,7 @@ def deploy_local(
         ..., help="root folder of local helm chart to deploy"
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+    args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
     c: Context = ctx.obj
@@ -103,7 +111,7 @@ def deploy_local(
     domain = c.domain
     check_domain(domain)
 
-    domain, ioc_name, _ = get_helm_chart(ioc_path)
+    ioc_name, _ = get_helm_chart(ioc_path)
     ioc_path = ioc_path.absolute()
 
     if not yes:
@@ -123,7 +131,7 @@ def deploy_local(
         )
         package = list(Path(".").glob("*.tgz"))[0]
         run_command(
-            f"helm upgrade -n {domain} --install {ioc_name} {package}",
+            f"helm upgrade -n {domain} --install {ioc_name} {args} {package}",
             show=True,
             show_cmd=c.show_cmd,
         )
@@ -134,6 +142,8 @@ def deploy(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
     version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
+    helm_folder: str = typer.Option("", help="Override the extra level of helm path"),
+    args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """Pull an IOC helm chart and deploy it to the cluster"""
     c: Context = ctx.obj
@@ -141,9 +151,13 @@ def deploy(
     bl = c.domain
     check_domain(bl)
 
+    helm_path = ctx.obj.helm_registry
+    if helm_folder != "":
+        helm_path = f"{K8S_HELM_ROOT}/{helm_folder}"
+
     run_command(
-        f"helm upgrade -n {bl} --install {ioc_name} "
-        f"oci://{ctx.obj.helm_registry}/{ioc_name} --version {version}",
+        f"helm upgrade -n {bl} --install {ioc_name} {args} "
+        f"oci://{helm_path}/{ioc_name} --version {version}",
         show=True,
         show_cmd=c.show_cmd,
     )
