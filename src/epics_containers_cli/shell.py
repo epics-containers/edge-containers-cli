@@ -30,14 +30,13 @@ def beamline_str() -> Optional[str]:
 
 
 BEAMLINE = os.environ.get("BEAMLINE", None)
-K8S_HELM_REGISTRY = os.environ.get("K8S_HELM_REGISTRY", None)
+K8S_DOMAIN = os.environ.get("K8S_DOMAIN", None) or beamline_str()
 K8S_HELM_ROOT = os.environ.get("K8S_HELM_REGISTRY", None)
+K8S_HELM_REGISTRY = f"{K8S_HELM_ROOT}/{K8S_DOMAIN}"
 K8S_IMAGE_REGISTRY = os.environ.get("K8S_IMAGE_REGISTRY", None)
 K8S_LOG_URL = os.environ.get("K8S_LOG_URL", None)
 K8S_QUIET = os.environ.get("K8S_QUIET", None)
-K8S_DOMAIN = os.environ.get("K8S_DOMAIN", None) or beamline_str()
-if os.environ.get("K8S_HELM_REGISTRY_ADD_DOMAIN", False) is not False:
-    K8S_HELM_REGISTRY = f"{K8S_HELM_REGISTRY}/{K8S_DOMAIN}"
+
 
 ERROR = """
 [bold red]Command failed: [/bold red][gray37]{0}[/gray37]
