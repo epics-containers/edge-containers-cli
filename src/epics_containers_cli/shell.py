@@ -103,7 +103,7 @@ def get_image_name(
     return image
 
 
-def get_git_name(folder: Path = Path(".")) -> str:
+def get_git_name(folder: Path = Path("."), full: bool = False) -> str:
     if not folder.joinpath(".git").exists():
         print(f"folder {folder.absolute()} is not a git repository")
         raise typer.Exit(1)
@@ -112,14 +112,18 @@ def get_git_name(folder: Path = Path(".")) -> str:
     remotes = str(run_command("git remote -v"))
     log.debug(f"remotes = {remotes}")
 
-    matches = re.findall(r"\/(.*)\.git", remotes)
+    if full:
+        matches = re.findall(r"git@(.*)\.git", remotes)
+    else:
+        matches = re.findall(r"\/(.*)\.git", remotes)
+
     if len(matches) > 0:
-        repo_basename = matches[0]
+        repo_name = matches[0]
     else:
         print(f"folder {folder.absolute()} cannot get repo name")
         raise typer.Exit(1)
 
-    return repo_basename
+    return repo_name
 
 
 def get_helm_chart(folder: Path) -> Tuple[str, str]:

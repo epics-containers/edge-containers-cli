@@ -266,3 +266,36 @@ def make(
         show_cmd=True,
         interactive=True,
     )
+
+
+@dev.command()
+def versions(
+    ctx: typer.Context,
+    folder: Path = typer.Option(Path("."), help="IOC project folder"),
+    image: str = typer.Option("", help="Image name"),
+    arch: Architecture = typer.Option(
+        Architecture.linux, help="choose target architecture"
+    ),
+):
+    """
+    List the available versions of the generic IOC container image in the registry
+
+    You can supply the full registry image name e.g.
+        ec dev versions --image ghcr.io/epics-containers/ioc-template-linux-developer
+
+    or the local project folder (defaults to .) e.g.
+        ec dev versions ../ioc-template
+    """
+    c: Context = ctx.obj
+
+    if image == "":
+        repo = get_git_name(folder, full=True)
+        image = f"{repo}-{arch}-developer"
+        # switch the repos name to its associated image name
+        image = image.replace("github.com:", "ghcr.io/")
+
+    run_command(
+        f"podman run --rm quay.io/skopeo/stable " f"list-tags docker://{image}",
+        show=True,
+        show_cmd=c.show_cmd,
+    )
