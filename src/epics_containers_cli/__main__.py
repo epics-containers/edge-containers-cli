@@ -8,7 +8,7 @@ from .cmd_ioc import ioc
 from .context import Context
 from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
-from .shell import K8S_DOMAIN, K8S_HELM_REGISTRY, K8S_IMAGE_REGISTRY, run_command
+from .shell import K8S_DOMAIN, K8S_HELM_REGISTRY, run_command
 
 __all__ = ["main"]
 
@@ -48,9 +48,6 @@ def main(
         "--domain",
         help="Domain namespace to use",
     ),
-    image_registry: str = typer.Option(
-        K8S_IMAGE_REGISTRY, help="Image registry to pull from"
-    ),
     helm_registry: str = typer.Option(
         K8S_HELM_REGISTRY, help="Helm registry to pull from"
     ),
@@ -73,13 +70,10 @@ def main(
     if helm_registry is None:
         print("Please set K8S_HELM_REGISTRY or pass --helm-registry")
         raise typer.Exit(1)
-    if image_registry is None:
-        print("Please set K8S_IMAGE_REGISTRY or pass --image-registry")
-        raise typer.Exit(1)
 
     # create a context dictionary to pass to all sub commands
     ctx.ensure_object(Context)
-    context = Context(domain, helm_registry, image_registry, not quiet)
+    context = Context(domain, helm_registry, not quiet)
     ctx.obj = context
 
 
