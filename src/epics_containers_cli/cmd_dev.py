@@ -11,7 +11,7 @@ from .shell import get_git_name, get_helm_chart, get_image_name, run_command
 
 dev = typer.Typer()
 
-IMAGE_TAG = "work"
+IMAGE_TAG = "local"
 REPOS_FOLDER = "{folder}/repos"
 IMAGE_TARGETS = ["developer", "runtime"]
 
@@ -54,13 +54,13 @@ def prepare(folder: Path, arch: Architecture = Architecture.linux):
     image = get_image_name(repo, arch) + f":{IMAGE_TAG}"
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
-    # make sure the image with tag "work" is present
+    # make sure the image with tag "local" is present
     if run_command(f"podman image exists {image}", error_OK=True) is None:
         print(
             f"""
 image {image} is not present.
 Please run "ec dev build" first.
-Or pull the latest built image from the registry and tag it as "work".
+Or pull the latest built image from the registry and tag it as "{IMAGE_TAG}".
 """
         )
         exit(1)
