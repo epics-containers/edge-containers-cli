@@ -55,10 +55,10 @@ def prepare(folder: Path, arch: Architecture = Architecture.linux):
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
     # make sure the image with tag "work" is present
-    if run_command(f"podman image exists {image}:{IMAGE_TAG}", error_OK=True) is None:
+    if run_command(f"podman image exists {image}", error_OK=True) is None:
         print(
             f"""
-image {image}:{IMAGE_TAG} is not present.
+image {image} is not present.
 Please run "ec dev build" first.
 Or pull the latest built image from the registry and tag it as "work".
 """
@@ -70,7 +70,7 @@ Or pull the latest built image from the registry and tag it as "work".
     run_command(
         f"podman run --rm {OPTS} -v {repos}:/copy "
         # the rsync command refreshes repos but does not overwrite local changes
-        f"--entrypoint rsync {image}:{IMAGE_TAG} " f"-au /repos/ /copy",
+        f"--entrypoint rsync {image} " f"-au /repos/ /copy",
         interactive=True,
         show_cmd=True,
     )
@@ -78,7 +78,7 @@ Or pull the latest built image from the registry and tag it as "work".
     # overwrite repos/epics/ioc folder with any local changes
     run_command(f"rsync -au {folder}/ioc {repos}/epics/", show_cmd=True)
 
-    return
+    return image
 
 
 @dev.command()
@@ -155,7 +155,17 @@ def ioc_launch(
         # /repos folder - useful for testing changes to repos folder
         repos = REPOS.format(folder=folder.absolute())
 
-        prepare(folder, arch)
+        folder_image = prepare(folder, arch)
+
+        if folder_image != image:
+            print(
+                f"""
+ERROR: the specified Generic IOC image: {folder_image}
+does not match the helm chart image: {image}
+you must specify a folder for the local generic IOC project
+or a tag for the generic IOC image to use from the registry"""
+            )
+            raise (typer.Exit(1))
 
         command = (
             f"bash {start_script}; "
