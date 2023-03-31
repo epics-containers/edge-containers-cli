@@ -196,7 +196,7 @@ def debug_last(
     params = all_params()
     if mount_repos:
         # rsync the state of the container's repos folder to the local folder
-        repos = (folder / "repos-build").absolute()
+        repos = (folder / "repos").absolute()
         repos.mkdir(exist_ok=True)
         run_command(
             f"podman run --rm {OPTS} -v {repos}:/copy {last_image} "
