@@ -9,5 +9,4 @@ from dataclasses import dataclass
 class Context:
     domain: str = ""
     helm_registry: str = ""
-    image_registry: str = ""
     show_cmd: bool = False

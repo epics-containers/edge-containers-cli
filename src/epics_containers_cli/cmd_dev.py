@@ -11,7 +11,7 @@ from .shell import get_git_name, get_helm_chart, get_image_name, run_command
 
 dev = typer.Typer()
 
-IMAGE_TAG = "work"
+IMAGE_TAG = "local"
 REPOS_FOLDER = "{folder}/repos"
 IMAGE_TARGETS = ["developer", "runtime"]
 
@@ -43,24 +43,24 @@ def all_params():
     return f"{env} {volumes} {OPTS}"
 
 
-def prepare(folder: Path, registry: str, arch: Architecture = Architecture.linux):
+def prepare(folder: Path, arch: Architecture = Architecture.linux):
     """
     Prepare a generic IOC project folder for launching
 
     1st make sure that the container image is present and tagged "work"
     2nd extract the contents of repos to a local folder
     """
-    repo = get_git_name(folder)
-    image = get_image_name(repo, registry, arch)
+    repo = get_git_name(folder, full=True)
+    image = get_image_name(repo, arch) + f":{IMAGE_TAG}"
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
-    # make sure the image with tag "work" is present
-    if run_command(f"podman image exists {image}:{IMAGE_TAG}", error_OK=True) is None:
+    # make sure the image with tag "local" is present
+    if run_command(f"podman image exists {image}", error_OK=True) is None:
         print(
             f"""
-image {image}:{IMAGE_TAG} is not present.
-Please run "epics-containers-cli dev build" first.
-Or pull the latest built image from the registry and tag it as "work".
+image {image} is not present.
+Please run "ec dev build" first.
+Or pull the latest built image from the registry and tag it as "{IMAGE_TAG}".
 """
         )
         exit(1)
@@ -68,15 +68,17 @@ Or pull the latest built image from the registry and tag it as "work".
     # rsync the repos folder to the local folder
     repos.mkdir(parents=True, exist_ok=True)
     run_command(
-        f"podman run --rm {OPTS} -v {repos}:/copy {image}:{IMAGE_TAG} "
-        # this command refreshes repos but does not overwrite local changes
-        f"rsync -au /repos/ /copy",
+        f"podman run --rm {OPTS} -v {repos}:/copy "
+        # the rsync command refreshes repos but does not overwrite local changes
+        f"--entrypoint rsync {image} " f"-au /repos/ /copy",
         interactive=True,
         show_cmd=True,
     )
 
     # overwrite repos/epics/ioc folder with any local changes
     run_command(f"rsync -au {folder}/ioc {repos}/epics/", show_cmd=True)
+
+    return image
 
 
 @dev.command()
@@ -86,20 +88,21 @@ def launch(
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"
     ),
+    image: Optional[str] = typer.Option(None, help="override container image to use"),
 ):
     """Launch a bash prompt in a container"""
-    c: Context = ctx.obj
-
-    repo = get_git_name(folder)
-    image = get_image_name(repo, c.image_registry, arch)
+    repo_name = get_git_name(folder)
+    repo = get_git_name(folder, full=True)
+    image = image or get_image_name(repo, arch)
 
     params = all_params() + REPOS.format(folder=folder.absolute())
 
-    prepare(folder, c.image_registry, arch)
+    prepare(folder, arch)
 
-    run_command(f"podman rm -f {repo}", show_cmd=True)
+    run_command(f"podman rm -f {repo_name}", show_cmd=True)
     run_command(
-        f"podman run --rm -it --name {repo} {params} {image}:{IMAGE_TAG} bash",
+        f"podman run --rm -it --name {repo_name} --entrypoint bash "
+        f"{params} {image}:{IMAGE_TAG}",
         show_cmd=True,
         interactive=True,
     )
@@ -109,14 +112,13 @@ def launch(
 def ioc_launch(
     ctx: typer.Context,
     helm_chart: Path = typer.Argument(..., help="root folder of local IOC helm chart"),
-    folder: Optional[Path] = typer.Argument(".", help="folder for generic IOC project"),
+    folder: Path = typer.Argument(".", help="folder for generic IOC project"),
     tag: str = typer.Option(IMAGE_TAG, help="version of the generic IOC to use"),
     debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
     """Launch an IOC instance using a local helm chart definition.
-    Set folder for a locally editable generic IOC or tag to choose any
+    Set folder for a locally editable generic IOC or supply a tag to choose any
     version from the registry."""
-    c: Context = ctx.obj
 
     if tag == IMAGE_TAG and folder is None:
         print(
@@ -127,7 +129,8 @@ def ioc_launch(
 
     ioc_name, image = get_helm_chart(helm_chart)
     # switch to the developer target and requested tag for generic IOC image
-    image = re.findall(r"[^:]*", image)[0].replace("runtime", "developer")
+    image = re.findall(r"[^:]*", image)[0].replace("runtime", "developer") + f":{tag}"
+
     # work out which architecture to use for prepare
     arch = Architecture.rtems if "rtems" in image else Architecture.linux
 
@@ -139,11 +142,11 @@ def ioc_launch(
     config_folder = "/repos/epics/ioc/config"
     config = f'-v {helm_chart / "config"}:{config_folder}'
 
-    if folder is None:
+    if tag != IMAGE_TAG:
         # launch the requested version of the generic IOC only
         run_command(
             f"podman run --rm -it --name {ioc_name} {config} {all_params()}"
-            f" {image}:{tag} bash {start_script}",
+            f" {image} bash {start_script}",
             show_cmd=True,
             interactive=True,
         )
@@ -152,7 +155,17 @@ def ioc_launch(
         # /repos folder - useful for testing changes to repos folder
         repos = REPOS.format(folder=folder.absolute())
 
-        prepare(folder, c.image_registry, arch)
+        folder_image = prepare(folder, arch)
+
+        if folder_image != image:
+            print(
+                f"""
+ERROR: the specified Generic IOC image: {folder_image}
+does not match the helm chart image: {image}
+you must specify a folder for the local generic IOC project
+or a tag for the generic IOC image to use from the registry"""
+            )
+            raise (typer.Exit(1))
 
         command = (
             f"bash {start_script}; "
@@ -161,7 +174,7 @@ def ioc_launch(
         )
         run_command(
             f"podman run -it --name {ioc_name} {repos} {config} {all_params()}"
-            f" {image}:{IMAGE_TAG} bash -c '{command}'",
+            f" {image} bash -c '{command}'",
             show_cmd=True,
             interactive=True,
         )
@@ -183,7 +196,7 @@ def debug_last(
     params = all_params()
     if mount_repos:
         # rsync the state of the container's repos folder to the local folder
-        repos = (folder / "repos-build").absolute()
+        repos = (folder / "repos").absolute()
         repos.mkdir(exist_ok=True)
         run_command(
             f"podman run --rm {OPTS} -v {repos}:/copy {last_image} "
@@ -211,15 +224,11 @@ def build(
     cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
 ):
     """Build a container locally from a container project."""
-    c: Context = ctx.obj
-
-    repo = get_git_name(folder)
+    repo = get_git_name(folder, full=True)
 
     for target in IMAGE_TARGETS:
-        image_name = (
-            f"{c.image_registry}/{repo}-{arch}-{target}:{IMAGE_TAG} "
-            f"{'--no-cache' if not cache else ''}"
-        )
+        image = get_image_name(repo, arch, target)
+        image_name = f"{image}:{IMAGE_TAG} " f"{'--no-cache' if not cache else ''}"
         run_command(
             f"podman build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
             f" -t {image_name} {folder}",
@@ -235,17 +244,17 @@ def make(
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"
     ),
+    image: str = typer.Option("", help="override container image to use"),
 ):
     """make the generic IOC source code inside its container"""
-    c: Context = ctx.obj
 
-    repo = get_git_name(folder)
-    image = get_image_name(repo, c.image_registry)
+    repo = get_git_name(folder, full=True)
+    image = get_image_name(repo, arch)
 
     params = all_params() + REPOS.format(folder=folder.absolute())
     container_name = f"build-{repo}"
 
-    prepare(folder, c.image_registry)
+    prepare(folder, arch)
 
     command = (
         "cd /repos/epics/support && "
@@ -265,4 +274,35 @@ def make(
         f"{image}:{IMAGE_TAG} bash -c '{command}'",
         show_cmd=True,
         interactive=True,
+    )
+
+
+@dev.command()
+def versions(
+    ctx: typer.Context,
+    folder: Path = typer.Option(Path("."), help="IOC project folder"),
+    arch: Architecture = typer.Option(
+        Architecture.linux, help="choose target architecture"
+    ),
+    image: str = typer.Option("", help="override container image to use"),
+):
+    """
+    List the available versions of the generic IOC container image in the registry
+
+    You can supply the full registry image name e.g.
+        ec dev versions --image ghcr.io/epics-containers/ioc-template-linux-developer
+
+    or the local project folder (defaults to .) e.g.
+        ec dev versions ../ioc-template
+    """
+    c: Context = ctx.obj
+
+    if image == "":
+        repo = get_git_name(folder, full=True)
+        image = image or get_image_name(repo, arch)
+
+    run_command(
+        f"podman run --rm quay.io/skopeo/stable " f"list-tags docker://{image}",
+        show=True,
+        show_cmd=c.show_cmd,
     )

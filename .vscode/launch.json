@@ -1,7 +1,7 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    // This is an example of how to create a vscode launcher to debug
+    // an ec command line invocation. Note that cwd needs to be a valid
+    // generic IOC folder for this to work.
     "version": "0.2.0",
     "configurations": [
         {
