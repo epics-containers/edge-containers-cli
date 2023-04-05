@@ -243,6 +243,7 @@ def restart(
     run_command(
         f"kubectl delete -n {bl} {pod_name}",
         show=True,
+        interactive=True,
         show_cmd=c.show_cmd,
     )
 
@@ -262,6 +263,7 @@ def start(
     run_command(
         f"kubectl scale -n {bl} deploy --replicas=1 {ioc_name}",
         show=True,
+        interactive=True,
         show_cmd=c.show_cmd,
     )
 
@@ -281,6 +283,7 @@ def stop(
     run_command(
         f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}",
         show=True,
+        interactive=True,
         show_cmd=c.show_cmd,
     )
 
@@ -297,5 +300,6 @@ def versions(
         f"podman run --rm quay.io/skopeo/stable "
         f"list-tags docker://{c.helm_registry}/{ioc_name}",
         show=True,
+        interactive=True,
         show_cmd=c.show_cmd,
     )

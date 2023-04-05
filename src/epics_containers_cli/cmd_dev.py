@@ -76,6 +76,7 @@ Or pull the latest built image from the registry and tag it as "{IMAGE_TAG}".
     )
 
     # overwrite repos/epics/ioc folder with any local changes
+    # TODO would this not be better as a mount point?
     run_command(f"rsync -au {folder}/ioc {repos}/epics/", show_cmd=True)
 
     return image

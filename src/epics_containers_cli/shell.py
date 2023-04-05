@@ -44,24 +44,16 @@ ERROR = """
 
 
 def run_command(
-    command: str,
-    error_OK=False,
-    show=False,
-    show_cmd=False,
-    interactive=False,
-    shell=True,
+    command: str, error_OK=False, show=False, show_cmd=False, interactive=False
 ) -> Optional[str]:
     """Run a command and return the output"""
 
     if show_cmd:
         print(f"[gray37]{command}[/gray37]")
 
-    if not shell:
-        commands = command.split()
-    else:
-        commands = [command]
+    commands = [command]
 
-    result = subprocess.run(commands, capture_output=not interactive, shell=shell)
+    result = subprocess.run(commands, capture_output=not interactive, shell=True)
 
     if interactive:
         if result.returncode != 0 and not error_OK:
