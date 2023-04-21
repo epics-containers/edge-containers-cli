@@ -93,11 +93,17 @@ def ps(
 
     if all:
         run_command(
-            f"kubectl -n {bl} get deploy -l is_ioc==True -o {fmt_deploys}", show=True
+            f"kubectl -n {bl} get deploy -l is_ioc==True -o {fmt_deploys}",
+            show=True,
+            interactive=True,
         )
     else:
         format = fmt_pods_wide if wide else fmt_pods
-        run_command(f"kubectl -n {bl} get pod -l is_ioc==True -o {format}", show=True)
+        run_command(
+            f"kubectl -n {bl} get pod -l is_ioc==True -o {format}",
+            show=True,
+            interactive=True,
+        )
 
 
 @cli.command()

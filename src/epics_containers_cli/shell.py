@@ -44,24 +44,16 @@ ERROR = """
 
 
 def run_command(
-    command: str,
-    error_OK=False,
-    show=False,
-    show_cmd=False,
-    interactive=False,
-    shell=True,
+    command: str, error_OK=False, show=False, show_cmd=False, interactive=False
 ) -> Optional[str]:
     """Run a command and return the output"""
 
     if show_cmd:
         print(f"[gray37]{command}[/gray37]")
 
-    if not shell:
-        commands = command.split()
-    else:
-        commands = [command]
+    commands = [command]
 
-    result = subprocess.run(commands, capture_output=not interactive, shell=shell)
+    result = subprocess.run(commands, capture_output=not interactive, shell=True)
 
     if interactive:
         if result.returncode != 0 and not error_OK:
@@ -133,7 +125,7 @@ def repo2registry(repo_name: str) -> str:
 def get_image_name(
     repo: str, arch: Architecture = Architecture.linux, target: str = "developer"
 ) -> str:
-    registry = repo2registry(repo)
+    registry = repo2registry(repo).lower()
     image = f"{registry}-{arch}-{target}"
     log.info("repo = %s image  = %s", repo, image)
     return image
