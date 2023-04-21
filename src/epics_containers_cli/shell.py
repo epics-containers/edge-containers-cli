@@ -125,7 +125,7 @@ def repo2registry(repo_name: str) -> str:
 def get_image_name(
     repo: str, arch: Architecture = Architecture.linux, target: str = "developer"
 ) -> str:
-    registry = repo2registry(repo)
+    registry = repo2registry(repo).lower()
     image = f"{registry}-{arch}-{target}"
     log.info("repo = %s image  = %s", repo, image)
     return image
