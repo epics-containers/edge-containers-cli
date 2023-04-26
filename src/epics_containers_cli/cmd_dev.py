@@ -24,7 +24,6 @@ OPTS = "--security-opt=label=type:container_runtime_t --net=host"
 def all_params():
     env = "-e DISPLAY -e USER -e SHELL"
     volumes = (
-        " -v=/tmp:/tmp"
         " -v=/home/$USER:/home/$USER"
         " -v=/home/$USER/.bashrc_dev_container:/root/.bashrc"
         " -v=/home/$USER/.inputrc_container:/root/.inputrc"
