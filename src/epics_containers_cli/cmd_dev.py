@@ -1,4 +1,5 @@
 import re
+import shutil
 from os import environ
 from pathlib import Path
 from typing import Optional
@@ -23,22 +24,23 @@ OPTS = "--security-opt=label=type:container_runtime_t --net=host"
 def all_params():
     env = "-e DISPLAY -e USER -e SHELL"
     volumes = (
-        " -v=/tmp:/tmp"
         " -v=/home/$USER:/home/$USER"
-        " -v=/home/$USER/.bashrc_dev:/root/.bashrc"
-        " -v=/home/$USER/.inputrc:/root/.inputrc"
-        " -v=/home/$USER/.bash_history:/root/.bash_history"
+        " -v=/home/$USER/.bashrc_dev_container:/root/.bashrc"
+        " -v=/home/$USER/.inputrc_container:/root/.inputrc"
+        " -v=/home/$USER/.bash_eternal_history:/root/.bash_eternal_history"
     )
 
-    # To make containers in containers nice we need to have some consitency
+    # To make containers in containers nice we need to have some consistency
     # with prompt and history - but we need to get files for that from the
-    # host filesystem - hence this slightly ugly check:
-    for f in [".bashrc_dev", ".inputrc", ".bash_history"]:
-        p = Path("/home") / environ.get("USER") / f
-        if not p.exists():
-            raise RuntimeError(
-                f"Missing file {p}, please copy from .devcontainer or create your own"
-            )
+    # host filesystem - hence this slightly ugly logic:
+
+    # copy this container's shell config into the host user's home folder
+    # so they can be mounted into the new container
+    user = environ["USER"]
+    shutil.copyfile("/root/.inputrc", f"/home/{user}/.inputrc_container")
+    shutil.copyfile("/root/.bashrc", f"/home/{user}/.bashrc_dev_container")
+    # make sure .bash_eternal_history exists
+    Path(f"/home/{user}/.bash_eternal_history").touch()
 
     return f"{env} {volumes} {OPTS}"
 
@@ -113,24 +115,21 @@ def launch(
 def ioc_launch(
     ctx: typer.Context,
     helm_chart: Path = typer.Argument(..., help="root folder of local IOC helm chart"),
-    folder: Path = typer.Argument(".", help="folder for generic IOC project"),
-    tag: str = typer.Option(IMAGE_TAG, help="version of the generic IOC to use"),
+    folder: Path = typer.Argument(None, help="folder for generic IOC project"),
     debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
     """Launch an IOC instance using a local helm chart definition.
     Set folder for a locally editable generic IOC or supply a tag to choose any
     version from the registry."""
 
-    if tag == IMAGE_TAG and folder is None:
-        print(
-            "You must specify a version tag for the generic IOC\n"
-            "or a folder with a local clone of the generic IOC project"
-        )
-        raise (typer.Exit(1))
-
     ioc_name, image = get_helm_chart(helm_chart)
-    # switch to the developer target and requested tag for generic IOC image
-    image = re.findall(r"[^:]*", image)[0].replace("runtime", "developer") + f":{tag}"
+    # switch to the developer target and separate the tag for generic IOC image
+    match = re.match(r"([^:]*):(.*)$", image)
+    if match is None:
+        raise ValueError(f"invalid image name in {helm_chart}")
+
+    image = match.group(1).replace("runtime", "developer")
+    org_tag = match.group(2)
 
     # work out which architecture to use for prepare
     arch = Architecture.rtems if "rtems" in image else Architecture.linux
@@ -143,11 +142,11 @@ def ioc_launch(
     config_folder = "/repos/epics/ioc/config"
     config = f'-v {helm_chart / "config"}:{config_folder}'
 
-    if tag != IMAGE_TAG:
-        # launch the requested version of the generic IOC only
+    if folder is None:
+        # launch generic IOC from the registry with tag specified in helm chart
         run_command(
             f"podman run --rm -it --name {ioc_name} {config} {all_params()}"
-            f" {image} bash {start_script}",
+            f" {image}:{org_tag} bash {start_script}",
             show_cmd=True,
             interactive=True,
         )
@@ -158,11 +157,11 @@ def ioc_launch(
 
         folder_image = prepare(folder, arch)
 
-        if folder_image != image:
+        if folder_image != f"{image}:local":
             print(
                 f"""
 ERROR: the specified Generic IOC image: {folder_image}
-does not match the helm chart image: {image}
+does not match the helm chart image: {image}:{org_tag}
 you must specify a folder for the local generic IOC project
 or a tag for the generic IOC image to use from the registry"""
             )
@@ -175,7 +174,7 @@ or a tag for the generic IOC image to use from the registry"""
         )
         run_command(
             f"podman run -it --name {ioc_name} {repos} {config} {all_params()}"
-            f" {image} bash -c '{command}'",
+            f" {folder_image} bash -c '{command}'",
             show_cmd=True,
             interactive=True,
         )
