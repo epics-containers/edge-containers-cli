@@ -101,7 +101,7 @@ def check_domain(domain: str):
 def repo2registry(repo_name: str) -> str:
     """convert a repo name to a registry name"""
 
-    match = re.match(r"git@([^:]*):(.*)\/(.*).git", repo_name)
+    match = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)?", repo_name)
     if not match:
         print(f"repo {repo_name} is not a valid git remote")
         raise typer.Exit(1)
@@ -141,7 +141,7 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> str:
     log.debug(f"remotes = {remotes}")
 
     if full:
-        matches = re.findall(r"(git@.*\.git)", remotes)
+        matches = re.findall(r"(git@.*(?:\.git)?) ", remotes)
     else:
         matches = re.findall(r"\/(.*)\.git", remotes)
 

@@ -17,6 +17,20 @@
             "cwd": "/scratch/hgv27681/work/ioc-pmac"
         },
         {
+            "name": "ec dev ioc-launch ",
+            "type": "python",
+            "request": "launch",
+            "module": "epics_containers_cli.__main__",
+            "justMyCode": false,
+            "args": [
+                "dev",
+                "ioc-launch",
+                "../bl45p/iocs/bl45p-ea-ioc-01",
+                "."
+            ],
+            "cwd": "/scratch/hgv27681/work/ioc-adaravis"
+        },
+        {
             "name": "Debug Unit Test",
             "type": "python",
             "request": "launch",

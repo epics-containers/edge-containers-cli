@@ -57,7 +57,7 @@ def prepare(folder: Path, arch: Architecture = Architecture.linux):
     repos = Path(REPOS_FOLDER.format(folder=folder.absolute()))
 
     # make sure the image with tag "local" is present
-    if run_command(f"podman image exists {image}", error_OK=True) is None:
+    if run_command(f"podman images -q {image}") == "":
         print(
             f"""
 image {image} is not present.
@@ -114,8 +114,12 @@ def launch(
 @dev.command()
 def ioc_launch(
     ctx: typer.Context,
-    helm_chart: Path = typer.Argument(..., help="root folder of local IOC helm chart"),
-    folder: Path = typer.Argument(None, help="folder for generic IOC project"),
+    helm_chart: Path = typer.Argument(
+        ..., help="root folder of local IOC helm chart", dir_okay=True, file_okay=False
+    ),
+    folder: Path = typer.Argument(
+        None, help="folder for generic IOC project", dir_okay=True, file_okay=False
+    ),
     debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
     """Launch an IOC instance using a local helm chart definition.
