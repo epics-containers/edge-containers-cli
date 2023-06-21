@@ -143,7 +143,7 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> str:
     if full:
         matches = re.findall(r"(git@.*(?:\.git)?) ", remotes)
     else:
-        matches = re.findall(r"\/(.*)\.git", remotes)
+        matches = re.findall(r"\/(.*)(?:\.git)? ", remotes)
 
     if len(matches) > 0:
         repo_name = matches[0]
