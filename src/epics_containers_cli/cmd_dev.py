@@ -72,12 +72,12 @@ Or pull the latest built image from the registry and tag it as "{IMAGE_TAG}".
     run_command(
         f"podman run --rm {OPTS} -v {repos}:/copy "
         # the rsync command refreshes repos but does not overwrite local changes
-        f"--entrypoint rsync {image} " f"-au /repos/ /copy",
+        f"--entrypoint rsync {image} " f"-au / /copy",
         interactive=True,
         show_cmd=True,
     )
 
-    # overwrite repos/epics/ioc folder with any local changes
+    # overwrite epics/ioc folder with any local changes
     # TODO would this not be better as a mount point?
     run_command(f"rsync -au {folder}/ioc {repos}/epics/", show_cmd=True)
 
@@ -142,8 +142,8 @@ def ioc_launch(
     run_command(f"podman rm -f {ioc_name}", show_cmd=True)
 
     helm_chart = helm_chart.absolute()
-    start_script = "/repos/epics/ioc/start.sh"
-    config_folder = "/repos/epics/ioc/config"
+    start_script = "/epics/ioc/start.sh"
+    config_folder = "/epics/ioc/config"
     config = f'-v {helm_chart / "config"}:{config_folder}'
 
     if folder is None:
@@ -203,8 +203,7 @@ def debug_last(
         repos = (folder / "repos").absolute()
         repos.mkdir(exist_ok=True)
         run_command(
-            f"podman run --rm {OPTS} -v {repos}:/copy {last_image} "
-            "rsync -a /repos/ /copy",
+            f"podman run --rm {OPTS} -v {repos}:/copy {last_image} " "rsync -a / /copy",
             interactive=True,
             show_cmd=True,
         )
@@ -261,10 +260,10 @@ def make(
     prepare(folder, arch)
 
     command = (
-        "cd /repos/epics/support && "
+        "cd /epics/support && "
         "python modules.py dependencies && "
         "make && "
-        "cd /repos/epics/ioc && "
+        "cd /epics/ioc && "
         "make; "
         "echo; echo BUILD DONE - hit ctrl-D to exit the build container.; "
         "bash"
