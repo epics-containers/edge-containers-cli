@@ -4,15 +4,12 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import jinja2
 import typer
-from git import Repo
 
 import epics_containers_cli.helm as helm
-from epics_containers_cli.urls import get_repo_url
 
 from .context import Context
-from .shell import K8S_LOG_URL, check_domain, check_ioc, get_helm_chart, run_command
+from .shell import K8S_LOG_URL, check_domain, check_ioc, run_command
 
 ioc = typer.Typer()
 
@@ -105,34 +102,12 @@ def deploy_local(
     """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
     c: Context = ctx.obj
 
-    version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
     domain = c.domain
     check_domain(domain)
+    ioc_name = ioc_path.name.lower()
 
-    ioc_name, _ = get_helm_chart(ioc_path)
-    ioc_path = ioc_path.absolute()
-
-    if not yes:
-        print(
-            f"Deploy {ioc_name} TEMPORARY version {version} "
-            f"from {ioc_path} to domain {domain}"
-        )
-        if not typer.confirm("Are you sure ?"):
-            raise typer.Abort()
-
-    with TemporaryDirectory() as temp:
-        os.chdir(temp)
-        run_command(
-            f"helm package -u {ioc_path} --version {version} --app-version {version}",
-            show=True,
-            show_cmd=c.show_cmd,
-        )
-        package = list(Path(".").glob("*.tgz"))[0]
-        run_command(
-            f"helm upgrade -n {domain} --install {ioc_name} {args} {package}",
-            show=True,
-            show_cmd=c.show_cmd,
-        )
+    chart = helm.Helm(domain, ioc_name, args=args)
+    chart.deploy_local(ioc_path, yes)
 
 
 @ioc.command()
@@ -140,47 +115,17 @@ def deploy(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
     version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
-    helm_folder: str = typer.Option("", help="Override the extra level of helm path"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
-    """Pull an IOC helm chart and deploy it to the cluster"""
+    """
+    Pull an IOC helm chart version from the domain repo and deploy it to the cluster
+    """
     c: Context = ctx.obj
 
-    bl = c.domain
-    check_domain(bl)
-
-    repo_url = get_repo_url(bl)
-
-    # TODO: review use of sparse checkout here. But note that these repos will
-    # be pretty small typically so there may be no benefit
-    tmpdir = TemporaryDirectory(prefix=f"{bl}")
-    tmp = Path(tmpdir.name)
-
-    config_folder = tmp / "iocs" / str(ioc_name) / "config"
-    values_path = tmp / "iocs" / str(ioc_name) / "values.yaml"
-    bl_chart_folder = tmp / "beamline-chart"
-    bl_chart_path = bl_chart_folder / "Chart.yaml"
-    bl_config_folder = bl_chart_folder / "config"
-    jinja_path = bl_chart_folder / "Chart.yaml.jinja"
-
-    Repo.clone_from(repo_url, tmp, depth=1, branch=version, single_branch=True)
-
-    # render a Chart.yaml from the jinja template
-    template = jinja2.Template(jinja_path.read_text())
-    chart = template.render(ioc_name=ioc_name, ioc_version=version)
-    bl_chart_path.write_text(chart)
-
-    # add the config folder to the helm chart
-    bl_config_folder.symlink_to(config_folder)
-
-    # use helm to install the chart
-    helm.install(
-        name=ioc_name,
-        namespace=bl,
-        chart=bl_chart_folder,
-        values=values_path,
-        version=version,
-    )
+    domain = c.domain
+    check_domain(domain)
+    chart = helm.Helm(domain, ioc_name, args, version)
+    chart.deploy()
 
 
 @ioc.command()

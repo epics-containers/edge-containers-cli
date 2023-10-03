@@ -6,9 +6,8 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
-import ruamel.yaml as yaml
 import typer
 
 from .enums import Architecture
@@ -116,38 +115,6 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> str:
         raise typer.Exit(1)
 
     return repo_name
-
-
-def get_helm_chart(folder: Path) -> Tuple[str, str]:
-    # verify this is a helm chart and extract the IOC name from it
-    with open(folder / "Chart.yaml", "r") as stream:
-        chart = yaml.safe_load(stream)
-
-    domain_chart_loc = ""
-    for dep in chart["dependencies"]:
-        if dep["name"] == "beamline-chart":
-            domain_chart_loc = dep["repository"]
-            break
-
-    if not domain_chart_loc:
-        print("invalid Chart.yaml. Can't find domain chart dependency")
-        raise typer.Exit(1)
-
-    domain_values_yaml = folder / domain_chart_loc[7:] / "values.yaml"
-
-    # this would allow us to read information from the beamline default
-    # values - but we have dropped the requirement to supply domain / beamline
-    # in the yaml so it can be overriden by helm.
-    with open(domain_values_yaml, "r") as stream:
-        _ = yaml.safe_load(stream)
-
-    with open(folder / "values.yaml", "r") as stream:
-        ioc_values = yaml.safe_load(stream)
-
-    ioc_name = chart["name"]
-    generic_image = ioc_values["base_image"]
-
-    return ioc_name, generic_image
 
 
 # work out what the registry name is for a given repo remote e.g.

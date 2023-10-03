@@ -1,4 +1,3 @@
-import re
 import shutil
 from os import environ
 from pathlib import Path
@@ -8,7 +7,7 @@ import typer
 
 from .context import Context
 from .enums import Architecture
-from .shell import get_git_name, get_helm_chart, get_image_name, run_command
+from .shell import get_git_name, get_image_name, run_command
 
 dev = typer.Typer()
 
@@ -126,64 +125,65 @@ def ioc_launch(
     Set folder for a locally editable generic IOC or supply a tag to choose any
     version from the registry."""
 
-    ioc_name, image = get_helm_chart(helm_chart)
-    # switch to the developer target and separate the tag for generic IOC image
-    match = re.match(r"([^:]*):(.*)$", image)
-    if match is None:
-        raise ValueError(f"invalid image name in {helm_chart}")
 
-    image = match.group(1).replace("runtime", "developer")
-    org_tag = match.group(2)
+#     ioc_name, image = get_helm_chart(helm_chart)
+#     # switch to the developer target and separate the tag for generic IOC image
+#     match = re.match(r"([^:]*):(.*)$", image)
+#     if match is None:
+#         raise ValueError(f"invalid image name in {helm_chart}")
 
-    # work out which architecture to use for prepare
-    arch = Architecture.rtems if "rtems" in image else Architecture.linux
+#     image = match.group(1).replace("runtime", "developer")
+#     org_tag = match.group(2)
 
-    # make sure there are not 2 copies running
-    run_command(f"podman rm -f {ioc_name}", show_cmd=True)
+#     # work out which architecture to use for prepare
+#     arch = Architecture.rtems if "rtems" in image else Architecture.linux
 
-    helm_chart = helm_chart.absolute()
-    start_script = "/epics/ioc/start.sh"
-    config_folder = "/epics/ioc/config"
-    config = f'-v {helm_chart / "config"}:{config_folder}'
+#     # make sure there are not 2 copies running
+#     run_command(f"podman rm -f {ioc_name}", show_cmd=True)
 
-    if folder is None:
-        # launch generic IOC from the registry with tag specified in helm chart
-        run_command(
-            f"podman run --rm -it --name {ioc_name} {config} {all_params()}"
-            f" {image}:{org_tag} bash {start_script}",
-            show_cmd=True,
-            interactive=True,
-        )
-    else:
-        # launch the local work version of the generic IOC with locally mounted
-        # /repos folder - useful for testing changes to repos folder
-        repos = REPOS.format(folder=folder.absolute())
+#     helm_chart = helm_chart.absolute()
+#     start_script = "/epics/ioc/start.sh"
+#     config_folder = "/epics/ioc/config"
+#     config = f'-v {helm_chart / "config"}:{config_folder}'
 
-        folder_image = prepare(folder, arch)
+#     if folder is None:
+#         # launch generic IOC from the registry with tag specified in helm chart
+#         run_command(
+#             f"podman run --rm -it --name {ioc_name} {config} {all_params()}"
+#             f" {image}:{org_tag} bash {start_script}",
+#             show_cmd=True,
+#             interactive=True,
+#         )
+#     else:
+#         # launch the local work version of the generic IOC with locally mounted
+#         # /repos folder - useful for testing changes to repos folder
+#         repos = REPOS.format(folder=folder.absolute())
 
-        if folder_image != f"{image}:local":
-            print(
-                f"""
-ERROR: the specified Generic IOC image: {folder_image}
-does not match the helm chart image: {image}:{org_tag}
-you must specify a folder for the local generic IOC project
-or a tag for the generic IOC image to use from the registry"""
-            )
-            raise (typer.Exit(1))
+#         folder_image = prepare(folder, arch)
 
-        command = (
-            f"bash {start_script}; "
-            f"echo IOC EXITED - hit ctrl D to leave IOC container; "
-            f"bash"
-        )
-        run_command(
-            f"podman run -it --name {ioc_name} {repos} {config} {all_params()}"
-            f" {folder_image} bash -c '{command}'",
-            show_cmd=True,
-            interactive=True,
-        )
+#         if folder_image != f"{image}:local":
+#             print(
+#                 f"""
+# ERROR: the specified Generic IOC image: {folder_image}
+# does not match the helm chart image: {image}:{org_tag}
+# you must specify a folder for the local generic IOC project
+# or a tag for the generic IOC image to use from the registry"""
+#             )
+#             raise (typer.Exit(1))
 
-    # TODO look into debugging
+#         command = (
+#             f"bash {start_script}; "
+#             f"echo IOC EXITED - hit ctrl D to leave IOC container; "
+#             f"bash"
+#         )
+#         run_command(
+#             f"podman run -it --name {ioc_name} {repos} {config} {all_params()}"
+#             f" {folder_image} bash -c '{command}'",
+#             show_cmd=True,
+#             interactive=True,
+#         )
+
+#     # TODO look into debugging
 
 
 @dev.command()
