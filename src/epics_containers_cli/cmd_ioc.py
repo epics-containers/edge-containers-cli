@@ -1,8 +1,6 @@
-import os
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import typer
 
@@ -68,26 +66,26 @@ def template(
     """print out the helm template generated from a local ioc helm chart"""
     c: Context = ctx.obj
 
-    version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
+    datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
     domain = c.domain
     check_domain(domain)
 
-    ioc_name, _ = get_helm_chart(ioc_path)
-    ioc_path = ioc_path.absolute()
+    # ioc_name, _ = get_helm_chart(ioc_path)
+    # ioc_path = ioc_path.absolute()
 
-    with TemporaryDirectory() as temp:
-        os.chdir(temp)
-        run_command(
-            f"helm package -u {ioc_path} --version {version} --app-version {version}",
-            show=True,
-            show_cmd=c.show_cmd,
-        )
-        package = list(Path(".").glob("*.tgz"))[0]
-        run_command(
-            f"helm template --debug -n {domain} {ioc_name} {package}",
-            show=True,
-            show_cmd=c.show_cmd,
-        )
+    # with TemporaryDirectory() as temp:
+    #     os.chdir(temp)
+    #     run_command(
+    #         f"helm package -u {ioc_path} --version {version} --app-version {version}",
+    #         show=True,
+    #         show_cmd=c.show_cmd,
+    #     )
+    #     package = list(Path(".").glob("*.tgz"))[0]
+    #     run_command(
+    #         f"helm template --debug -n {domain} {ioc_name} {package}",
+    #         show=True,
+    #         show_cmd=c.show_cmd,
+    #     )
 
 
 @ioc.command()
