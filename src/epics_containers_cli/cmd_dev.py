@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from typing import Optional
 
 import typer
 
@@ -39,8 +40,15 @@ def launch(
     generic_ioc_local: Path = typer.Argument(
         None, help="folder for generic IOC project", dir_okay=True, file_okay=False
     ),
+    execute: Optional[str] = typer.Option(
+        None,
+        help="command to execute in the container. Defaults to executing the IOC",
+    ),
     target: Targets = typer.Option(
         Targets.developer, help="choose runtime or developer target"
+    ),
+    args: str = typer.Option(
+        "", help="Additional args for podman/docker, 'must be quoted'"
     ),
     debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
@@ -49,7 +57,7 @@ def launch(
     Set generic_ioc_local for a locally editable generic IOC or supply a tag
     to choose any version from the registry.
     """
-
+    ioc_folder = ioc_folder.absolute()
     ioc_name = ioc_folder.name
     values = ioc_folder / "values.yaml"
     if not values.exists():
@@ -58,7 +66,6 @@ def launch(
 
     values_text = values.read_text()
     matches = re.findall(r"image: (.*):(.*)", values_text)
-    print(matches)
     if len(matches) == 1:
         image, tag = matches[0]
     else:
@@ -72,15 +79,18 @@ def launch(
     run_command(f"podman rm -f {ioc_name}")
 
     # TODO promote these to globals or similar
-    start_script = "bash -c '/epics/ioc/start.sh; bash'"
+    if execute is None:
+        start_script = "-c '/epics/ioc/start.sh; bash'"
+    else:
+        start_script = f"-c '{execute}'"
     config_folder = "/epics/ioc/config"
-    config = all_params() + f' -v {ioc_folder / "config"}:{config_folder}'
+    config = all_params() + f' -v {ioc_folder / "config"}:{config_folder} ' + args
 
     if not generic_ioc_local:
         image_name = f"{image}:{tag}"
 
     run_command(
-        f"podman run --rm -it --name {ioc_name} {config}"
+        f"podman run --rm -it --entrypoint 'bash' --name {ioc_name} {config}"
         f" {image_name} {start_script}",
         interactive=True,
     )
@@ -121,7 +131,7 @@ def build(
     cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
 ):
     """
-    Build a container locally from a container project.
+    Build a generic IOC container locally from a container project.
 
     Builds both developer and runtime targets.
     """
