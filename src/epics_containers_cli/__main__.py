@@ -9,7 +9,13 @@ from .cmd_ioc import ioc
 from .context import Context
 from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
-from .shell import EC_DOMAIN_REPO, EC_EPICS_DOMAIN, EC_K8S_NAMESPACE, run_command
+from .shell import (
+    EC_DOMAIN_REPO,
+    EC_EPICS_DOMAIN,
+    EC_GIT_ORG,
+    EC_K8S_NAMESPACE,
+    run_command,
+)
 
 __all__ = ["main"]
 
@@ -51,6 +57,12 @@ def main(
     domain: str = typer.Option(
         EC_EPICS_DOMAIN, "-d", "--domain", help="beamline or accelerator domain to use"
     ),
+    org: str = typer.Option(
+        EC_GIT_ORG,
+        "-o",
+        "--org",
+        help="git remote organisation of domain repos",
+    ),
     repo: str = typer.Option(
         EC_DOMAIN_REPO,
         "-r",
@@ -73,7 +85,7 @@ def main(
 
     # create a context dictionary to pass to all sub commands
     ctx.ensure_object(Context)
-    context = Context(domain, repo, namespace)
+    context = Context(domain, namespace, repo, org)
     ctx.obj = context
 
 

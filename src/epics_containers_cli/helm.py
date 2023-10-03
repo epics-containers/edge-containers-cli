@@ -1,4 +1,3 @@
-import re
 import shutil
 import subprocess
 from datetime import datetime
@@ -11,8 +10,6 @@ import typer
 from git import GitCommandError, Repo
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
-
-RE_TAGS = re.compile(r"[\s\S]*?tag: ([\d.]*).*\n")
 
 
 class Helm:
@@ -94,7 +91,7 @@ class Helm:
 
             self._do_deploy(self.ioc_config_folder)
         except GitCommandError as e:
-            raise typer.Exit(f"ERROR: no IOC of that version found {e}")
+            raise typer.Exit(f"ERROR: no IOC of that version found.\n\n{e}")
 
     def _do_deploy(self, config_folder: Path):
         """
@@ -126,9 +123,12 @@ class Helm:
         """
 
         helm_cmd = "template" if self.template else "upgrade --install"
+        # complicated stderr filter to suppress helm symlink warnings
         cmd = (
-            f"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} "
+            f"bash -c "
+            f'"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} '
             f"--version {self.version} --namespace {self.domain} -f {values}"
+            f" 2> >(grep -v 'found symbolic link' >&2)\""
         )
         if self.args:
             cmd += f" {self.args}"

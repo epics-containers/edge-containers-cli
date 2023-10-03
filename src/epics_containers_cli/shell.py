@@ -6,7 +6,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Union
 
 import typer
 
@@ -14,38 +14,43 @@ from .enums import Architecture
 from .logging import log
 
 EC_EPICS_DOMAIN = os.environ.get("EC_EPICS_DOMAIN") or os.environ.get("BEAMLINE")
-EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO")
-EC_REGISTRY_MAPPING = os.environ.get("EC_REGISTRY_MAPPING", "github.com=ghcr.io")
-EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", None) or EC_EPICS_DOMAIN
+EC_GIT_ORG = os.environ.get("EC_GIT_ORG")
+EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO", f"{EC_GIT_ORG}/{EC_EPICS_DOMAIN}")
+EC_REGISTRY_MAPPING = os.environ.get("EC_REGISTRY_MAPPING")
+EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", EC_EPICS_DOMAIN)
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
 
 
-def run_command(command: str, interactive=True, error_OK=False) -> Optional[str]:
+def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bool]:
     """
     Run a command and return the output
+
+    if interactive is true then allow stdin and stdout, return the return code,
+    otherwise return True for success and False for failure
     """
 
     result = subprocess.run(command, capture_output=not interactive, shell=True)
 
-    if not interactive:
-        typer.echo(result.stdout.decode())
-
     if result.returncode != 0 and not error_OK:
-        typer.echo(result.stderr.decode())
-        raise typer.Exit(1)
+        if interactive:
+            raise typer.Exit(1)
 
-    if not interactive:
+    if interactive:
+        return result.returncode == 0
+    else:
         return result.stdout.decode()
 
 
 def check_ioc(ioc_name: str, bl: str):
-    if not run_command(f"kubectl get -n {bl} deploy/{ioc_name}", error_OK=True):
+    cmd = f"kubectl get -n {bl} deploy/{ioc_name}"
+    if not run_command(cmd, interactive=False, error_OK=True):
         typer.echo(f"ioc {ioc_name} does not exist in domain {bl}")
         raise typer.Exit(1)
 
 
 def check_domain(domain: str):
-    if not run_command(f"kubectl get namespace {domain} -o name", error_OK=True):
+    cmd = f"kubectl get namespace {domain} -o name"
+    if not run_command(cmd, interactive=False, error_OK=True):
         typer.echo(f"domain {domain} does not exist")
         raise typer.Exit(1)
 
@@ -95,6 +100,10 @@ def repo2registry(repo_name: str) -> str:
 
     source_reg, org, repo = match.groups()
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
+
+    if not EC_REGISTRY_MAPPING:
+        typer.echo("environment variable IMAGE_REGISTRY_MAPPING not set")
+        raise typer.Exit(1)
 
     for mapping in EC_REGISTRY_MAPPING.split():
         if mapping.split("=")[0] == source_reg:

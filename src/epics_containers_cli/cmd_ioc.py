@@ -46,10 +46,7 @@ def delete(
     ):
         raise typer.Abort()
 
-    run_command(
-        f"helm delete -n {bl} {ioc_name}",
-        show=True,
-    )
+    run_command(f"helm delete -n {bl} {ioc_name}")
 
 
 @ioc.command()
@@ -71,7 +68,7 @@ def template(
 
     ioc_name = ioc_path.name.lower()
 
-    chart = helm.Helm(domain, ioc_name, args=args)
+    chart = helm.Helm(domain, ioc_name, args=args, template=True, repo=c.beamline_repo)
     chart.deploy_local(ioc_path)
 
 
@@ -109,7 +106,7 @@ def deploy(
     domain = c.domain
     check_domain(domain)
 
-    chart = helm.Helm(domain, ioc_name, args, version)
+    chart = helm.Helm(domain, ioc_name, args, version, repo=c.beamline_repo)
     chart.deploy()
 
 
@@ -123,7 +120,7 @@ def instances(
     domain = c.domain
     check_domain(domain)
 
-    chart = helm.Helm(domain, ioc_name)
+    chart = helm.Helm(domain, ioc_name, repo=c.beamline_repo)
     chart.versions()
 
 
@@ -138,11 +135,7 @@ def exec(
     check_domain(bl)
     check_ioc(ioc_name, bl)
 
-    run_command(
-        f"kubectl -it -n {bl} exec  deploy/{ioc_name} -- bash",
-        show=True,
-        interactive=True,
-    )
+    run_command(f"kubectl -it -n {bl} exec  deploy/{ioc_name} -- bash")
 
 
 @ioc.command()
@@ -181,11 +174,7 @@ def logs(
     previous = "-p" if prev else ""
     fol = "-f" if follow else ""
 
-    run_command(
-        f"kubectl -n {bl} logs deploy/{ioc_name} {previous} {fol}",
-        show=True,
-        interactive=True,
-    )
+    run_command(f"kubectl -n {bl} logs deploy/{ioc_name} {previous} {fol}")
 
 
 @ioc.command()
@@ -201,11 +190,7 @@ def restart(
     check_ioc(ioc_name, bl)
 
     pod_name = run_command(f"kubectl get -n {bl} pod -l app={ioc_name} -o name")
-    run_command(
-        f"kubectl delete -n {bl} {pod_name}",
-        show=True,
-        interactive=True,
-    )
+    run_command(f"kubectl delete -n {bl} {pod_name}")
 
 
 @ioc.command()
@@ -220,11 +205,7 @@ def start(
     check_domain(bl)
     check_ioc(ioc_name, bl)
 
-    run_command(
-        f"kubectl scale -n {bl} deploy --replicas=1 {ioc_name}",
-        show=True,
-        interactive=True,
-    )
+    run_command(f"kubectl scale -n {bl} deploy --replicas=1 {ioc_name}")
 
 
 @ioc.command()
@@ -239,8 +220,4 @@ def stop(
     check_domain(bl)
     check_ioc(ioc_name, bl)
 
-    run_command(
-        f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}",
-        show=True,
-        interactive=True,
-    )
+    run_command(f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}")
