@@ -6,11 +6,11 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Union
+from typing import Tuple, Union
 
 import typer
 
-from .enums import Architecture
+from .globals import Architecture
 from .logging import log
 
 EC_EPICS_DOMAIN = os.environ.get("EC_EPICS_DOMAIN") or os.environ.get("BEAMLINE")
@@ -60,19 +60,18 @@ def check_domain(domain: str):
 def get_image_name(
     repo: str, arch: Architecture = Architecture.linux, target: str = "developer"
 ) -> str:
-    registry = repo2registry(repo).lower()
+    registry = repo2registry(repo).lower().removesuffix(".git")
     image = f"{registry}-{arch}-{target}"
     log.info("repo = %s image  = %s", repo, image)
     return image
 
 
-def get_git_name(folder: Path = Path("."), full: bool = False) -> str:
-    if not folder.joinpath(".git").exists():
-        typer.echo(f"folder {folder.absolute()} is not a git repository")
-        raise typer.Exit(1)
+def get_git_name(folder: Path = Path("."), full: bool = False) -> Tuple[str, Path]:
+    path = str(run_command("git rev-parse --show-toplevel", interactive=False))
+    git_root = Path(path.strip())
 
-    os.chdir(folder)
-    remotes = str(run_command("git remote -v"))
+    os.chdir(git_root)
+    remotes = str(run_command("git remote -v", interactive=False))
     log.debug(f"remotes = {remotes}")
 
     if full:
@@ -81,12 +80,12 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> str:
         matches = re.findall(r"\/(.*)(?:\.git)? ", remotes)
 
     if len(matches) > 0:
-        repo_name = matches[0]
+        repo_name = str(matches[0])
     else:
         typer.echo(f"folder {folder.absolute()} cannot get repo name")
         raise typer.Exit(1)
 
-    return repo_name
+    return repo_name, git_root
 
 
 # work out what the registry name is for a given repo remote e.g.

@@ -6,7 +6,7 @@ import typer
 
 import epics_containers_cli.helm as helm
 
-from .context import Context
+from .globals import Context
 from .shell import EC_LOG_URL, check_domain, check_ioc, run_command
 
 ioc = typer.Typer()

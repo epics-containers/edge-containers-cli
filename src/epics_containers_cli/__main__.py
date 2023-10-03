@@ -6,7 +6,7 @@ from . import __version__
 from .cmd_cluster import cluster
 from .cmd_dev import dev
 from .cmd_ioc import ioc
-from .context import Context
+from .globals import Context
 from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
 from .shell import (
