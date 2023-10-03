@@ -7,7 +7,7 @@ import typer
 import epics_containers_cli.helm as helm
 
 from .context import Context
-from .shell import K8S_LOG_URL, check_domain, check_ioc, run_command
+from .shell import EC_LOG_URL, check_domain, check_ioc, run_command
 
 ioc = typer.Typer()
 
@@ -19,14 +19,12 @@ def attach(
 ):
     """Attach to the IOC shell of a live IOC"""
     c: Context = ctx.obj
-
     domain = c.domain
     check_domain(domain)
     check_ioc(ioc_name, domain)
 
     run_command(
         f"kubectl -it -n {domain} attach  deploy/{ioc_name}",
-        show_cmd=c.show_cmd,
         interactive=True,
     )
 
@@ -38,7 +36,6 @@ def delete(
 ):
     """Remove an IOC helm deployment from the cluster"""
     c: Context = ctx.obj
-
     bl = c.domain
     check_domain(bl)
     check_ioc(ioc_name, bl)
@@ -52,40 +49,30 @@ def delete(
     run_command(
         f"helm delete -n {bl} {ioc_name}",
         show=True,
-        show_cmd=c.show_cmd,
     )
 
 
 @ioc.command()
 def template(
     ctx: typer.Context,
-    ioc_path: Path = typer.Argument(
-        ..., help="root folder of local helm chart to deploy"
-    ),
+    ioc_path: Path = typer.Argument(..., help="folder of local ioc definition"),
+    args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
-    """print out the helm template generated from a local ioc helm chart"""
+    """
+    print out the helm template generated from a local ioc instance
+    """
     c: Context = ctx.obj
+    domain = c.domain
+    check_domain(domain)
 
     datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
     domain = c.domain
     check_domain(domain)
 
-    # ioc_name, _ = get_helm_chart(ioc_path)
-    # ioc_path = ioc_path.absolute()
+    ioc_name = ioc_path.name.lower()
 
-    # with TemporaryDirectory() as temp:
-    #     os.chdir(temp)
-    #     run_command(
-    #         f"helm package -u {ioc_path} --version {version} --app-version {version}",
-    #         show=True,
-    #         show_cmd=c.show_cmd,
-    #     )
-    #     package = list(Path(".").glob("*.tgz"))[0]
-    #     run_command(
-    #         f"helm template --debug -n {domain} {ioc_name} {package}",
-    #         show=True,
-    #         show_cmd=c.show_cmd,
-    #     )
+    chart = helm.Helm(domain, ioc_name, args=args)
+    chart.deploy_local(ioc_path)
 
 
 @ioc.command()
@@ -99,9 +86,9 @@ def deploy_local(
 ):
     """Deploy a local IOC helm chart directly to the cluster with dated beta version"""
     c: Context = ctx.obj
-
     domain = c.domain
     check_domain(domain)
+
     ioc_name = ioc_path.name.lower()
 
     chart = helm.Helm(domain, ioc_name, args=args)
@@ -119,9 +106,9 @@ def deploy(
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
     c: Context = ctx.obj
-
     domain = c.domain
     check_domain(domain)
+
     chart = helm.Helm(domain, ioc_name, args, version)
     chart.deploy()
 
@@ -133,7 +120,6 @@ def instances(
 ):
     """List all versions of the IOC available in the helm registry"""
     c: Context = ctx.obj
-
     domain = c.domain
     check_domain(domain)
 
@@ -148,7 +134,6 @@ def exec(
 ):
     """Execute a bash prompt in a live IOC's container"""
     c: Context = ctx.obj
-
     bl = c.domain
     check_domain(bl)
     check_ioc(ioc_name, bl)
@@ -157,7 +142,6 @@ def exec(
         f"kubectl -it -n {bl} exec  deploy/{ioc_name} -- bash",
         show=True,
         interactive=True,
-        show_cmd=c.show_cmd,
     )
 
 
@@ -170,11 +154,11 @@ def log_history(
 ):
     """Open historical logs for an IOC"""
 
-    if K8S_LOG_URL is None:
-        print("K8S_LOG_URL environment not set")
+    if EC_LOG_URL is None:
+        typer.echo("K8S_LOG_URL environment not set")
         raise typer.Exit(1)
 
-    url = K8S_LOG_URL.format(ioc_name=ioc_name)
+    url = EC_LOG_URL.format(ioc_name=ioc_name)
     webbrowser.open(url)
 
 
@@ -200,7 +184,6 @@ def logs(
     run_command(
         f"kubectl -n {bl} logs deploy/{ioc_name} {previous} {fol}",
         show=True,
-        show_cmd=c.show_cmd,
         interactive=True,
     )
 
@@ -222,7 +205,6 @@ def restart(
         f"kubectl delete -n {bl} {pod_name}",
         show=True,
         interactive=True,
-        show_cmd=c.show_cmd,
     )
 
 
@@ -242,7 +224,6 @@ def start(
         f"kubectl scale -n {bl} deploy --replicas=1 {ioc_name}",
         show=True,
         interactive=True,
-        show_cmd=c.show_cmd,
     )
 
 
@@ -262,5 +243,4 @@ def stop(
         f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}",
         show=True,
         interactive=True,
-        show_cmd=c.show_cmd,
     )

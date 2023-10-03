@@ -8,5 +8,5 @@ from dataclasses import dataclass
 @dataclass
 class Context:
     domain: str = ""
-    helm_registry: str = ""
-    show_cmd: bool = False
+    beamline_repo: str = ""
+    kubernetes_namespace: str = ""

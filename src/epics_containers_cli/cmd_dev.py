@@ -5,7 +5,6 @@ from typing import Optional
 
 import typer
 
-from .context import Context
 from .enums import Architecture
 from .shell import get_git_name, get_image_name, run_command
 
@@ -57,7 +56,7 @@ def prepare(folder: Path, arch: Architecture = Architecture.linux):
 
     # make sure the image with tag "local" is present
     if run_command(f"podman images -q {image}") == "":
-        print(
+        typer.echo(
             f"""
 image {image} is not present.
 Please run "ec dev build" first.
@@ -71,14 +70,13 @@ Or pull the latest built image from the registry and tag it as "{IMAGE_TAG}".
     run_command(
         f"podman run --rm {OPTS} -v {repos}:/copy "
         # the rsync command refreshes repos but does not overwrite local changes
-        f"--entrypoint rsync {image} " f"-au / /copy",
-        interactive=True,
-        show_cmd=True,
+        f"--entrypoint rsync {image} "
+        f"-au / /copy"
     )
 
     # overwrite epics/ioc folder with any local changes
     # TODO would this not be better as a mount point?
-    run_command(f"rsync -au {folder}/ioc {repos}/epics/", show_cmd=True)
+    run_command(f"rsync -au {folder}/ioc {repos}/epics/")
 
     return image
 
@@ -101,12 +99,10 @@ def launch(
 
     prepare(folder, arch)
 
-    run_command(f"podman rm -f {repo_name}", show_cmd=True)
+    run_command(f"podman rm -f {repo_name}")
     run_command(
         f"podman run --rm -it --name {repo_name} --entrypoint bash "
-        f"{params} {image}:{IMAGE_TAG}",
-        show_cmd=True,
-        interactive=True,
+        f"{params} {image}:{IMAGE_TAG}"
     )
 
 
@@ -162,7 +158,7 @@ def ioc_launch(
 #         folder_image = prepare(folder, arch)
 
 #         if folder_image != f"{image}:local":
-#             print(
+#             typer.echo(
 #                 f"""
 # ERROR: the specified Generic IOC image: {folder_image}
 # does not match the helm chart image: {image}:{org_tag}
@@ -203,18 +199,12 @@ def debug_last(
         repos = (folder / "repos").absolute()
         repos.mkdir(exist_ok=True)
         run_command(
-            f"podman run --rm {OPTS} -v {repos}:/copy {last_image} " "rsync -a / /copy",
-            interactive=True,
-            show_cmd=True,
+            f"podman run --rm {OPTS} -v {repos}:/copy {last_image} " "rsync -a / /copy"
         )
 
         params += f" -v{repos}:/repos "
 
-    run_command(
-        f"podman run --rm -it --name debug_build  {params} {last_image}",
-        show_cmd=True,
-        interactive=True,
-    )
+    run_command(f"podman run --rm -it --name debug_build  {params} {last_image}")
 
 
 @dev.command()
@@ -234,9 +224,7 @@ def build(
         image_name = f"{image}:{IMAGE_TAG} " f"{'--no-cache' if not cache else ''}"
         run_command(
             f"podman build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
-            f" -t {image_name} {folder}",
-            show_cmd=True,
-            interactive=True,
+            f" -t {image_name} {folder}"
         )
 
 
@@ -274,9 +262,7 @@ def make(
 
     run_command(
         f"podman run --rm --name {container_name} -it {params} "
-        f"{image}:{IMAGE_TAG} bash -c '{command}'",
-        show_cmd=True,
-        interactive=True,
+        f"{image}:{IMAGE_TAG} bash -c '{command}'"
     )
 
 
@@ -298,14 +284,8 @@ def versions(
     or the local project folder (defaults to .) e.g.
         ec dev versions ../ioc-template
     """
-    c: Context = ctx.obj
-
     if image == "":
         repo = get_git_name(folder, full=True)
         image = image or get_image_name(repo, arch)
 
-    run_command(
-        f"podman run --rm quay.io/skopeo/stable " f"list-tags docker://{image}",
-        show=True,
-        show_cmd=c.show_cmd,
-    )
+    run_command(f"podman run --rm quay.io/skopeo/stable " f"list-tags docker://{image}")

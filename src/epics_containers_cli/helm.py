@@ -12,8 +12,6 @@ from git import GitCommandError, Repo
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
 
-from .urls import get_repo_url
-
 RE_TAGS = re.compile(r"[\s\S]*?tag: ([\d.]*).*\n")
 
 
@@ -28,17 +26,20 @@ class Helm:
         ioc_name: str,
         args: str = "",
         version: Optional[str] = None,
+        template: bool = False,
+        repo: Optional[str] = None,
     ):
         """
         Create a helm chart from a local or a remote repo
         """
         self.ioc_name = ioc_name
-        self.repo = get_repo_url(domain)
+        self.repo = repo
         self.domain = domain
         self.args = args
         self.version = version or datetime.strftime(
             datetime.now(), "%Y.%-m.%-d-b%-H.%-M"
         )
+        self.template = template
 
         tmpdir = TemporaryDirectory()
         self.tmp = Path(tmpdir.name)
@@ -50,11 +51,7 @@ class Helm:
 
         self.ioc_config_folder = self.tmp / "iocs" / str(self.ioc_name) / CONFIG_FOLDER
 
-    def deploy_local(
-        self,
-        ioc_path: Path,
-        yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
-    ):
+    def deploy_local(self, ioc_path: Path, yes: bool = False):
         """
         Deploy a local IOC helm chart directly to the cluster with dated beta version
         """
@@ -68,7 +65,7 @@ class Helm:
             typer.echo("ERROR: IOC instance requires values.yaml and config")
             raise typer.Exit(1)
 
-        if not yes:
+        if not yes and not self.template:
             typer.echo(
                 f"Deploy {ioc_name} TEMPORARY version {self.version} "
                 f"from {ioc_path} to domain {self.domain}"
@@ -84,15 +81,15 @@ class Helm:
         self._do_deploy(config_folder)
 
     def deploy(self):
-        """Pull an IOC helm chart and deploy it to the cluster"""
-        repo_url = get_repo_url(self.domain)
-
+        """
+        Generate an IOC helm chart and deploy it to the cluster
+        """
         if not self.version:
             raise typer.Exit("ERROR: version is required")
 
         try:
             Repo.clone_from(
-                repo_url, self.tmp, depth=1, branch=self.version, single_branch=True
+                self.repo, self.tmp, depth=1, branch=self.version, single_branch=True
             )
 
             self._do_deploy(self.ioc_config_folder)
@@ -127,8 +124,10 @@ class Helm:
         """
         Execute helm install command
         """
+
+        helm_cmd = "template" if self.template else "upgrade --install"
         cmd = (
-            f"helm upgrade --install {self.ioc_name} {self.bl_chart_folder} "
+            f"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} "
             f"--version {self.version} --namespace {self.domain} -f {values}"
         )
         if self.args:
@@ -140,10 +139,10 @@ class Helm:
             raise typer.Exit(1)
 
     def versions(self):
-        repo_url = get_repo_url(self.domain)
+        typer.echo(f"Available instance versions for {self.ioc_name}:")
 
         try:
-            Repo.clone_from(repo_url, to_path=self.tmp)
+            Repo.clone_from(self.repo, to_path=self.tmp)
 
             cmd = "git tag"
             result = subprocess.run(cmd, cwd=self.tmp, shell=True, capture_output=True)
@@ -162,7 +161,7 @@ class Helm:
                 if result.returncode != 0:
                     raise typer.Exit(result.stderr.decode())
                 if self.ioc_name in result.stdout.decode():
-                    typer.echo(f"{tag}")
+                    typer.echo(f"  {tag}")
 
         except GitCommandError as e:
             raise typer.Exit(f"ERROR: no IOC of that version found {e}")
