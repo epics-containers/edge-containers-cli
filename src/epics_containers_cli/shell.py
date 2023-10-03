@@ -10,7 +10,6 @@ from typing import Optional, Tuple
 
 import ruamel.yaml as yaml
 import typer
-from rich import print
 
 from .enums import Architecture
 from .logging import log
@@ -30,7 +29,7 @@ def beamline_str() -> Optional[str]:
 
 
 BEAMLINE = os.environ.get("BEAMLINE", None)
-K8S_REGISTRY_MAPPING = os.environ.get("K8S_REGISTRY_MAPPING", "github.com=ghcr.io")
+IMAGE_REGISTRY_MAPPING = os.environ.get("K8S_REGISTRY_MAPPING", "github.com=ghcr.io")
 K8S_DOMAIN = os.environ.get("K8S_DOMAIN", None) or beamline_str()
 K8S_HELM_ROOT = os.environ.get("K8S_HELM_REGISTRY", None)
 K8S_HELM_REGISTRY = f"{K8S_HELM_ROOT}/{K8S_DOMAIN}"
@@ -49,7 +48,7 @@ def run_command(
     """Run a command and return the output"""
 
     if show_cmd:
-        print(f"[gray37]{command}[/gray37]")
+        print(f"{command}")
 
     commands = [command]
 
@@ -85,41 +84,6 @@ def check_domain(domain: str):
         raise typer.Exit(1)
 
     log.info("domain = %s", domain)
-
-
-# work out what the registry name is for a given repo remote e.g.
-# with K8S_REGISTRY_MAPPING set to
-#   github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-pubreg/controls/ioc'
-#
-#   git@github.com:epics-containers/ioc-template.git
-# becomes
-#   ghcr.io/epics-containers/ioc-template
-#
-#   git@gitlab.diamond.ac.uk:controls/containers/ioc/ioc-pmac.git
-# becomes
-#   gcr.io/diamond-pubreg/controls/prod/ioc/ioc-pmac
-def repo2registry(repo_name: str) -> str:
-    """convert a repo name to a registry name"""
-
-    match = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)?", repo_name)
-    if not match:
-        print(f"repo {repo_name} is not a valid git remote")
-        raise typer.Exit(1)
-
-    source_reg, org, repo = match.groups()
-    log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
-
-    for mapping in K8S_REGISTRY_MAPPING.split():
-        if mapping.split("=")[0] == source_reg:
-            registry = mapping.split("=")[1]
-            registry = f"{registry}/{org}/{repo}"
-            break
-    else:
-        print(f"repo {repo_name} does not match any registry mapping")
-        print("please update the environment variable K8S_REGISTRY_MAPPING")
-        raise typer.Exit(1)
-
-    return registry
 
 
 def get_image_name(
@@ -184,3 +148,38 @@ def get_helm_chart(folder: Path) -> Tuple[str, str]:
     generic_image = ioc_values["base_image"]
 
     return ioc_name, generic_image
+
+
+# work out what the registry name is for a given repo remote e.g.
+# with K8S_REGISTRY_MAPPING set to
+#   github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-pubreg/controls/ioc'
+#
+#   git@github.com:epics-containers/ioc-template.git
+# becomes
+#   ghcr.io/epics-containers/ioc-template
+#
+#   git@gitlab.diamond.ac.uk:controls/containers/ioc/ioc-pmac.git
+# becomes
+#   gcr.io/diamond-pubreg/controls/prod/ioc/ioc-pmac
+def repo2registry(repo_name: str) -> str:
+    """convert a repo name to a registry name"""
+
+    match = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)?", repo_name)
+    if not match:
+        print(f"repo {repo_name} is not a valid git remote")
+        raise typer.Exit(1)
+
+    source_reg, org, repo = match.groups()
+    log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
+
+    for mapping in IMAGE_REGISTRY_MAPPING.split():
+        if mapping.split("=")[0] == source_reg:
+            registry = mapping.split("=")[1]
+            registry = f"{registry}/{org}/{repo}"
+            break
+    else:
+        print(f"repo {repo_name} does not match any registry mapping")
+        print("please update the environment variable IMAGE_REGISTRY_MAPPING")
+        raise typer.Exit(1)
+
+    return registry

@@ -4,17 +4,15 @@ from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import jinja2
 import typer
+from git import Repo
+
+import epics_containers_cli.helm as helm
+from epics_containers_cli.urls import get_repo_url
 
 from .context import Context
-from .shell import (
-    K8S_HELM_ROOT,
-    K8S_LOG_URL,
-    check_domain,
-    check_ioc,
-    get_helm_chart,
-    run_command,
-)
+from .shell import K8S_LOG_URL, check_domain, check_ioc, get_helm_chart, run_command
 
 ioc = typer.Typer()
 
@@ -151,15 +149,37 @@ def deploy(
     bl = c.domain
     check_domain(bl)
 
-    helm_path = ctx.obj.helm_registry
-    if helm_folder != "":
-        helm_path = f"{K8S_HELM_ROOT}/{helm_folder}"
+    repo_url = get_repo_url(bl)
 
-    run_command(
-        f"helm upgrade -n {bl} --install {ioc_name} {args} "
-        f"oci://{helm_path}/{ioc_name} --version {version}",
-        show=True,
-        show_cmd=c.show_cmd,
+    # TODO: review use of sparse checkout here. But note that these repos will
+    # be pretty small typically so there may be no benefit
+    tmpdir = TemporaryDirectory(prefix=f"{bl}")
+    tmp = Path(tmpdir.name)
+
+    config_folder = tmp / "iocs" / str(ioc_name) / "config"
+    values_path = tmp / "iocs" / str(ioc_name) / "values.yaml"
+    bl_chart_folder = tmp / "beamline-chart"
+    bl_chart_path = bl_chart_folder / "Chart.yaml"
+    bl_config_folder = bl_chart_folder / "config"
+    jinja_path = bl_chart_folder / "Chart.yaml.jinja"
+
+    Repo.clone_from(repo_url, tmp, depth=1, branch=version, single_branch=True)
+
+    # render a Chart.yaml from the jinja template
+    template = jinja2.Template(jinja_path.read_text())
+    chart = template.render(ioc_name=ioc_name, ioc_version=version)
+    bl_chart_path.write_text(chart)
+
+    # add the config folder to the helm chart
+    bl_config_folder.symlink_to(config_folder)
+
+    # use helm to install the chart
+    helm.install(
+        name=ioc_name,
+        namespace=bl,
+        chart=bl_chart_folder,
+        values=values_path,
+        version=version,
     )
 
 
