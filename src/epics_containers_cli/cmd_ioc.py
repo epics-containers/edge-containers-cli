@@ -127,7 +127,7 @@ def deploy(
 
 
 @ioc.command()
-def versions(
+def instances(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
 ):
