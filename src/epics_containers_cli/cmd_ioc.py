@@ -127,6 +127,21 @@ def deploy(
 
 
 @ioc.command()
+def versions(
+    ctx: typer.Context,
+    ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
+):
+    """List all versions of the IOC available in the helm registry"""
+    c: Context = ctx.obj
+
+    domain = c.domain
+    check_domain(domain)
+
+    chart = helm.Helm(domain, ioc_name)
+    chart.versions()
+
+
+@ioc.command()
 def exec(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to run in"),
@@ -245,23 +260,6 @@ def stop(
 
     run_command(
         f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}",
-        show=True,
-        interactive=True,
-        show_cmd=c.show_cmd,
-    )
-
-
-@ioc.command()
-def versions(
-    ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
-):
-    """List all versions of the IOC available in the helm registry"""
-    c: Context = ctx.obj
-
-    run_command(
-        f"podman run --rm quay.io/skopeo/stable "
-        f"list-tags docker://{c.helm_registry}/{ioc_name}",
         show=True,
         interactive=True,
         show_cmd=c.show_cmd,

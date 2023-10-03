@@ -1,3 +1,4 @@
+import re
 import shutil
 import subprocess
 from datetime import datetime
@@ -12,6 +13,8 @@ from git import GitCommandError, Repo
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
 
 from .urls import get_repo_url
+
+RE_TAGS = re.compile(r"[\s\S]*?tag: ([\d.]*).*\n")
 
 
 class Helm:
@@ -44,6 +47,8 @@ class Helm:
         self.jinja_path = self.bl_chart_folder / "Chart.yaml.jinja"
         self.bl_chart_path = self.bl_chart_folder / "Chart.yaml"
         self.bl_config_folder = self.bl_chart_folder / CONFIG_FOLDER
+
+        self.ioc_config_folder = self.tmp / "iocs" / str(self.ioc_name) / CONFIG_FOLDER
 
     def deploy_local(
         self,
@@ -90,8 +95,7 @@ class Helm:
                 repo_url, self.tmp, depth=1, branch=self.version, single_branch=True
             )
 
-            config_folder = self.tmp / "iocs" / str(self.ioc_name) / CONFIG_FOLDER
-            self._do_deploy(config_folder)
+            self._do_deploy(self.ioc_config_folder)
         except GitCommandError as e:
             raise typer.Exit(f"ERROR: no IOC of that version found {e}")
 
@@ -134,3 +138,33 @@ class Helm:
 
         if result.returncode != 0:
             raise typer.Exit(1)
+
+    def versions(self):
+        repo_url = get_repo_url(self.domain)
+
+        try:
+            Repo.clone_from(repo_url, to_path=self.tmp)
+
+            cmd = "git tag"
+            result = subprocess.run(cmd, cwd=self.tmp, shell=True, capture_output=True)
+            # TODO factor out this kind of subprocess handling
+            if result.returncode != 0:
+                raise typer.Exit(result.stderr.decode())
+
+            tags = result.stdout.decode().split("\n")
+            for tag in tags:
+                if tag == "":
+                    continue
+                cmd = f"git diff --name-only {tag} {tag}^"
+                result = subprocess.run(
+                    cmd, cwd=self.tmp, shell=True, capture_output=True
+                )
+                if result.returncode != 0:
+                    raise typer.Exit(result.stderr.decode())
+                if self.ioc_name in result.stdout.decode():
+                    typer.echo(f"{tag}")
+
+        except GitCommandError as e:
+            raise typer.Exit(f"ERROR: no IOC of that version found {e}")
+        except ChildProcessError:
+            raise typer.Exit("ERROR: ")
