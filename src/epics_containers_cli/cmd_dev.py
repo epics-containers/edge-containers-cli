@@ -1,5 +1,6 @@
+import os
 import re
-import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -27,13 +28,12 @@ def check_docker():
     """
     docker = "podman"
 
-    result = subprocess.run("docker --version", capture_output=True, shell=True)
-    if result.returncode == 0:
-        out = result.stdout.decode("utf-8")
-        version = int(re.match(r"[^\d]*(\d*)", out).group(1))
-        log.debug(f"docker version = {version} extracted from  {out}")
-        if version >= 20:
-            docker = "docker"
+    result = run_command("docker --version", interactive=False, error_OK=True)
+
+    version = int(re.match(r"[^\d]*(\d*)", result).group(1))
+    log.debug(f"docker version = {version} extracted from  {result}")
+    if version >= 20:
+        docker = "docker"
 
     return docker
 
@@ -43,9 +43,13 @@ DOCKER = check_docker()
 
 
 def all_params():
-    env = "-e DISPLAY -e SHELL"
-    volumes = ""
+    if os.isatty(sys.stdin.fileno()):
+        # interactive
+        env = "-e DISPLAY -e SHELL -e TERM -it"
+    else:
+        env = "-e DISPLAY -e SHELL"
 
+    volumes = ""
     for file in MOUNTED_FILES:
         file_path = Path(file)
         if file_path.exists():
@@ -121,7 +125,7 @@ def launch(
         image_name = f"{image}:{tag}"
 
     run_command(
-        f"{DOCKER} run --rm -it --entrypoint 'bash' --name {ioc_name} {config}"
+        f"{DOCKER} run --rm --entrypoint 'bash' --name {ioc_name} {config}"
         f" {image_name} {start_script}",
         interactive=True,
     )
@@ -147,7 +151,7 @@ def debug_last(
         params += f" -v{repo_root}:/epics/ioc/${repo_root.name} "
 
     run_command(
-        f"{DOCKER} run --entrypoint bash --rm -it --name debug_build "
+        f"{DOCKER} run --entrypoint bash --rm --name debug_build "
         f"{params} {last_image}"
     )
 

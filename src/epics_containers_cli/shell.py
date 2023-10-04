@@ -29,10 +29,8 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
     otherwise return True for success and False for failure
     """
     log.debug(
-        "running command %s (interactive=%s, error_OK=%s)",
-        command,
-        interactive,
-        error_OK,
+        f"running command:\n   {command}\n   "
+        "(interactive={interactive}, error_OK={error_OK})\n"
     )
 
     result = subprocess.run(command, capture_output=not interactive, shell=True)
