@@ -207,3 +207,22 @@ def versions(
     run_command(
         f"{DOCKER} run --rm quay.io/skopeo/stable " f"list-tags docker://{image}"
     )
+
+
+@dev.command()
+def stop(
+    ctx: typer.Context,
+    ioc_folder: Path = typer.Argument(
+        ...,
+        help="local IOC config folder from domain repo",
+        dir_okay=True,
+        file_okay=False,
+    ),
+):
+    """
+    Stop a running local IOC container
+    """
+    ioc_name = ioc_folder.name
+    run_command(
+        f"{DOCKER} stop {ioc_name} -t0",
+    )
