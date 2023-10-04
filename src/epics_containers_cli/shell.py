@@ -30,7 +30,7 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
     """
     log.debug(
         f"running command:\n   {command}\n   "
-        "(interactive={interactive}, error_OK={error_OK})\n"
+        f"(interactive={interactive}, error_OK={error_OK})\n"
     )
 
     result = subprocess.run(command, capture_output=not interactive, shell=True)
