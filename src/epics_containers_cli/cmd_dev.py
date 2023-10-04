@@ -83,6 +83,11 @@ def launch(
     Set generic_ioc_local for a locally editable generic IOC or supply a tag
     to choose any version from the registry.
     """
+    log.debug(
+        f"launch: ioc_folder={ioc_folder} generic_ioc_local={generic_ioc_local}"
+        f" execute={execute} target={target} args={args}"
+    )
+
     ioc_folder = ioc_folder.absolute()
     ioc_name = ioc_folder.name
     values = ioc_folder / "values.yaml"

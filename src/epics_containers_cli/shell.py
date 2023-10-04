@@ -28,6 +28,12 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
     if interactive is true then allow stdin and stdout, return the return code,
     otherwise return True for success and False for failure
     """
+    log.debug(
+        "running command %s (interactive=%s, error_OK=%s)",
+        command,
+        interactive,
+        error_OK,
+    )
 
     result = subprocess.run(command, capture_output=not interactive, shell=True)
 
