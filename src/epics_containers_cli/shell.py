@@ -61,30 +61,36 @@ def get_image_name(
     repo: str, arch: Architecture = Architecture.linux, target: str = "developer"
 ) -> str:
     registry = repo2registry(repo).lower().removesuffix(".git")
+
     image = f"{registry}-{arch}-{target}"
     log.info("repo = %s image  = %s", repo, image)
     return image
 
 
 def get_git_name(folder: Path = Path("."), full: bool = False) -> Tuple[str, Path]:
+    """
+    work out the git repo name and top level folder for a local clone
+    """
+    os.chdir(folder)
     path = str(run_command("git rev-parse --show-toplevel", interactive=False))
     git_root = Path(path.strip())
 
-    os.chdir(git_root)
     remotes = str(run_command("git remote -v", interactive=False))
     log.debug(f"remotes = {remotes}")
 
     if full:
-        matches = re.findall(r"(git@.*(?:\.git)?) ", remotes)
+        matches = re.findall(r"(((git@)|(http)).*(?:\.git)?) ", remotes)
     else:
         matches = re.findall(r"\/(.*)(?:\.git)? ", remotes)
+    log.debug(f"matches = {matches}")
 
     if len(matches) > 0:
-        repo_name = str(matches[0])
+        repo_name = str(matches[0][0])
     else:
         typer.echo(f"folder {folder.absolute()} cannot get repo name")
         raise typer.Exit(1)
 
+    log.debug(f"repo_name = {repo_name}, git_root = {git_root}")
     return repo_name, git_root
 
 
@@ -92,12 +98,18 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> Tuple[str, Pat
 def repo2registry(repo_name: str) -> str:
     """convert a repo name to a registry name"""
 
-    match = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)?", repo_name)
-    if not match:
+    log.debug("extracting fields from repo name %s", repo_name)
+
+    match_git = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)", repo_name)
+    match_http = re.match(r"https:\/\/([^\/]*)\/([^\/]*)\/([^\/]*)", repo_name)
+    for match in [match_git, match_http]:
+        if match is not None:
+            source_reg, org, repo = match.groups()
+            break
+    else:
         typer.echo(f"repo {repo_name} is not a valid git remote")
         raise typer.Exit(1)
 
-    source_reg, org, repo = match.groups()
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
 
     if not EC_REGISTRY_MAPPING:

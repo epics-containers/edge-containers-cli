@@ -77,6 +77,7 @@ def main(
     ),
 ):
     """EPICS Containers assistant CLI"""
+
     init_logging(log_level.upper())
 
     if domain is None:
@@ -113,5 +114,4 @@ def ps(
 # test with:
 #     python -m epics_containers_cli
 if __name__ == "__main__":
-    typer.echo("HELLO")
     cli()
