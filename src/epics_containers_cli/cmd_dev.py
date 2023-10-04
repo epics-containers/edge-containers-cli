@@ -6,6 +6,7 @@ from typing import Optional
 import typer
 
 from .globals import Architecture, Targets
+from .logging import log
 from .shell import get_git_name, get_image_name, run_command
 
 dev = typer.Typer()
@@ -26,15 +27,13 @@ def check_docker():
     """
     docker = "podman"
 
-    try:
-        result = subprocess.run(["docker", "--version"], capture_output=True)
-        if result.returncode == 0:
-            out = result.stdout.decode("utf-8")
-            version = int(re.search(r".*?(\d\d)\.", out).group(1))
-            if version >= 22:
-                docker = "docker"
-    except Exception:
-        pass
+    result = subprocess.run("docker --version", capture_output=True, shell=True)
+    if result.returncode == 0:
+        out = result.stdout.decode("utf-8")
+        version = int(re.match(r"[^\d]*(\d*)", out).group(1))
+        log.debug(f"docker version = {version} extracted from  {out}")
+        if version >= 20:
+            docker = "docker"
 
     return docker
 
