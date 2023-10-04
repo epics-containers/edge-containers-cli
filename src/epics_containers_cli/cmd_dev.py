@@ -1,10 +1,12 @@
 import re
+import subprocess
 from pathlib import Path
 from typing import Optional
 
 import typer
 
 from .globals import Architecture, Targets
+from .logging import log
 from .shell import get_git_name, get_image_name, run_command
 
 dev = typer.Typer()
@@ -12,8 +14,32 @@ dev = typer.Typer()
 IMAGE_TAG = "local"
 MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
 
+
 # parameters for container launches
 OPTS = "--security-opt=label=type:container_runtime_t --net=host"
+
+
+def check_docker():
+    """
+    Decide if we will use docker or podman cli.
+
+    Prefer docker if it is installed, otherwise use podman
+    """
+    docker = "podman"
+
+    result = subprocess.run("docker --version", capture_output=True, shell=True)
+    if result.returncode == 0:
+        out = result.stdout.decode("utf-8")
+        version = int(re.match(r"[^\d]*(\d*)", out).group(1))
+        log.debug(f"docker version = {version} extracted from  {out}")
+        if version >= 20:
+            docker = "docker"
+
+    return docker
+
+
+# the container management CLI to use
+DOCKER = check_docker()
 
 
 def all_params():
@@ -48,7 +74,7 @@ def launch(
         Targets.developer, help="choose runtime or developer target"
     ),
     args: str = typer.Option(
-        "", help="Additional args for podman/docker, 'must be quoted'"
+        "", help=f"Additional args for {DOCKER}/docker, 'must be quoted'"
     ),
     debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
@@ -76,7 +102,7 @@ def launch(
         image = image.replace(Targets.runtime, Targets.developer)
 
     # make sure there are not 2 copies running
-    run_command(f"podman rm -f {ioc_name}")
+    run_command(f"{DOCKER} rm -f {ioc_name}", error_OK=True)
 
     # TODO promote these to globals or similar
     if execute is None:
@@ -90,7 +116,7 @@ def launch(
         image_name = f"{image}:{tag}"
 
     run_command(
-        f"podman run --rm -it --entrypoint 'bash' --name {ioc_name} {config}"
+        f"{DOCKER} run --rm -it --entrypoint 'bash' --name {ioc_name} {config}"
         f" {image_name} {start_script}",
         interactive=True,
     )
@@ -106,7 +132,7 @@ def debug_last(
     """Launches a container with the most recent image build.
     Useful for debugging failed builds"""
     last_image = run_command(
-        "podman images | awk '{print $3}' | awk 'NR==2'", interactive=False
+        f"{DOCKER} images | awk '{{print $3}}' | awk 'NR==2'", interactive=False
     )
 
     params = all_params()
@@ -116,7 +142,7 @@ def debug_last(
         params += f" -v{repo_root}:/epics/ioc/${repo_root.name} "
 
     run_command(
-        f"podman run --entrypoint bash --rm -it --name debug_build "
+        f"{DOCKER} run --entrypoint bash --rm -it --name debug_build "
         f"{params} {last_image}"
     )
 
@@ -141,7 +167,7 @@ def build(
         image = get_image_name(repo, arch, target)
         image_name = f"{image}:{IMAGE_TAG} " f"{'--no-cache' if not cache else ''}"
         run_command(
-            f"podman build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
+            f"{DOCKER} build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
             f" -t {image_name} {folder}"
         )
 
@@ -149,7 +175,7 @@ def build(
 @dev.command()
 def versions(
     ctx: typer.Context,
-    folder: Path = typer.Option(Path("."), help="IOC project folder"),
+    folder: Path = typer.Argument(Path("."), help="Generic IOC project folder"),
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"
     ),
@@ -169,4 +195,6 @@ def versions(
         image = image or get_image_name(repo, arch)
 
     typer.echo(f"looking for versions of image {image}")
-    run_command(f"podman run --rm quay.io/skopeo/stable " f"list-tags docker://{image}")
+    run_command(
+        f"{DOCKER} run --rm quay.io/skopeo/stable " f"list-tags docker://{image}"
+    )
