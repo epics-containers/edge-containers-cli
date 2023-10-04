@@ -1,5 +1,5 @@
+import os
 import shutil
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,6 +10,7 @@ import typer
 from git import GitCommandError, Repo
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
+from epics_containers_cli.shell import run_command
 
 
 class Helm:
@@ -133,10 +134,7 @@ class Helm:
         if self.args:
             cmd += f" {self.args}"
 
-        result = subprocess.run(cmd, shell=True)
-
-        if result.returncode != 0:
-            raise typer.Exit(1)
+        run_command(cmd, interactive=False)
 
     def versions(self):
         typer.echo(f"Available instance versions for {self.ioc_name}:")
@@ -145,22 +143,17 @@ class Helm:
             Repo.clone_from(self.repo, to_path=self.tmp)
 
             cmd = "git tag"
-            result = subprocess.run(cmd, cwd=self.tmp, shell=True, capture_output=True)
-            # TODO factor out this kind of subprocess handling
-            if result.returncode != 0:
-                raise typer.Exit(result.stderr.decode())
+            os.chdir(self.tmp)
+            result = run_command(cmd, interactive=False)
 
-            tags = result.stdout.decode().split("\n")
+            tags = result.split("\n")
             for tag in tags:
                 if tag == "":
                     continue
                 cmd = f"git diff --name-only {tag} {tag}^"
-                result = subprocess.run(
-                    cmd, cwd=self.tmp, shell=True, capture_output=True
-                )
-                if result.returncode != 0:
-                    raise typer.Exit(result.stderr.decode())
-                if self.ioc_name in result.stdout.decode():
+                result = run_command(cmd, interactive=False)
+
+                if self.ioc_name in result:
                     typer.echo(f"  {tag}")
 
         except GitCommandError as e:
