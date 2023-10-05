@@ -6,7 +6,7 @@ from typing import Optional
 
 import typer
 
-from .globals import Architecture, Targets
+from .globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, IOC_START, Architecture, Targets
 from .logging import log
 from .shell import EC_CONTAINER_CLI, get_git_name, get_image_name, run_command
 
@@ -20,7 +20,7 @@ MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
 OPTS = "--security-opt=label=type:container_runtime_t --net=host"
 
 
-def check_docker():
+def _check_docker():
     """
     Decide if we will use docker or podman cli.
 
@@ -44,10 +44,10 @@ def check_docker():
 
 
 # the container management CLI to use
-DOCKER = check_docker()
+DOCKER = _check_docker()
 
 
-def all_params():
+def _all_params():
     if os.isatty(sys.stdin.fileno()):
         # interactive
         env = "-e DISPLAY -e SHELL -e TERM -it"
@@ -63,20 +63,43 @@ def all_params():
     return f"{env} {volumes} {OPTS}"
 
 
+def _go(
+    ioc_name: str, target: Targets, image: str, execute: str, args: str, mounts: list
+):
+    """
+    Common code for launch and launch_local CLI commands
+    """
+    # make sure there is not already an IOC of this name running
+    run_command(f"{DOCKER} rm -f {ioc_name}", error_OK=True)
+
+    start_script = f"-c '{execute}; bash'"
+
+    config = _all_params() + f' {" ".join(mounts)} ' + args
+
+    if target == Targets.developer:
+        image = image.replace(Targets.runtime, Targets.developer)
+
+    run_command(
+        f"{DOCKER} run --rm --entrypoint 'bash' --name {ioc_name} {config}"
+        f" {image} {start_script}",
+        interactive=True,
+    )
+
+
 @dev.command()
-def launch(
+def launch_local(
     ctx: typer.Context,
-    ioc_folder: Path = typer.Argument(
-        ...,
-        help="local IOC config folder from domain repo",
+    ioc_folder: Optional[Path] = typer.Argument(
+        None,
+        help="local IOC instance config folder",
         dir_okay=True,
         file_okay=False,
     ),
-    generic_ioc_local: Path = typer.Argument(
-        None, help="folder for generic IOC project", dir_okay=True, file_okay=False
+    ioc: Path = typer.Option(
+        ".", help="folder for generic IOC project", dir_okay=True, file_okay=False
     ),
-    execute: Optional[str] = typer.Option(
-        None,
+    execute: str = typer.Option(
+        IOC_START,
         help="command to execute in the container. Defaults to executing the IOC",
     ),
     target: Targets = typer.Option(
@@ -85,65 +108,80 @@ def launch(
     args: str = typer.Option(
         "", help=f"Additional args for {DOCKER}/docker, 'must be quoted'"
     ),
-    debug: bool = typer.Option(False, help="start a remote debug session"),
 ):
     """
-    Launch an IOC instance using configuration from a domain repo.
-
-    :arg: thing fisht
-
-    :param ioc_folder: local IOC config folder from domain repo
-
-    NOTE: the best way to run a local IOC is to use the devcontainer with VSCode
-    This command lets you launch a container from the command line testing in
-    isolation in a variety of ways.
-
-        1. Supply a local IOC definitions folder from a domain repo as . This will use the
-    Set generic_ioc_local for a locally editable generic IOC or supply a tag
-    to choose any version from the registry.
+    Launch a locally built generic IOC from the local cache with tag "local".
+    This can only be run after doing an "ec dev build" in the same generic
+    IOC project folder.
     """
     log.debug(
-        f"launch: ioc_folder={ioc_folder} generic_ioc_local={generic_ioc_local}"
+        f"launch: ioc_folder={ioc_folder} ioc={ioc}"
         f" execute={execute} target={target} args={args}"
     )
 
-    ioc_folder = ioc_folder.absolute()
+    mounts = []
+    if ioc_folder is not None:
+        if (ioc_folder / CONFIG_FOLDER).exists():
+            ioc_folder = ioc_folder / CONFIG_FOLDER
+            mounts.append(f"-v {ioc_folder}:{IOC_CONFIG_FOLDER}")
+
+    repo, _ = get_git_name(ioc, full=True)
+    image = get_image_name(repo, target=target) + ":local"
+
+    _go("generic-ioc", target, image, execute, args, mounts)
+
+
+@dev.command()
+def launch(
+    ctx: typer.Context,
+    ioc_folder: Path = typer.Argument(
+        ...,
+        help="local IOC definition folder from domain repo",
+        dir_okay=True,
+        file_okay=False,
+    ),
+    execute: str = typer.Option(
+        IOC_START,
+        help="command to execute in the container. Defaults to executing the IOC",
+    ),
+    target: Targets = typer.Option(
+        Targets.developer, help="choose runtime or developer target"
+    ),
+    image: str = typer.Option("", help="override container image to use"),
+    args: str = typer.Option(
+        "", help=f"Additional args for {DOCKER}/docker, 'must be quoted'"
+    ),
+):
+    """
+    Launch an IOC instance using configuration from a domain repo. Or by
+    passing a generic IOC image ID. Can be used for local testing of IOC
+    instances. You may find the devcontainer a more convenient way to
+    do this.
+    """
+    log.debug(
+        f"launch: ioc_folder={ioc_folder} image={image}"
+        f" execute={execute} target={target} args={args}"
+    )
+
+    mounts = []
+
+    ioc_folder = ioc_folder.resolve()
     ioc_name = ioc_folder.name
     values = ioc_folder / "values.yaml"
     if not values.exists():
         typer.echo(f"values.yaml not found in {ioc_folder}")
         raise typer.Exit(1)
+    mounts.append(f"-v {ioc_folder}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}")
 
     values_text = values.read_text()
-    matches = re.findall(r"image: (.*):(.*)", values_text)
+    matches = re.findall(r"image: (.*)", values_text)
     if len(matches) == 1:
-        image, tag = matches[0]
+        image = matches[0]
     else:
         typer.echo(f"image tag definition not found in {values}")
         raise typer.Exit(1)
 
-    if target == Targets.developer:
-        image = image.replace(Targets.runtime, Targets.developer)
-
-    # make sure there are not 2 copies running
-    run_command(f"{DOCKER} rm -f {ioc_name}", error_OK=True)
-
-    # TODO promote these to globals or similar
-    if execute is None:
-        start_script = "-c '/epics/ioc/start.sh; bash'"
-    else:
-        start_script = f"-c '{execute}'"
-    config_folder = "/epics/ioc/config"
-    config = all_params() + f' -v {ioc_folder / "config"}:{config_folder} ' + args
-
-    if not generic_ioc_local:
-        image_name = f"{image}:{tag}"
-
-    run_command(
-        f"{DOCKER} run --rm --entrypoint 'bash' --name {ioc_name} {config}"
-        f" {image_name} {start_script}",
-        interactive=True,
-    )
+    _go(ioc_name, target, image, execute, args, mounts)
 
 
 @dev.command()
@@ -153,13 +191,16 @@ def debug_last(
         True, help="Mount generic IOC repo folder into the container"
     ),
 ):
-    """Launches a container with the most recent image build.
-    Useful for debugging failed builds"""
+    """
+    Launches a container with the most recent image build.
+    Useful for debugging failed builds - if the last build failed it will
+    start the container after the most recent successful build step.
+    """
     last_image = run_command(
         f"{DOCKER} images | awk '{{print $3}}' | awk 'NR==2'", interactive=False
     )
 
-    params = all_params()
+    params = _all_params()
     _, repo_root = get_git_name(folder)
 
     if mount_repos:

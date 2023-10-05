@@ -26,3 +26,5 @@ class Targets(str, Enum):
 # common stings used in paths
 BEAMLINE_CHART_FOLDER = "beamline-chart"
 CONFIG_FOLDER = "config"
+IOC_CONFIG_FOLDER = "/epics/ioc/config/"
+IOC_START = "/epics/ioc/start.sh"
