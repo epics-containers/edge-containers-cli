@@ -10,18 +10,22 @@ cluster = typer.Typer()
 def resources(ctx: typer.Context):
     """Output information about a domain's cluster resources"""
 
-    bl = ctx.obj.domain
+    domain = ctx.obj.domain
 
     typer.echo("\nDeployments")
     typer.echo(
-        run_command(f"kubectl get -n {bl} deployment -l beamline={bl} -o {fmt_deploys}")
+        run_command(
+            f"kubectl get -n {domain} deployment -l beamline={domain} -o {fmt_deploys}"
+        )
     )
     typer.echo("\nPods")
-    typer.echo(run_command(f"kubectl get -n {bl} pod -l beamline={bl} -o {fmt_pods}"))
+    typer.echo(
+        run_command(f"kubectl get -n {domain} pod -l beamline={domain} -o {fmt_pods}")
+    )
     typer.echo("\nconfigMaps")
-    typer.echo(run_command(f"kubectl get -n {bl} configmap -l beamline={bl}"))
+    typer.echo(run_command(f"kubectl get -n {domain} configmap -l beamline={domain}"))
     typer.echo("\nPersistent Volume Claims")
-    typer.echo(run_command(f"kubectl get -n {bl} pvc -l beamline={bl}"))
+    typer.echo(run_command(f"kubectl get -n {domain} pvc -l beamline={domain}"))
 
 
 @cluster.command()

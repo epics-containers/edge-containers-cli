@@ -36,9 +36,9 @@ def delete(
 ):
     """Remove an IOC helm deployment from the cluster"""
     c: Context = ctx.obj
-    bl = c.domain
-    check_domain(bl)
-    check_ioc(ioc_name, bl)
+    domain = c.domain
+    check_domain(domain)
+    check_ioc(ioc_name, domain)
 
     if not typer.confirm(
         f"This will remove all versions of {ioc_name} "
@@ -46,7 +46,7 @@ def delete(
     ):
         raise typer.Abort()
 
-    run_command(f"helm delete -n {bl} {ioc_name}")
+    run_command(f"helm delete -n {domain} {ioc_name}")
 
 
 @ioc.command()
@@ -131,11 +131,11 @@ def exec(
 ):
     """Execute a bash prompt in a live IOC's container"""
     c: Context = ctx.obj
-    bl = c.domain
-    check_domain(bl)
-    check_ioc(ioc_name, bl)
+    domain = c.domain
+    check_domain(domain)
+    check_ioc(ioc_name, domain)
 
-    run_command(f"kubectl -it -n {bl} exec  deploy/{ioc_name} -- bash")
+    run_command(f"kubectl -it -n {domain} exec  deploy/{ioc_name} -- bash")
 
 
 @ioc.command()
@@ -167,14 +167,14 @@ def logs(
     """Show logs for current and previous instances of an IOC"""
     c: Context = ctx.obj
 
-    bl = c.domain
-    check_domain(bl)
-    check_ioc(ioc_name, bl)
+    domain = c.domain
+    check_domain(domain)
+    check_ioc(ioc_name, domain)
 
     previous = "-p" if prev else ""
     fol = "-f" if follow else ""
 
-    run_command(f"kubectl -n {bl} logs deploy/{ioc_name} {previous} {fol}")
+    run_command(f"kubectl -n {domain} logs deploy/{ioc_name} {previous} {fol}")
 
 
 @ioc.command()
@@ -185,12 +185,12 @@ def restart(
     """Restart an IOC"""
     c: Context = ctx.obj
 
-    bl = c.domain
-    check_domain(bl)
-    check_ioc(ioc_name, bl)
+    domain = c.domain
+    check_domain(domain)
+    check_ioc(ioc_name, domain)
 
-    pod_name = run_command(f"kubectl get -n {bl} pod -l app={ioc_name} -o name")
-    run_command(f"kubectl delete -n {bl} {pod_name}")
+    pod_name = run_command(f"kubectl get -n {domain} pod -l app={ioc_name} -o name")
+    run_command(f"kubectl delete -n {domain} {pod_name}")
 
 
 @ioc.command()
@@ -201,11 +201,11 @@ def start(
     """Start an IOC"""
     c: Context = ctx.obj
 
-    bl = c.domain
-    check_domain(bl)
-    check_ioc(ioc_name, bl)
+    domain = c.domain
+    check_domain(domain)
+    check_ioc(ioc_name, domain)
 
-    run_command(f"kubectl scale -n {bl} deploy --replicas=1 {ioc_name}")
+    run_command(f"kubectl scale -n {domain} deploy --replicas=1 {ioc_name}")
 
 
 @ioc.command()
@@ -216,8 +216,8 @@ def stop(
     """Stop an IOC"""
     c: Context = ctx.obj
 
-    bl = c.domain
-    check_domain(bl)
-    check_ioc(ioc_name, bl)
+    domain = c.domain
+    check_domain(domain)
+    check_ioc(ioc_name, domain)
 
-    run_command(f"kubectl scale -n {bl} deploy --replicas=0 {ioc_name}")
+    run_command(f"kubectl scale -n {domain} deploy --replicas=0 {ioc_name}")

@@ -6,7 +6,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import typer
 
@@ -19,6 +19,7 @@ EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO", f"{EC_GIT_ORG}/{EC_EPICS_DOMAI
 EC_REGISTRY_MAPPING = os.environ.get("EC_REGISTRY_MAPPING")
 EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", EC_EPICS_DOMAIN)
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
+EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
 
 
 def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bool]:
@@ -30,7 +31,7 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
     """
     log.debug(
         f"running command:\n   {command}\n   "
-        "(interactive={interactive}, error_OK={error_OK})\n"
+        f"(interactive={interactive}, error_OK={error_OK})\n"
     )
 
     result = subprocess.run(command, capture_output=not interactive, shell=True)
@@ -45,14 +46,21 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
         return result.stdout.decode()
 
 
-def check_ioc(ioc_name: str, bl: str):
-    cmd = f"kubectl get -n {bl} deploy/{ioc_name}"
+def check_ioc(ioc_name: str, domain: str):
+    cmd = f"kubectl get -n {domain} deploy/{ioc_name}"
     if not run_command(cmd, interactive=False, error_OK=True):
-        typer.echo(f"ioc {ioc_name} does not exist in domain {bl}")
+        typer.echo(f"ioc {ioc_name} does not exist in domain {domain}")
         raise typer.Exit(1)
 
 
-def check_domain(domain: str):
+def check_domain(domain: Optional[str]):
+    """
+    Verify we have a good domain that exists in the cluster
+    """
+    if domain is None:
+        typer.echo("Please set EC_EPICS_DOMAIN or pass --domain")
+        raise typer.Exit(1)
+
     cmd = f"kubectl get namespace {domain} -o name"
     if not run_command(cmd, interactive=False, error_OK=True):
         typer.echo(f"domain {domain} does not exist")
@@ -100,7 +108,7 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> Tuple[str, Pat
 
 # work out what the registry name is for a given repo remote e.g.
 def repo2registry(repo_name: str) -> str:
-    """convert a repo name to a registry name"""
+    """convert a repo name to the related a container registry name"""
 
     log.debug("extracting fields from repo name %s", repo_name)
 
@@ -117,7 +125,7 @@ def repo2registry(repo_name: str) -> str:
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
 
     if not EC_REGISTRY_MAPPING:
-        typer.echo("environment variable IMAGE_REGISTRY_MAPPING not set")
+        typer.echo("environment variable EC_REGISTRY_MAPPING not set")
         raise typer.Exit(1)
 
     for mapping in EC_REGISTRY_MAPPING.split():
@@ -127,7 +135,7 @@ def repo2registry(repo_name: str) -> str:
             break
     else:
         typer.echo(f"repo {repo_name} does not match any registry mapping")
-        typer.echo("please update the environment variable IMAGE_REGISTRY_MAPPING")
+        typer.echo("please update the environment variable EC_REGISTRY_MAPPING")
         raise typer.Exit(1)
 
     return registry
