@@ -16,7 +16,10 @@ from .logging import log
 EC_EPICS_DOMAIN = os.environ.get("EC_EPICS_DOMAIN") or os.environ.get("BEAMLINE")
 EC_GIT_ORG = os.environ.get("EC_GIT_ORG")
 EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO", f"{EC_GIT_ORG}/{EC_EPICS_DOMAIN}")
-EC_REGISTRY_MAPPING = os.environ.get("EC_REGISTRY_MAPPING")
+EC_REGISTRY_MAPPING = os.environ.get(
+    "EC_REGISTRY_MAPPING",
+    "github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-privreg/controls/ioc",
+)
 EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", EC_EPICS_DOMAIN)
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
 EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
