@@ -8,7 +8,7 @@ import typer
 
 from .globals import Architecture, Targets
 from .logging import log
-from .shell import get_git_name, get_image_name, run_command
+from .shell import EC_CONTAINER_CLI, get_git_name, get_image_name, run_command
 
 dev = typer.Typer()
 
@@ -26,6 +26,11 @@ def check_docker():
 
     Prefer docker if it is installed, otherwise use podman
     """
+    # environment variable overrides
+    if EC_CONTAINER_CLI:
+        return EC_CONTAINER_CLI
+
+    # default to podman if we do not find a docker>=20.0.0
     docker = "podman"
 
     result = run_command("docker --version", interactive=False, error_OK=True)
@@ -84,6 +89,16 @@ def launch(
 ):
     """
     Launch an IOC instance using configuration from a domain repo.
+
+    :arg: thing fisht
+
+    :param ioc_folder: local IOC config folder from domain repo
+
+    NOTE: the best way to run a local IOC is to use the devcontainer with VSCode
+    This command lets you launch a container from the command line testing in
+    isolation in a variety of ways.
+
+        1. Supply a local IOC definitions folder from a domain repo as . This will use the
     Set generic_ioc_local for a locally editable generic IOC or supply a tag
     to choose any version from the registry.
     """

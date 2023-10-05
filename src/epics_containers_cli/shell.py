@@ -19,6 +19,7 @@ EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO", f"{EC_GIT_ORG}/{EC_EPICS_DOMAI
 EC_REGISTRY_MAPPING = os.environ.get("EC_REGISTRY_MAPPING")
 EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", EC_EPICS_DOMAIN)
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
+EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
 
 
 def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bool]:
@@ -100,7 +101,7 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> Tuple[str, Pat
 
 # work out what the registry name is for a given repo remote e.g.
 def repo2registry(repo_name: str) -> str:
-    """convert a repo name to a registry name"""
+    """convert a repo name to the related a container registry name"""
 
     log.debug("extracting fields from repo name %s", repo_name)
 
