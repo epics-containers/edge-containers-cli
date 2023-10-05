@@ -6,7 +6,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import typer
 
@@ -53,7 +53,14 @@ def check_ioc(ioc_name: str, bl: str):
         raise typer.Exit(1)
 
 
-def check_domain(domain: str):
+def check_domain(domain: Optional[str]):
+    """
+    Verify we have a good domain that exists in the cluster
+    """
+    if domain is None:
+        typer.echo("Please set EC_EPICS_DOMAIN or pass --domain")
+        raise typer.Exit(1)
+
     cmd = f"kubectl get namespace {domain} -o name"
     if not run_command(cmd, interactive=False, error_OK=True):
         typer.echo(f"domain {domain} does not exist")

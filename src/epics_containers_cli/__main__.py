@@ -14,6 +14,7 @@ from .shell import (
     EC_EPICS_DOMAIN,
     EC_GIT_ORG,
     EC_K8S_NAMESPACE,
+    check_domain,
     run_command,
 )
 
@@ -80,10 +81,6 @@ def main(
 
     init_logging(log_level.upper())
 
-    if domain is None:
-        typer.echo("Please set EC_EPICS_DOMAIN or pass --domain")
-        raise typer.Exit(1)
-
     # create a context dictionary to pass to all sub commands
     ctx.ensure_object(Context)
     context = Context(domain, namespace, repo, org)
@@ -101,14 +98,14 @@ def ps(
     ),
 ):
     """List the IOCs running in the current domain"""
-
-    bl = ctx.obj.domain
+    domain = ctx.obj.domain
+    check_domain(domain)
 
     if all:
-        run_command(f"kubectl -n {bl} get deploy -l is_ioc==True -o {fmt_deploys}")
+        run_command(f"kubectl -n {domain} get deploy -l is_ioc==True -o {fmt_deploys}")
     else:
         format = fmt_pods_wide if wide else fmt_pods
-        run_command(f"kubectl -n {bl} get pod -l is_ioc==True -o {format}")
+        run_command(f"kubectl -n {domain} get pod -l is_ioc==True -o {format}")
 
 
 # test with:

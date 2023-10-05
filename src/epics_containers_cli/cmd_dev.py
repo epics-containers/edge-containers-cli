@@ -44,11 +44,12 @@ def _check_docker():
     docker = "podman"
 
     result = run_command(f"{DOCKER_PATH} --version", interactive=False, error_OK=True)
-
-    version = int(re.match(r"[^\d]*(\d*)", result).group(1))
-    log.debug(f"docker version = {version} extracted from  {result}")
-    if version >= 20:
-        docker = DOCKER_PATH
+    match = re.match(r"[^\d]*(\d+)", result)
+    if match is not None:
+        version = int(match.group(1))
+        log.debug(f"docker version = {version} extracted from  {result}")
+        if version >= 20:
+            docker = DOCKER_PATH
 
     return docker
 
