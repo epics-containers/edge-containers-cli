@@ -46,10 +46,10 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
         return result.stdout.decode()
 
 
-def check_ioc(ioc_name: str, bl: str):
-    cmd = f"kubectl get -n {bl} deploy/{ioc_name}"
+def check_ioc(ioc_name: str, domain: str):
+    cmd = f"kubectl get -n {domain} deploy/{ioc_name}"
     if not run_command(cmd, interactive=False, error_OK=True):
-        typer.echo(f"ioc {ioc_name} does not exist in domain {bl}")
+        typer.echo(f"ioc {ioc_name} does not exist in domain {domain}")
         raise typer.Exit(1)
 
 
@@ -125,7 +125,7 @@ def repo2registry(repo_name: str) -> str:
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
 
     if not EC_REGISTRY_MAPPING:
-        typer.echo("environment variable IMAGE_REGISTRY_MAPPING not set")
+        typer.echo("environment variable EC_REGISTRY_MAPPING not set")
         raise typer.Exit(1)
 
     for mapping in EC_REGISTRY_MAPPING.split():
@@ -135,7 +135,7 @@ def repo2registry(repo_name: str) -> str:
             break
     else:
         typer.echo(f"repo {repo_name} does not match any registry mapping")
-        typer.echo("please update the environment variable IMAGE_REGISTRY_MAPPING")
+        typer.echo("please update the environment variable EC_REGISTRY_MAPPING")
         raise typer.Exit(1)
 
     return registry
