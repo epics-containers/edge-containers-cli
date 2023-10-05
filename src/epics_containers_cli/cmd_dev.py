@@ -6,7 +6,14 @@ from typing import Optional
 
 import typer
 
-from .globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, IOC_START, Architecture, Targets
+from .globals import (
+    CONFIG_FOLDER,
+    IOC_CONFIG_FOLDER,
+    IOC_NAME,
+    IOC_START,
+    Architecture,
+    Targets,
+)
 from .logging import log
 from .shell import EC_CONTAINER_CLI, get_git_name, get_image_name, run_command
 
@@ -69,8 +76,13 @@ def _go(
     """
     Common code for launch and launch_local CLI commands
     """
+    log.info(
+        f"launching {ioc_name} image:{image} target:{target} "
+        f"execute:{execute} args:{args} mounts:{mounts}"
+    )
+
     # make sure there is not already an IOC of this name running
-    run_command(f"{DOCKER} rm -f {ioc_name}", error_OK=True)
+    run_command(f"{DOCKER} stop {ioc_name}", error_OK=True)
 
     start_script = f"-c '{execute}'"
 
@@ -94,6 +106,7 @@ def launch_local(
         help="local IOC instance config folder",
         dir_okay=True,
         file_okay=False,
+        exists=True,
     ),
     ioc: Path = typer.Option(
         ".", help="folder for generic IOC project", dir_okay=True, file_okay=False
@@ -108,6 +121,9 @@ def launch_local(
     args: str = typer.Option(
         "", help=f"Additional args for {DOCKER}/docker, 'must be quoted'"
     ),
+    ioc_name: str = typer.Option(
+        IOC_NAME, help="container name override. Use to run multiple instances"
+    ),
 ):
     """
     Launch a locally built generic IOC from the local cache with tag "local".
@@ -121,14 +137,16 @@ def launch_local(
 
     mounts = []
     if ioc_folder is not None:
+        ioc_folder = ioc_folder.resolve()
         if (ioc_folder / CONFIG_FOLDER).exists():
             ioc_folder = ioc_folder / CONFIG_FOLDER
-            mounts.append(f"-v {ioc_folder}:{IOC_CONFIG_FOLDER}")
+        mounts.append(f"-v {ioc_folder}:{IOC_CONFIG_FOLDER}")
+        log.debug(f"mounts: {mounts}")
 
     repo, _ = get_git_name(ioc, full=True)
     image = get_image_name(repo, target=target) + ":local"
 
-    _go("generic-ioc", target, image, execute, args, mounts)
+    _go(ioc_name, target, image, execute, args, mounts)
 
 
 @dev.command()
@@ -139,6 +157,7 @@ def launch(
         help="local IOC definition folder from domain repo",
         dir_okay=True,
         file_okay=False,
+        exists=True,
     ),
     execute: str = typer.Option(
         f"{IOC_START}; bash",
@@ -150,6 +169,9 @@ def launch(
     image: str = typer.Option("", help="override container image to use"),
     args: str = typer.Option(
         "", help=f"Additional args for {DOCKER}/docker, 'must be quoted'"
+    ),
+    ioc_name: str = typer.Option(
+        IOC_NAME, help="container name override. Use to run multiple instances"
     ),
 ):
     """
@@ -166,7 +188,6 @@ def launch(
     mounts = []
 
     ioc_folder = ioc_folder.resolve()
-    ioc_name = ioc_folder.name
     values = ioc_folder / "values.yaml"
     if not values.exists():
         typer.echo(f"values.yaml not found in {ioc_folder}")
@@ -268,17 +289,51 @@ def versions(
 @dev.command()
 def stop(
     ctx: typer.Context,
-    ioc_folder: Path = typer.Argument(
-        ...,
-        help="local IOC config folder from domain repo",
-        dir_okay=True,
-        file_okay=False,
+    ioc_name: str = typer.Option(
+        IOC_NAME, help="container name override. Use to run multiple instances"
     ),
 ):
     """
     Stop a running local IOC container
     """
-    ioc_name = ioc_folder.name
-    run_command(
-        f"{DOCKER} stop {ioc_name} -t0",
-    )
+    run_command(f"{DOCKER} stop {ioc_name} -t0", error_OK=True)
+
+
+@dev.command()
+def exec(
+    ctx: typer.Context,
+    command: str = typer.Argument(
+        "bash", help="command to execute inside the container must be 'single quoted'"
+    ),
+    ioc_name: str = typer.Option(
+        IOC_NAME, help="container name override. Use to run multiple instances"
+    ),
+):
+    """
+    Execute a command inside a running local IOC container
+    """
+    run_command(f'{DOCKER} exec -it {ioc_name} bash -c "{command}"')
+
+
+@dev.command()
+def wait_pv(
+    ctx: typer.Context,
+    pv_name: str = typer.Argument(
+        ..., help="A PV to check in order to confirm the IOC is running"
+    ),
+    ioc_name: str = typer.Option(
+        IOC_NAME, help="container name override. Use to run multiple instances"
+    ),
+):
+    """
+    Execute a command inside a running local IOC container
+    """
+    for i in range(5):
+        result = run_command(
+            f'{DOCKER} exec -it {ioc_name} bash -c "caget {pv_name}"', interactive=False
+        )
+        if "connect timed" not in str(result):
+            break
+    else:
+        typer.echo(f"PV {pv_name} not found in {ioc_name}")
+        raise typer.Exit(1)
