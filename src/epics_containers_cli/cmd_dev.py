@@ -354,6 +354,6 @@ def build(
         image = get_image_name(repo, arch, target)
         image_name = f"{image}:tag " f"{'--no-cache' if not cache else ''}"
         run_command(
-            f"{DOCKER} build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
+            f"{cmd} build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
             f"{args} -t {image_name} {folder}"
         )
