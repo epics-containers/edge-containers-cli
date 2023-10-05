@@ -19,12 +19,15 @@ from .shell import EC_CONTAINER_CLI, get_git_name, get_image_name, run_command
 
 dev = typer.Typer()
 
+DOCKER_PATH = "docker"
 IMAGE_TAG = "local"
 MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
 
 
 # parameters for container launches
-OPTS = "--security-opt=label=type:container_runtime_t --net=host"
+OPTS = "--security-opt=label=type:container_runtime_t"
+# NOTE: I have removed --net host so that tested IOCs are isolated
+# TODO: review this choice when implementing GUIs
 
 
 def _check_docker():
@@ -40,12 +43,12 @@ def _check_docker():
     # default to podman if we do not find a docker>=20.0.0
     docker = "podman"
 
-    result = run_command("docker --version", interactive=False, error_OK=True)
+    result = run_command(f"{DOCKER_PATH} --version", interactive=False, error_OK=True)
 
     version = int(re.match(r"[^\d]*(\d*)", result).group(1))
     log.debug(f"docker version = {version} extracted from  {result}")
     if version >= 20:
-        docker = "docker"
+        docker = DOCKER_PATH
 
     return docker
 
@@ -82,7 +85,7 @@ def _go(
     )
 
     # make sure there is not already an IOC of this name running
-    run_command(f"{DOCKER} stop {ioc_name}", error_OK=True)
+    run_command(f"{DOCKER} stop -t0 {ioc_name}", error_OK=True)
 
     start_script = f"-c '{execute}'"
 
@@ -234,31 +237,6 @@ def debug_last(
 
 
 @dev.command()
-def build(
-    ctx: typer.Context,
-    folder: Path = typer.Option(Path("."), help="Container project folder"),
-    arch: Architecture = typer.Option(
-        Architecture.linux, help="choose target architecture"
-    ),
-    cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
-):
-    """
-    Build a generic IOC container locally from a container project.
-
-    Builds both developer and runtime targets.
-    """
-    repo, _ = get_git_name(folder, full=True)
-
-    for target in Targets:
-        image = get_image_name(repo, arch, target)
-        image_name = f"{image}:{IMAGE_TAG} " f"{'--no-cache' if not cache else ''}"
-        run_command(
-            f"{DOCKER} build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
-            f" -t {image_name} {folder}"
-        )
-
-
-@dev.command()
 def versions(
     ctx: typer.Context,
     folder: Path = typer.Argument(Path("."), help="Generic IOC project folder"),
@@ -296,7 +274,7 @@ def stop(
     """
     Stop a running local IOC container
     """
-    run_command(f"{DOCKER} stop {ioc_name} -t0", error_OK=True)
+    run_command(f"{DOCKER} stop -t0 {ioc_name}", error_OK=True)
 
 
 @dev.command()
@@ -337,3 +315,44 @@ def wait_pv(
     else:
         typer.echo(f"PV {pv_name} not found in {ioc_name}")
         raise typer.Exit(1)
+
+
+@dev.command()
+def build(
+    ctx: typer.Context,
+    folder: Path = typer.Option(Path("."), help="Container project folder"),
+    tag: str = typer.Option(IMAGE_TAG, help="version tag for the image"),
+    arch: Architecture = typer.Option(
+        Architecture.linux, help="choose target architecture"
+    ),
+    platform: str = typer.Option("linux/amd64", help="target platform"),
+    cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
+    buildx: bool = typer.Option(False, help="Use buildx if available"),
+    cache_to: Optional[Path] = typer.Option(None, help="buildx cache to folder"),
+    cache_from: Optional[Path] = typer.Option(None, help="buildx cache from folder"),
+    push: bool = typer.Option(False, help="buildx push to registry"),
+):
+    """
+    Build a generic IOC container locally from a container project.
+
+    Builds both developer and runtime targets.
+    """
+    repo, _ = get_git_name(folder, full=True)
+
+    args = f" --platform {platform}"
+    if buildx and DOCKER == DOCKER_PATH:
+        cmd = f"{DOCKER} buildx"
+        run_command(f"{cmd} create --driver docker-container --use", interactive=False)
+        args += f" --cache-from=type=local,src={cache_from}" if cache_from else ""
+        args += f" --cache-to=type=local,dest=${cache_to},mode=max" if cache_to else ""
+        args += " --push" if push else " --load "
+    else:
+        cmd = f"{DOCKER}"
+
+    for target in Targets:
+        image = get_image_name(repo, arch, target)
+        image_name = f"{image}:tag " f"{'--no-cache' if not cache else ''}"
+        run_command(
+            f"{DOCKER} build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
+            f"{args} -t {image_name} {folder}"
+        )
