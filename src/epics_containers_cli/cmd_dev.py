@@ -72,7 +72,7 @@ def _go(
     # make sure there is not already an IOC of this name running
     run_command(f"{DOCKER} rm -f {ioc_name}", error_OK=True)
 
-    start_script = f"-c '{execute}; bash'"
+    start_script = f"-c '{execute}'"
 
     config = _all_params() + f' {" ".join(mounts)} ' + args
 
@@ -99,7 +99,7 @@ def launch_local(
         ".", help="folder for generic IOC project", dir_okay=True, file_okay=False
     ),
     execute: str = typer.Option(
-        IOC_START,
+        f"{IOC_START}; bash",
         help="command to execute in the container. Defaults to executing the IOC",
     ),
     target: Targets = typer.Option(
@@ -141,7 +141,7 @@ def launch(
         file_okay=False,
     ),
     execute: str = typer.Option(
-        IOC_START,
+        f"{IOC_START}; bash",
         help="command to execute in the container. Defaults to executing the IOC",
     ),
     target: Targets = typer.Option(
