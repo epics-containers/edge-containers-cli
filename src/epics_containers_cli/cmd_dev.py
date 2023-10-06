@@ -86,7 +86,7 @@ def _go(
     )
 
     # make sure there is not already an IOC of this name running
-    run_command(f"{DOCKER} stop -t0 {ioc_name}", error_OK=True)
+    run_command(f"{DOCKER} stop -t0 {ioc_name}", error_OK=True, interactive=False)
 
     start_script = f"-c '{execute}'"
 
@@ -115,13 +115,14 @@ def launch_local(
     ioc: Path = typer.Option(
         ".", help="folder for generic IOC project", dir_okay=True, file_okay=False
     ),
-    execute: str = typer.Option(
-        f"{IOC_START}; bash",
+    execute: Optional[str] = typer.Option(
+        None,
         help="command to execute in the container. Defaults to executing the IOC",
     ),
     target: Targets = typer.Option(
         Targets.developer, help="choose runtime or developer target"
     ),
+    tag: str = typer.Option(IMAGE_TAG, help="override image tag to use."),
     args: str = typer.Option(
         "", help=f"Additional args for {DOCKER}/docker, 'must be quoted'"
     ),
@@ -140,15 +141,18 @@ def launch_local(
     )
 
     mounts = []
-    if ioc_folder is not None:
+    if ioc_folder is None:
+        execute = execute or "bash"
+    else:
         ioc_folder = ioc_folder.resolve()
         if (ioc_folder / CONFIG_FOLDER).exists():
             ioc_folder = ioc_folder / CONFIG_FOLDER
         mounts.append(f"-v {ioc_folder}:{IOC_CONFIG_FOLDER}")
         log.debug(f"mounts: {mounts}")
+        execute = f"{IOC_START}; bash"
 
     repo, _ = get_git_name(ioc, full=True)
-    image = get_image_name(repo, target=target) + ":local"
+    image = get_image_name(repo, target=target) + f":{tag}"
 
     _go(ioc_name, target, image, execute, args, mounts)
 
@@ -171,6 +175,7 @@ def launch(
         Targets.developer, help="choose runtime or developer target"
     ),
     image: str = typer.Option("", help="override container image to use"),
+    tag: Optional[str] = typer.Option(None, help="override image tag to use."),
     args: str = typer.Option(
         "", help=f"Additional args for {DOCKER}/docker, 'must be quoted'"
     ),
@@ -199,9 +204,10 @@ def launch(
     mounts.append(f"-v {ioc_folder}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}")
 
     values_text = values.read_text()
-    matches = re.findall(r"image: (.*)", values_text)
+    matches = re.findall(r"image: (.*):(.*)", values_text)
     if len(matches) == 1:
-        image = matches[0]
+        tag = tag or matches[0][1]
+        image = matches[0][0] + f":{tag}"
     else:
         typer.echo(f"image tag definition not found in {values}")
         raise typer.Exit(1)
@@ -352,7 +358,7 @@ def build(
 
     for target in Targets:
         image = get_image_name(repo, arch, target)
-        image_name = f"{image}:tag " f"{'--no-cache' if not cache else ''}"
+        image_name = f"{image}:{tag} " f"{'--no-cache' if not cache else ''}"
         run_command(
             f"{cmd} build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
             f"{args} -t {image_name} {folder}"
