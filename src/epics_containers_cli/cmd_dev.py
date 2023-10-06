@@ -71,7 +71,9 @@ def _all_params():
         if file_path.exists():
             volumes += f" -v {file}:/root/{file_path.name}"
 
-    return f"{env} {volumes} {OPTS}"
+    opts = OPTS if DOCKER != DOCKER_PATH else ""
+
+    return f"{env} {volumes} {opts}"
 
 
 def _go(
