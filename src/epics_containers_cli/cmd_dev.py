@@ -132,7 +132,7 @@ def launch_local(
 ):
     """
     Launch a locally built generic IOC from the local cache with tag "local".
-    This can only be run after doing an "ec dev build" in the same generic
+    This can only be run after doing an 'ec dev build' in the same generic
     IOC project folder.
     """
     log.debug(
