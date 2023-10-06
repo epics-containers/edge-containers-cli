@@ -298,7 +298,9 @@ def exec(
     """
     Execute a command inside a running local IOC container
     """
-    run_command(f'{DOCKER} exec -it {ioc_name} bash -c "{command}"')
+    config = _all_params()
+
+    run_command(f'{DOCKER} exec {config} {ioc_name} bash -c "{command}"')
 
 
 @dev.command()
@@ -316,7 +318,7 @@ def wait_pv(
     """
     for i in range(5):
         result = run_command(
-            f'{DOCKER} exec -it {ioc_name} bash -c "caget {pv_name}"', interactive=False
+            f'{DOCKER} exec {ioc_name} bash -c "caget {pv_name}"', interactive=False
         )
         if "connect timed" not in str(result):
             break
