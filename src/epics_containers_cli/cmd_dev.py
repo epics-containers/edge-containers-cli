@@ -87,6 +87,7 @@ def _go(
 
     # make sure there is not already an IOC of this name running
     run_command(f"{DOCKER} stop -t0 {ioc_name}", error_OK=True, interactive=False)
+    run_command(f"{DOCKER} rm {ioc_name}", error_OK=True, interactive=False)
 
     start_script = f"-c '{execute}'"
 
