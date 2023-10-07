@@ -42,6 +42,7 @@ def _check_docker():
 
     # default to podman if we do not find a docker>=20.0.0
     docker = "podman"
+    buildx = False
 
     result = run_command(f"{DOCKER_PATH} --version", interactive=False, error_OK=True)
     match = re.match(r"[^\d]*(\d+)", result)
@@ -50,12 +51,14 @@ def _check_docker():
         log.debug(f"docker version = {version} extracted from  {result}")
         if version >= 20:
             docker = DOCKER_PATH
+        result = run_command("docker buildx version", interactive=False, error_OK=True)
+        buildx = re.match(r"v\d+\.\d+\.\d+", result) is not None
 
-    return docker
+    return docker, buildx
 
 
 # the container management CLI to use
-DOCKER = _check_docker()
+DOCKER, BUILDX = _check_docker()
 
 
 def _all_params():
@@ -352,7 +355,7 @@ def build(
     repo, _ = get_git_name(folder, full=True)
 
     args = f" --platform {platform}"
-    if buildx and DOCKER == DOCKER_PATH:
+    if buildx and BUILDX:
         cmd = f"{DOCKER} buildx"
         run_command(f"{cmd} create --driver docker-container --use", interactive=False)
         args += f" --cache-from=type=local,src={cache_from}" if cache_from else ""
