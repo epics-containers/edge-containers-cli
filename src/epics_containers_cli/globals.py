@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from enum import Enum
 
@@ -29,3 +30,4 @@ CONFIG_FOLDER = "config"
 IOC_CONFIG_FOLDER = "/epics/ioc/config/"
 IOC_START = "/epics/ioc/start.sh"
 IOC_NAME = "test-ioc"
+EC_DEBUG = os.environ.get("EC_DEBUG")

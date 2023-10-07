@@ -44,9 +44,11 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
             raise typer.Exit(1)
 
     if interactive:
-        return result.returncode == 0
+        result = result.returncode == 0
     else:
-        return result.stdout.decode()
+        result = result.stdout.decode()
+    log.debug(f"returning: {result}")
+    return result
 
 
 def check_ioc(ioc_name: str, domain: str):

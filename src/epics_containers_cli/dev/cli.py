@@ -170,11 +170,12 @@ def wait_pv(
     ioc_name: str = typer.Option(
         IOC_NAME, help="container name override. Use to run multiple instances"
     ),
+    attempts: int = typer.Option(5, help="no. retries checking for PV"),
 ):
     """
     Execute a command inside a running local IOC container
     """
-    DevCommands().wait_pv(pv_name, ioc_name)
+    DevCommands().wait_pv(pv_name, ioc_name, attempts)
 
 
 @dev.command()
@@ -186,6 +187,7 @@ def build(
         Architecture.linux, help="choose target architecture"
     ),
     platform: str = typer.Option("linux/amd64", help="target platform"),
+    buildx: bool = typer.Option(False, help="use buildx if available"),
     cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
     cache_to: Optional[str] = typer.Option(None, help="buildx cache to folder"),
     cache_from: Optional[str] = typer.Option(None, help="buildx cache from folder"),
@@ -198,5 +200,14 @@ def build(
     Builds both developer and runtime targets.
     """
     DevCommands().build(
-        generic_ioc, tag, arch, platform, cache, cache_to, cache_from, push, rebuild
+        generic_ioc,
+        tag,
+        arch,
+        platform,
+        buildx,
+        cache,
+        cache_to,
+        cache_from,
+        push,
+        rebuild,
     )

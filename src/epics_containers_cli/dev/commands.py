@@ -30,6 +30,10 @@ PODMAN_OPT = "--security-opt=label=type:container_runtime_t"
 
 
 class DevCommands:
+    """
+    A class to implement the set of commands in the 'dev' namespace
+    """
+
     def __init__(self):
         self.docker = "podman"
         self.is_docker = False
@@ -40,6 +44,8 @@ class DevCommands:
         """
         Decide if we will use docker or podman cli.
 
+        Also look to see if buildx is available.
+
         Prefer docker if it is installed, otherwise use podman
         """
         if EC_CONTAINER_CLI:
@@ -47,21 +53,30 @@ class DevCommands:
         else:
             # default to podman if we do not find a docker>=20.0.0
             result = run_command("docker --version", interactive=False, error_OK=True)
-            log.debug(f"docker version result = {result}")
             match = re.match(r"[^\d]*(\d+)", result)
             if match is not None:
                 version = int(match.group(1))
                 if version >= 20:
                     self.docker, self.is_docker = "docker", True
                     log.debug(f"using docker {result}")
-                    result = run_command(
-                        "docker buildx version", interactive=False, error_OK=True
-                    )
 
-        self.is_buildx = re.findall(r"v(\d+)\.\d+\.\d+", result) is not None
+        result = run_command("docker buildx version", interactive=False, error_OK=True)
+        if result and "buildah" not in result:
+            self.is_buildx = True
+
         log.debug(f"buildx={self.is_buildx} ({result})")
 
-    def _all_params(self):
+    def _all_params(self, exec: bool = False):
+        """
+        set up parameters for call to docker/podman
+        """
+
+        # TODO - can we tidy up the argument generation ?
+        # we are trying to cope with building / running / execing / stopping
+        # containers with podman / docker / buildx and at present the
+        # code looks a little opaque I figure a nice dictionary definition
+        # of the matrix of options might work better
+
         if os.isatty(sys.stdin.fileno()):
             # interactive
             env = "-e DISPLAY -e SHELL -e TERM -it"
@@ -74,7 +89,7 @@ class DevCommands:
             if file_path.exists():
                 volumes += f" -v {file}:/root/{file_path.name}"
 
-        opts = PODMAN_OPT if not self.is_docker else ""
+        opts = PODMAN_OPT if not self.is_docker and not exec else ""
 
         log.debug(f"env={env} volumes={volumes} opts={opts}")
 
@@ -126,6 +141,9 @@ class DevCommands:
         args: str,
         ioc_name: str,
     ):
+        """
+        Launch a locally built generic IOC container from the image cache
+        """
         log.debug(
             f"launch: ioc_instance={ioc_instance} generic_ioc={generic_ioc}"
             f" execute={execute} target={target} args={args}"
@@ -157,6 +175,9 @@ class DevCommands:
         args: str,
         ioc_name: str,
     ):
+        """
+        Launch and IOC instance
+        """
         log.debug(
             f"launch: ioc_folder={ioc_instance} image={image}"
             f" execute={execute} target={target} args={args}"
@@ -183,6 +204,9 @@ class DevCommands:
         self._do_launch(ioc_name, target, image, execute, args, mounts)
 
     def debug_last(self, generic_ioc: Path, mount_repos: bool):
+        """
+        Launch the most recently partially built container image
+        """
         last_image = run_command(
             f"{self.docker} images | awk '{{print $3}}' | awk 'NR==2'",
             interactive=False,
@@ -200,6 +224,9 @@ class DevCommands:
         )
 
     def versions(self, generic_ioc: Path, arch: Architecture, image: str):
+        """
+        get the versions of a container image available in the registry
+        """
         if image == "":
             repo, _ = get_git_name(generic_ioc, full=True)
             image = image or get_image_name(repo, arch)
@@ -211,19 +238,28 @@ class DevCommands:
         )
 
     def stop(self, ioc_name: str):
+        """
+        Stop a locally running container
+        """
         run_command(f"{self.docker} stop -t0 {ioc_name}", interactive=False)
 
     def exec(self, command: str, ioc_name: str):
-        config = self._all_params()
+        """
+        execute a command in a locally running container
+        """
+        config = self._all_params(exec=True)
         run_command(f'{self.docker} exec {config} {ioc_name} bash -c "{command}"')
 
-    def wait_pv(self, pv_name: str, ioc_name: str, attempts: int = 5):
+    def wait_pv(self, pv_name: str, ioc_name: str, attempts: int):
+        """
+        wait for a local IOC instance to start by monitoring for a PV
+        """
         for i in range(attempts):
             result = run_command(
                 f'{self.docker} exec {ioc_name} bash -c "caget {pv_name}"',
                 interactive=False,
+                error_OK=True,
             )
-            log.info("PV from wait_pv: {result}")
             if str(result).startswith(pv_name):
                 break
             time.sleep(1)
@@ -237,16 +273,20 @@ class DevCommands:
         tag: str,
         arch: Architecture,
         platform: str,
+        buildx: bool,
         cache: bool,
         cache_to: Optional[str],
         cache_from: Optional[str],
         push: bool,
         rebuild: bool,
     ):
+        """
+        build a local image from a Dockerfile
+        """
         repo, _ = get_git_name(generic_ioc, full=True)
         args = f" --platform {platform} {'--no-cache' if not cache else ''}"
 
-        if self.is_buildx:
+        if self.is_buildx and buildx:
             cmd = f"{self.docker} buildx"
             run_command(
                 f"{cmd} create --driver docker-container --use", interactive=False
