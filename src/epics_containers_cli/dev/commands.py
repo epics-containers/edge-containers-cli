@@ -221,7 +221,8 @@ class DevCommands:
                 f'{self.docker} exec {ioc_name} bash -c "caget {pv_name}"',
                 interactive=False,
             )
-            if "connect timed" not in str(result):
+            log.info("PV from wait_pv: {result}")
+            if result.startswith(pv_name):
                 break
         else:
             typer.echo(f"PV {pv_name} not found in {ioc_name}")
@@ -237,26 +238,34 @@ class DevCommands:
         cache_to: str,
         cache_from: str,
         push: bool,
+        rebuild: bool,
     ):
         repo, _ = get_git_name(generic_ioc, full=True)
+        args = f" --platform {platform} {'--no-cache' if not cache else ''}"
 
-        args = f" --platform {platform}"
         if self.is_buildx:
             cmd = f"{self.docker} buildx"
             run_command(
                 f"{cmd} create --driver docker-container --use", interactive=False
             )
-            args += f" --cache-from=type=local,src={cache_from}" if cache_from else ""
-            args += (
-                f" --cache-to=type=local,dest=${cache_to},mode=max" if cache_to else ""
-            )
+            args += f" --cache-from={cache_from}" if cache_from else ""
+            args += f" --cache-to={cache_to},mode=max" if cache_to else ""
             args += " --push" if push else " --load "
         else:
             cmd = f"{self.docker}"
 
         for target in Targets:
             image = get_image_name(repo, arch, target)
-            image_name = f"{image}:{tag} " f"{'--no-cache' if not cache else ''}"
+            image_name = f"{image}:{tag}"
+
+            if not rebuild:
+                result = run_command(
+                    "{self.docker} images -q {image_name}", interactive=False
+                )
+                if result:
+                    log.info(f"skipping build of {image} as it already exists")
+                    continue
+
             run_command(
                 f"{cmd} build --target {target} --build-arg TARGET_ARCHITECTURE={arch}"
                 f"{args} -t {image_name} {generic_ioc}"

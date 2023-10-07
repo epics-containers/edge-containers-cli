@@ -56,8 +56,9 @@ def launch_local(
     This can only be run after doing an 'ec dev build' in the same generic
     IOC project folder.
     """
-    d = DevCommands()
-    d.launch_local(ioc_instance, generic_ioc, execute, target, tag, args, ioc_name)
+    DevCommands().launch_local(
+        ioc_instance, generic_ioc, execute, target, tag, args, ioc_name
+    )
 
 
 @dev.command()
@@ -92,8 +93,7 @@ def launch(
     instances. You may find the devcontainer a more convenient way to
     do this.
     """
-    d = DevCommands()
-    d.launch(ioc_instance, execute, target, image, tag, args, ioc_name)
+    DevCommands().launch(ioc_instance, execute, target, image, tag, args, ioc_name)
 
 
 @dev.command()
@@ -108,8 +108,7 @@ def debug_last(
     Useful for debugging failed builds - if the last build failed it will
     start the container after the most recent successful build step.
     """
-    d = DevCommands()
-    d.debug_last(generic_ioc, mount_repos)
+    DevCommands().debug_last(generic_ioc, mount_repos)
 
 
 @dev.command()
@@ -130,8 +129,7 @@ def versions(
     or the local project folder (defaults to .) e.g.
         ec dev versions ../ioc-template
     """
-    d = DevCommands()
-    d.versions(generic_ioc, arch, image)
+    DevCommands().versions(generic_ioc, arch, image)
 
 
 @dev.command()
@@ -144,8 +142,7 @@ def stop(
     """
     Stop a running local IOC container
     """
-    d = DevCommands()
-    d.stop(ioc_name)
+    DevCommands().stop(ioc_name)
 
 
 @dev.command()
@@ -161,8 +158,7 @@ def exec(
     """
     Execute a command inside a running local IOC container
     """
-    d = DevCommands()
-    d.exec(command, ioc_name)
+    DevCommands().exec(command, ioc_name)
 
 
 @dev.command()
@@ -178,8 +174,7 @@ def wait_pv(
     """
     Execute a command inside a running local IOC container
     """
-    d = DevCommands()
-    d.wait_pv(pv_name, ioc_name)
+    DevCommands().wait_pv(pv_name, ioc_name)
 
 
 @dev.command()
@@ -195,11 +190,13 @@ def build(
     cache_to: Optional[Path] = typer.Option(None, help="buildx cache to folder"),
     cache_from: Optional[Path] = typer.Option(None, help="buildx cache from folder"),
     push: bool = typer.Option(False, help="buildx push to registry"),
+    rebuild: bool = typer.Option(True, help="rebuild the image even if it exists"),
 ):
     """
     Build a generic IOC container locally from a container project.
 
     Builds both developer and runtime targets.
     """
-    d = DevCommands()
-    d.build(generic_ioc, tag, arch, platform, cache, cache_to, cache_from, push)
+    DevCommands().build(
+        generic_ioc, tag, arch, platform, cache, cache_to, cache_from, push, rebuild
+    )
