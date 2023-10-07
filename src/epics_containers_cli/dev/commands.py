@@ -2,6 +2,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
 import typer
 
@@ -116,9 +117,9 @@ class DevCommands:
 
     def launch_local(
         self,
-        ioc_instance: Path,
+        ioc_instance: Optional[Path],
         generic_ioc: Path,
-        execute: str,
+        execute: Optional[str],
         target: Targets,
         tag: str,
         args: str,
@@ -151,7 +152,7 @@ class DevCommands:
         execute: str,
         target: Targets,
         image: str,
-        tag: str,
+        tag: Optional[str],
         args: str,
         ioc_name: str,
     ):
@@ -222,7 +223,7 @@ class DevCommands:
                 interactive=False,
             )
             log.info("PV from wait_pv: {result}")
-            if result.startswith(pv_name):
+            if str(result).startswith(pv_name):
                 break
         else:
             typer.echo(f"PV {pv_name} not found in {ioc_name}")
@@ -235,8 +236,8 @@ class DevCommands:
         arch: Architecture,
         platform: str,
         cache: bool,
-        cache_to: str,
-        cache_from: str,
+        cache_to: Optional[str],
+        cache_from: Optional[str],
         push: bool,
         rebuild: bool,
     ):

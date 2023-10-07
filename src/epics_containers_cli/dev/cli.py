@@ -187,8 +187,8 @@ def build(
     ),
     platform: str = typer.Option("linux/amd64", help="target platform"),
     cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
-    cache_to: Optional[Path] = typer.Option(None, help="buildx cache to folder"),
-    cache_from: Optional[Path] = typer.Option(None, help="buildx cache from folder"),
+    cache_to: Optional[str] = typer.Option(None, help="buildx cache to folder"),
+    cache_from: Optional[str] = typer.Option(None, help="buildx cache from folder"),
     push: bool = typer.Option(False, help="buildx push to registry"),
     rebuild: bool = typer.Option(True, help="rebuild the image even if it exists"),
 ):
