@@ -4,8 +4,8 @@ import typer
 
 from . import __version__
 from .cmd_cluster import cluster
-from .cmd_dev import dev
 from .cmd_ioc import ioc
+from .dev.cli import dev
 from .globals import Context
 from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
@@ -21,7 +21,7 @@ from .shell import (
 __all__ = ["main"]
 
 
-cli = typer.Typer()
+cli = typer.Typer(pretty_exceptions_show_locals=False)
 cli.add_typer(
     dev,
     name="dev",
