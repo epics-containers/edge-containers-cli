@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -216,8 +217,8 @@ class DevCommands:
         config = self._all_params()
         run_command(f'{self.docker} exec {config} {ioc_name} bash -c "{command}"')
 
-    def wait_pv(self, pv_name: str, ioc_name: str):
-        for i in range(5):
+    def wait_pv(self, pv_name: str, ioc_name: str, attempts: int = 5):
+        for i in range(attempts):
             result = run_command(
                 f'{self.docker} exec {ioc_name} bash -c "caget {pv_name}"',
                 interactive=False,
@@ -225,6 +226,7 @@ class DevCommands:
             log.info("PV from wait_pv: {result}")
             if str(result).startswith(pv_name):
                 break
+            time.sleep(1)
         else:
             typer.echo(f"PV {pv_name} not found in {ioc_name}")
             raise typer.Exit(1)
