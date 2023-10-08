@@ -3,11 +3,11 @@ from typing import Optional
 import typer
 
 from . import __version__
-from .cmd_cluster import cluster
 from .dev.cli import dev
 from .globals import Context
 from .ioc.cli import ioc
-from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
+from .k8s.cli import cluster
+from .k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
 from .shell import (
     EC_DOMAIN_REPO,
@@ -34,7 +34,7 @@ cli.add_typer(
 )
 cli.add_typer(
     cluster,
-    name="cluster",
+    name="k8s",
     help="Commands communicating with the k8s cluster. See 'ec cluster --help",
 )
 

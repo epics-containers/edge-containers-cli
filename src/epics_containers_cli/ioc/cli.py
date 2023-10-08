@@ -2,8 +2,6 @@ from pathlib import Path
 
 import typer
 
-from ..globals import Context
-from ..shell import check_domain, check_ioc, run_command
 from .commands import IocCommands
 
 ioc = typer.Typer()
@@ -119,14 +117,7 @@ def restart(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to restart"),
 ):
     """Restart an IOC"""
-    c: Context = ctx.obj
-
-    domain = c.domain
-    check_domain(domain)
-    check_ioc(ioc_name, domain)
-
-    pod_name = run_command(f"kubectl get -n {domain} pod -l app={ioc_name} -o name")
-    run_command(f"kubectl delete -n {domain} {pod_name}")
+    IocCommands(ctx.obj, ioc_name).restart()
 
 
 @ioc.command()

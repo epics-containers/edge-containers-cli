@@ -85,10 +85,12 @@ class IocCommands:
             f"kubectl -n {self.domain} logs deploy/{self.ioc_name} {previous} {fol}"
         )
 
-    def start(self):
-        run_command(
-            f"kubectl scale -n {self.domain} deploy --replicas=1 {self.ioc_name}"
+    def restart(self):
+        pod_name = run_command(
+            f"kubectl get -n {self.domain} pod -l app={self.ioc_name} -o name",
+            interactive=False,
         )
+        run_command(f"kubectl delete -n {self.domain} {pod_name}")
 
     def stop(self):
         """Stop an IOC"""
