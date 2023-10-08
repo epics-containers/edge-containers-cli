@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://github.com/epics-containers/ioc-adaravis/releases/download/23.9.4/ibek.ioc.schema.json
+
+ioc_name: bl45p-ea-ioc-01
+description: Sample and overview cameras IOC for BL45P
+
+# Just a comment to force rebuild
+
+entities:
+  - type: epics.EpicsCaMaxArrayBytes
+    max_bytes: 6000000
+
+  - type: ADAravis.aravisCamera
+    CLASS: AVT_Mako_G234B
+    PORT: DET.DET
+    P: BL45P-EA-MAP-01
+    R: ":DET:"
+    ID: 172.23.59.11
+    PV_ALIAS: "0" # TODO this ARG should have default
+
+  - type: ADCore.NDPvaPlugin
+    PORT: DET.PVA
+    PVNAME: BL45P-EA-MAP-01:PVA:OUTPUT
+    P: BL45P-EA-MAP-01
+    R: ":PVA:"
+    NDARRAY_PORT: DET.DET
+    BLOCK: 1 # TODO remaining ARGS should have defaults
+    PRIORITY: 0
+    STACKSIZE: 0
+    NDARRAY_ADDR: 0
+
+  - type: ADCore.NDFileHDF5
+    PORT: DET.HDF5
+    P: BL45P-EA-MAP-01
+    R: ":HDF5:"
+    NDARRAY_PORT: DET.DET
+    BLOCK: 1
+    NDARRAY_ADDR: 0
+
+  - type: ADAravis.aravisCamera
+    CLASS: AVT_Mako_G234B
+    PORT: DIFF.DET
+    P: BL45P-EA-DIFF-01
+    R: ":DET:"
+    ID: 172.23.59.12
+    PV_ALIAS: "0"
+  - type: ADCore.NDPvaPlugin
+    PORT: DIFF.PVA
+    PVNAME: BL45P-EA-DIFF-01:PVA:OUTPUT
+    P: BL45P-EA-DIFF-01
+    R: ":PVA:"
+    NDARRAY_PORT: DIFF.DET
+    BLOCK: 1
+    PRIORITY: 0
+    STACKSIZE: 0
+    NDARRAY_ADDR: 0
+
+  - type: ADCore.NDFileHDF5
+    PORT: DIFF.HDF5
+    P: BL45P-EA-DIFF-01
+    R: ":HDF5:"
+    NDARRAY_PORT: DIFF.DET
+    BLOCK: 1
+    NDARRAY_ADDR: 0

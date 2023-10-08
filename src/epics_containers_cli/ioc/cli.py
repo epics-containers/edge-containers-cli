@@ -15,7 +15,7 @@ def attach(
     """
     Attach to the IOC shell of a live IOC
     """
-    IocCommands(ctx.obj).attach()
+    IocCommands(ctx.obj, ioc_name).attach()
 
 
 @ioc.command()
@@ -38,7 +38,7 @@ def template(
     """
     print out the helm template generated from a local ioc instance
     """
-    IocCommands(ctx.obj).template(ioc_path, args)
+    IocCommands(ctx.obj, None).template(ioc_path, args)
 
 
 @ioc.command()
@@ -53,7 +53,7 @@ def deploy_local(
     """
     Deploy a local IOC helm chart directly to the cluster with dated beta version
     """
-    IocCommands(ctx.obj).deploy_local(ioc_path, yes, args)
+    IocCommands(ctx.obj, None).deploy_local(ioc_path, yes, args)
 
 
 @ioc.command()
@@ -66,7 +66,7 @@ def deploy(
     """
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
-    IocCommands(ctx.obj).deploy(ioc_name, version, args)
+    IocCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
 
 
 @ioc.command()

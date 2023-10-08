@@ -62,8 +62,7 @@ class Helm:
             not (ioc_path / "values.yaml").exists()
             or not (ioc_path / CONFIG_FOLDER).is_dir()
         ):
-            typer.echo("ERROR: IOC instance requires values.yaml and config")
-            raise typer.Exit(1)
+            raise typer.Exit("ERROR: IOC instance requires values.yaml and config")
 
         if not yes and not self.template:
             typer.echo(

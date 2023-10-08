@@ -1,6 +1,7 @@
 import os
+import re
 from pathlib import Path
-from typing import List, Union
+from typing import Dict, List, Union
 
 from mock import patch
 from pytest import fixture
@@ -8,13 +9,23 @@ from typer.testing import CliRunner
 
 from epics_containers_cli.logging import log
 
-os.environ["EC_EPICS_DOMAIN"] = "test"
+os.environ["EC_EPICS_DOMAIN"] = "bl45p"
+os.environ["EC_K8S_NAMESPACE"] = "bl45p"
+os.environ["EC_GIT_ORG"] = "https://github.com/epics-containers"
+os.environ["EC_LOG_URL"] = (
+    "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message%2C"
+    "source&width=1489&highlightMessage=&relative=172800&q=pod_name%3A{ioc_name}*"
+)
 os.environ["EC_DEBUG"] = "1"
+os.environ["EC_CONTAINER_CLI"] = "podman"
 
 
 class MockRun:
+    cmd: str = "cmd"
+    rsp: str = "rsp"
+
     def __init__(self):
-        self.response: Union[List[Union[bool, str]], Union[bool, str]] = True
+        self.cmd_rsp = {}
         self._runner = CliRunner()
         self.log: str = ""
 
@@ -25,25 +36,29 @@ class MockRun:
             f"\nCMD: {command}\n    interactive:{interactive}, error_OK:{error_OK}"
         )
 
-        if isinstance(self.response, List):
-            response = self.response.pop()
-        else:
-            response = self.response
+        cmd_rsp = self.cmd_rsp.pop(0)
+        cmd = cmd_rsp[self.cmd]
+        rsp = cmd_rsp[self.rsp]
 
-        self.log += f"\nRET: {response}\n"
+        self.log += f"\nRET: {rsp}\n"
+
+        matches = re.match(cmd, command)
+        assert matches is not None, f"command mismatch: {cmd} != {command}"
 
         if interactive:
-            assert isinstance(response, bool)
+            assert isinstance(rsp, bool), "interactive commands must return bool"
         else:
-            assert isinstance(response, str)
+            assert isinstance(rsp, str), "non-interactive commands must return str"
 
-        return response
+        return rsp
 
-    def set_response(self, *response):
+    def set_response(self, cmd_rsp: List[Dict[str, Union[str, bool]]]):
         self.log = ""
-        self.response = list(response)
+        self.cmd_rsp = cmd_rsp
 
     def run_cli(self, *args):
+        self.log = ""
+
         result = self._runner.invoke(cli, [str(x) for x in args])
         if result.exception:
             log.error(self.log)
@@ -67,10 +82,5 @@ def mock_run():
 
 
 @fixture
-def templates():
-    return Path(__file__).parent.parent / "src" / "ibek" / "templates"
-
-
-@fixture
-def samples():
+def samples() -> Path:
     return Path(__file__).parent / "samples"

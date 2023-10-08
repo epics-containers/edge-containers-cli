@@ -29,7 +29,7 @@ class IocCommands:
 
     def attach(self):
         run_command(
-            f"kubectl -it -n {self.domain} attach  deploy/{self.ioc_name}",
+            f"kubectl -it -n {self.domain} attach deploy/{self.ioc_name}",
             interactive=True,
         )
 
