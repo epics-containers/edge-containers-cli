@@ -1,0 +1,27 @@
+checks:
+  - cmd: kubectl get namespace bl45p -o name
+    rsp: namespace/bl45p
+  - cmd: kubectl get -n bl45p deploy/bl45p-ea-ioc-01
+    rsp: bl45p-ea-ioc-01   1/1     1            1           5d5h
+
+attach:
+  - cmd: kubectl -it -n bl45p attach deploy/bl45p-ea-ioc-01
+    rsp: True
+
+delete:
+  - cmd: helm delete -n bl45p bl45p-ea-ioc-01
+    rsp: True
+
+template:
+  - cmd: bash -c "helm template bl45p-ea-ioc-01 \/tmp\/.*\/beamline-chart --version 2023.10.8.*--namespace bl45p -f \/scratch\/hgv27681\/work\/epics-containers-.*
+    rsp: True
+
+instances:
+  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
+    rsp: Cloning into /tmp/xxxx...
+  - cmd: git tag
+    rsp: |
+      2.0
+  - cmd: git diff --name-only 2.0 2.0\^
+    rsp: |
+      2.0

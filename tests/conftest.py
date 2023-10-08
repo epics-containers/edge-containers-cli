@@ -2,9 +2,11 @@ import os
 import re
 from pathlib import Path
 from typing import Dict, List, Union
+from types import SimpleNamespace
 
 from mock import patch
 from pytest import fixture
+from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from epics_containers_cli.logging import log
@@ -82,5 +84,12 @@ def mock_run():
 
 
 @fixture
-def samples() -> Path:
-    return Path(__file__).parent / "samples"
+def data() -> Path:
+    return Path(__file__).parent / "data"
+
+
+@fixture()
+def ioc(data):
+    file = Path(__file__).parent / "data" / "ioc.yaml"
+    yaml = YAML(typ="safe").load(file)
+    return SimpleNamespace(**yaml)
