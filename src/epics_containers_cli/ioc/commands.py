@@ -62,8 +62,8 @@ class IocCommands:
         chart = Helm(self.domain, ioc_name, args, version, repo=self.beamline_repo)
         chart.deploy()
 
-    def instances(self, ctx: typer.Context, ioc_name: str):
-        chart = Helm(self.domain, ioc_name, repo=self.beamline_repo)
+    def instances(self):
+        chart = Helm(self.domain, self.ioc_name, repo=self.beamline_repo)
         chart.versions()
 
     def exec(self, ioc_name: str):

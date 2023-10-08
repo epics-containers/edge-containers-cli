@@ -2,7 +2,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import mkdtemp
 from typing import Optional
 
 import jinja2
@@ -38,8 +38,7 @@ class Helm:
         )
         self.template = template
 
-        tmpdir = TemporaryDirectory()
-        self.tmp = Path(tmpdir.name)
+        self.tmp = Path(mkdtemp())
 
         self.bl_chart_folder = self.tmp / BEAMLINE_CHART_FOLDER
         self.jinja_path = self.bl_chart_folder / "Chart.yaml.jinja"
@@ -47,6 +46,10 @@ class Helm:
         self.bl_config_folder = self.bl_chart_folder / CONFIG_FOLDER
 
         self.ioc_config_folder = self.tmp / "iocs" / str(self.ioc_name) / CONFIG_FOLDER
+
+    def __del__(self):
+        if hasattr(self, "tmp"):
+            shutil.rmtree(self.tmp)
 
     def deploy_local(self, ioc_path: Path, yes: bool = False):
         """
