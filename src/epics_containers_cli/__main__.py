@@ -4,9 +4,9 @@ import typer
 
 from . import __version__
 from .cmd_cluster import cluster
-from .cmd_ioc import ioc
 from .dev.cli import dev
 from .globals import Context
+from .ioc.cli import ioc
 from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
 from .shell import (

@@ -46,7 +46,7 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
     if interactive:
         result = result.returncode == 0
     else:
-        result = result.stdout.decode()
+        result = result.stdout.decode() + result.stderr.decode()
     log.debug(f"returning: {result}")
     return result
 

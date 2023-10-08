@@ -7,7 +7,6 @@ from typing import Optional
 
 import jinja2
 import typer
-from git import GitCommandError, Repo
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
 from epics_containers_cli.shell import run_command
@@ -85,14 +84,7 @@ class Helm:
         if not self.version:
             raise typer.Exit("ERROR: version is required")
 
-        try:
-            Repo.clone_from(
-                self.repo, self.tmp, depth=1, branch=self.version, single_branch=True
-            )
-
-            self._do_deploy(self.ioc_config_folder)
-        except GitCommandError as e:
-            raise typer.Exit(f"ERROR: no IOC of that version found.\n\n{e}")
+        self._do_deploy(self.ioc_config_folder)
 
     def _do_deploy(self, config_folder: Path):
         """
@@ -139,24 +131,18 @@ class Helm:
     def versions(self):
         typer.echo(f"Available instance versions for {self.ioc_name}:")
 
-        try:
-            Repo.clone_from(self.repo, to_path=self.tmp)
+        run_command(f"git clone {self.repo} {self.tmp}", interactive=False)
 
-            cmd = "git tag"
-            os.chdir(self.tmp)
+        cmd = "git tag"
+        os.chdir(self.tmp)
+        result = run_command(cmd, interactive=False)
+
+        tags = result.split("\n")
+        for tag in tags:
+            if tag == "":
+                continue
+            cmd = f"git diff --name-only {tag} {tag}^"
             result = run_command(cmd, interactive=False)
 
-            tags = result.split("\n")
-            for tag in tags:
-                if tag == "":
-                    continue
-                cmd = f"git diff --name-only {tag} {tag}^"
-                result = run_command(cmd, interactive=False)
-
-                if self.ioc_name in result:
-                    typer.echo(f"  {tag}")
-
-        except GitCommandError as e:
-            raise typer.Exit(f"ERROR: no IOC of that version found {e}")
-        except ChildProcessError:
-            raise typer.Exit("ERROR: ")
+            if self.ioc_name in result:
+                typer.echo(f"  {tag}")
