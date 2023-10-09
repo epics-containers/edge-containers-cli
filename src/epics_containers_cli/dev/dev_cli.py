@@ -3,7 +3,7 @@ from typing import Optional
 
 import typer
 
-from epics_containers_cli.dev.commands import DevCommands
+from epics_containers_cli.dev.dev_commands import DevCommands
 
 from ..globals import (
     IOC_NAME,

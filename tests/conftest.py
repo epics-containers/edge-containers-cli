@@ -1,8 +1,8 @@
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Union
 from types import SimpleNamespace
+from typing import Dict, List, Union
 
 from mock import patch
 from pytest import fixture
@@ -34,14 +34,14 @@ class MockRun:
     def _str_command(
         self, command: str, interactive: bool = True, error_OK: bool = False
     ):
-        self.log += (
-            f"\nCMD: {command}\n    interactive:{interactive}, error_OK:{error_OK}"
-        )
+        self.log += f"\n\nCMD: {command}"
 
         cmd_rsp = self.cmd_rsp.pop(0)
         cmd = cmd_rsp[self.cmd]
         rsp = cmd_rsp[self.rsp]
 
+        self.log += f"\nTST: {cmd}"
+        self.log += f"\nARG: interactive:{interactive}, error_OK:{error_OK}"
         self.log += f"\nRET: {rsp}\n"
 
         matches = re.match(cmd, command)
@@ -58,10 +58,11 @@ class MockRun:
         self.log = ""
         self.cmd_rsp = cmd_rsp
 
-    def run_cli(self, *args):
+    def run_cli(self, args: str):
+        params = [str(x) for x in args.split(" ")]
         self.log = ""
 
-        result = self._runner.invoke(cli, [str(x) for x in args])
+        result = self._runner.invoke(cli, params)
         if result.exception:
             log.error(self.log)
             raise result.exception
@@ -71,6 +72,9 @@ class MockRun:
 MOCKRUN = MockRun()
 
 patcher = patch("epics_containers_cli.shell.run_command", MOCKRUN._str_command)
+patch("typer.confirm", return_value=True)
+patch("tempfile.mkdtemp", return_value=Path(Path(__file__).parent / "data"))
+patch("shutil.rmtree", return_value=True)
 
 patcher.start()
 

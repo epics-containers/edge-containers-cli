@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-from .commands import IocCommands
+from epics_containers_cli.ioc.ioc_commands import IocCommands
 
 ioc = typer.Typer()
 
@@ -32,28 +32,26 @@ def delete(
 @ioc.command()
 def template(
     ctx: typer.Context,
-    ioc_path: Path = typer.Argument(..., help="folder of local ioc definition"),
+    ioc_instance: Path = typer.Argument(..., help="folder of local ioc definition"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
     print out the helm template generated from a local ioc instance
     """
-    IocCommands(ctx.obj, None).template(ioc_path, args)
+    IocCommands(ctx.obj).template(ioc_instance, args)
 
 
 @ioc.command()
 def deploy_local(
     ctx: typer.Context,
-    ioc_path: Path = typer.Argument(
-        ..., help="root folder of local helm chart to deploy"
-    ),
+    ioc_instance: Path = typer.Argument(..., help="folder of local ioc definition"),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
     Deploy a local IOC helm chart directly to the cluster with dated beta version
     """
-    IocCommands(ctx.obj, None).deploy_local(ioc_path, yes, args)
+    IocCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
 
 
 @ioc.command()

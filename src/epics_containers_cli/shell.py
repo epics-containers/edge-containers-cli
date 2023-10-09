@@ -37,16 +37,16 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
         f"(interactive={interactive}, error_OK={error_OK})\n"
     )
 
-    result = subprocess.run(command, capture_output=not interactive, shell=True)
+    p_result = subprocess.run(command, capture_output=not interactive, shell=True)
 
-    if result.returncode != 0 and not error_OK:
+    if p_result.returncode != 0 and not error_OK:
         if interactive:
             raise typer.Exit(1)
 
     if interactive:
-        result = result.returncode == 0
+        result: Union[str, bool] = p_result.returncode == 0
     else:
-        result = result.stdout.decode() + result.stderr.decode()
+        result = p_result.stdout.decode() + p_result.stderr.decode()
     log.debug(f"returning: {result}")
     return result
 

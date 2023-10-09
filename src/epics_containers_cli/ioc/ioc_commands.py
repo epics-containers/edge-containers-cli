@@ -5,9 +5,9 @@ from typing import Optional
 
 import typer
 
-from ..globals import Context
-from ..shell import EC_LOG_URL, check_domain, check_ioc, run_command
-from .helm import Helm
+from epics_containers_cli.globals import Context
+from epics_containers_cli.ioc.helm import Helm
+from epics_containers_cli.shell import EC_LOG_URL, check_domain, check_ioc, run_command
 
 
 class IocCommands:
@@ -15,17 +15,17 @@ class IocCommands:
     A class for implementing the ioc command namespace
     """
 
-    def __init__(self, ctx: Context, ioc_name: Optional[str]):
-        if ctx is None:
-            domain = None
-        else:
+    def __init__(self, ctx: Optional[Context], ioc_name: str = ""):
+        self.domain: str = ""
+        self.beamline_repo: str = ""
+        if ctx is not None:
             domain = ctx.domain
             check_domain(domain)
-            if ioc_name is not None:
+            if ioc_name != "":
                 check_ioc(ioc_name, domain)
-        self.domain = domain
-        self.ioc_name = ioc_name
-        self.beamline_repo = ctx.beamline_repo
+            self.domain = domain
+            self.beamline_repo = ctx.beamline_repo
+        self.ioc_name: str = ioc_name
 
     def attach(self):
         run_command(
@@ -66,15 +66,17 @@ class IocCommands:
         chart = Helm(self.domain, self.ioc_name, repo=self.beamline_repo)
         chart.versions()
 
-    def exec(self, ioc_name: str):
-        run_command(f"kubectl -it -n {self.domain} exec  deploy/{ioc_name} -- bash")
+    def exec(self):
+        run_command(
+            f"kubectl -it -n {self.domain} exec  deploy/{self.ioc_name} -- bash"
+        )
 
-    def log_history(self, ioc_name: str):
+    def log_history(self):
         if EC_LOG_URL is None:
             typer.echo("K8S_LOG_URL environment not set")
             raise typer.Exit(1)
 
-        url = EC_LOG_URL.format(ioc_name=ioc_name)
+        url = EC_LOG_URL.format(ioc_name=self.ioc_name)
         webbrowser.open(url)
 
     def logs(self, prev: bool, follow: bool):
@@ -91,6 +93,11 @@ class IocCommands:
             interactive=False,
         )
         run_command(f"kubectl delete -n {self.domain} {pod_name}")
+
+    def start(self):
+        run_command(
+            f"kkubectl scale -n {self.domain} deploy " "--replicas=1 {self.ioc_name}"
+        )
 
     def stop(self):
         """Stop an IOC"""

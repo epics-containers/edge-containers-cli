@@ -3,10 +3,10 @@ from typing import Optional
 import typer
 
 from . import __version__
-from .dev.cli import dev
+from .dev.dev_cli import dev
 from .globals import Context
-from .ioc.cli import ioc
-from .k8s.cli import cluster
+from .ioc.ioc_cli import ioc
+from .k8s.k8s_cli import cluster
 from .k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
 from .shell import (

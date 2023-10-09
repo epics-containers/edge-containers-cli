@@ -1,6 +1,6 @@
 import typer
 
-from .commands import K8sCommands
+from epics_containers_cli.k8s.k8s_commands import K8sCommands
 
 cluster = typer.Typer()
 

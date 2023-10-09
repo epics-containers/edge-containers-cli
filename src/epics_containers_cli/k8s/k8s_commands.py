@@ -1,8 +1,8 @@
 import typer
 
-from ..globals import Context
-from ..shell import run_command
-from .kubectl import fmt_deploys, fmt_pods
+from epics_containers_cli.globals import Context
+from epics_containers_cli.k8s.kubectl import fmt_deploys, fmt_pods
+from epics_containers_cli.shell import run_command
 
 cluster = typer.Typer()
 
@@ -35,7 +35,7 @@ class K8sCommands:
             run_command(f"kubectl get -n {self.domain} pvc -l beamline={self.domain}")
         )
 
-    def monitor():
+    def monitor(self):
         """Monitor the status of IOCs in a domain"""
         typer.echo("Not yet implemented - will be a rich text resizable terminal UI")
 

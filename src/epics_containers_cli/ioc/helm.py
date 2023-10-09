@@ -9,6 +9,7 @@ import jinja2
 import typer
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
+from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
 
 
@@ -62,7 +63,8 @@ class Helm:
             not (ioc_path / "values.yaml").exists()
             or not (ioc_path / CONFIG_FOLDER).is_dir()
         ):
-            raise typer.Exit("ERROR: IOC instance requires values.yaml and config")
+            log.error("ERROR: IOC instance requires values.yaml and config")
+            raise typer.Exit(1)
 
         if not yes and not self.template:
             typer.echo(
@@ -85,6 +87,12 @@ class Helm:
         """
         if not self.version:
             raise typer.Exit("ERROR: version is required")
+
+        run_command(
+            f"git clone {self.repo} {self.tmp} --depth=1 "
+            f"--single-branch=true --branch={self.version}",
+            interactive=False,
+        )
 
         self._do_deploy(self.ioc_config_folder)
 
