@@ -1,4 +1,6 @@
-from tests.conftest import MockRun
+import shutil
+
+from tests.conftest import TMPDIR, MockRun
 
 cmd = MockRun.cmd
 rsp = MockRun.rsp
@@ -26,6 +28,9 @@ def test_deploy_local(mock_run, data, ioc):
 
 def test_deploy(mock_run, data, ioc):
     mock_run.set_response(ioc.checks + ioc.deploy)
+    # prep what deploy expects to find after it cloned bl45p repo
+    TMPDIR.mkdir()
+    shutil.copytree(data / "beamline-chart", TMPDIR / "beamline-chart")
     mock_run.run_cli("ioc deploy bl45p-ea-ioc-01 2.0")
 
 

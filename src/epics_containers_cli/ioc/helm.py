@@ -49,8 +49,10 @@ class Helm:
         self.ioc_config_folder = self.tmp / "iocs" / str(self.ioc_name) / CONFIG_FOLDER
 
     def __del__(self):
-        if hasattr(self, "tmp"):
-            shutil.rmtree(self.tmp)
+        # keep the tmp folder if debug is enabled for inspection
+        if log.level != "DEBUG":
+            if hasattr(self, "tmp"):
+                shutil.rmtree(self.tmp, ignore_errors=True)
 
     def deploy_local(self, ioc_path: Path, yes: bool = False):
         """

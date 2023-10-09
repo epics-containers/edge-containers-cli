@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, List, Union
@@ -8,8 +9,6 @@ from mock import patch
 from pytest import fixture
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
-
-from epics_containers_cli.logging import log
 
 os.environ["EC_EPICS_DOMAIN"] = "bl45p"
 os.environ["EC_K8S_NAMESPACE"] = "bl45p"
@@ -20,6 +19,8 @@ os.environ["EC_LOG_URL"] = (
 )
 os.environ["EC_DEBUG"] = "1"
 os.environ["EC_CONTAINER_CLI"] = "podman"
+
+TMPDIR = Path("/tmp/ec_tests")
 
 
 class MockRun:
@@ -55,6 +56,7 @@ class MockRun:
         return rsp
 
     def set_response(self, cmd_rsp: List[Dict[str, Union[str, bool]]]):
+        shutil.rmtree(TMPDIR, ignore_errors=True)
         self.log = ""
         self.cmd_rsp = cmd_rsp
 
@@ -71,15 +73,20 @@ class MockRun:
 
 MOCKRUN = MockRun()
 
-patcher = patch("epics_containers_cli.shell.run_command", MOCKRUN._str_command)
-patch("typer.confirm", return_value=True)
-patch("tempfile.mkdtemp", return_value=Path(Path(__file__).parent / "data"))
-patch("shutil.rmtree", return_value=True)
 
-patcher.start()
+def mktempdir():
+    TMPDIR.mkdir(parents=True, exist_ok=True)
+    return str(TMPDIR)
 
-# this is imported last so that the patches above are applied
+
+patch("epics_containers_cli.shell.run_command", MOCKRUN._str_command).start()
+patch("typer.confirm", return_value=True).start()
+patch("tempfile.mkdtemp", mktempdir).start()
+
+
+# import project code last so that the patches above are applied
 from epics_containers_cli.__main__ import cli  # noqa: E402
+from epics_containers_cli.logging import log  # noqa: E402
 
 
 @fixture
