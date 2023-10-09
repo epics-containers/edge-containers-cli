@@ -67,9 +67,7 @@ class IocCommands:
         chart.versions()
 
     def exec(self):
-        run_command(
-            f"kubectl -it -n {self.domain} exec  deploy/{self.ioc_name} -- bash"
-        )
+        run_command(f"kubectl -it -n {self.domain} exec deploy/{self.ioc_name} -- bash")
 
     def log_history(self):
         if EC_LOG_URL is None:

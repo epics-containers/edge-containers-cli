@@ -37,3 +37,8 @@ def test_deploy(mock_run, data, ioc):
 def test_instances(mock_run, ioc):
     mock_run.set_response(ioc.checks + ioc.instances)
     mock_run.run_cli("ioc instances bl45p-ea-ioc-01")
+
+
+def test_exec(mock_run, ioc):
+    mock_run.set_response(ioc.checks + ioc.exec)
+    mock_run.run_cli("ioc exec bl45p-ea-ioc-01")

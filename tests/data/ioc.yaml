@@ -41,3 +41,11 @@ instances:
   - cmd: git diff --name-only 2.0 2.0\^
     rsp: |
       2.0
+
+exec:
+  - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
+    rsp: True
+
+exec2:
+  - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
+    rsp: True
