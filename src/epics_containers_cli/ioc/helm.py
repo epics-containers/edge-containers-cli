@@ -92,10 +92,9 @@ class Helm:
 
         run_command(
             f"git clone {self.repo} {self.tmp} --depth=1 "
-            f"--single-branch=true --branch={self.version}",
+            f"--single-branch --branch={self.version}",
             interactive=False,
         )
-
         self._do_deploy(self.ioc_config_folder)
 
     def _do_deploy(self, config_folder: Path):
@@ -138,7 +137,8 @@ class Helm:
         if self.args:
             cmd += f" {self.args}"
 
-        run_command(cmd, interactive=False)
+        output = run_command(cmd, interactive=False)
+        typer.echo(output)
 
     def versions(self):
         typer.echo(f"Available instance versions for {self.ioc_name}:")
