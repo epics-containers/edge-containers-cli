@@ -145,9 +145,11 @@ class Helm:
 
         run_command(f"git clone {self.repo} {self.tmp}", interactive=False)
 
+        ioc_name = Path(self.ioc_name).name
         cmd = "git tag"
         os.chdir(self.tmp)
         result = run_command(cmd, interactive=False)
+        log.debug(f"checking these tags for changes in the instance: {result}")
 
         tags = result.split("\n")
         for tag in tags:
@@ -156,5 +158,5 @@ class Helm:
             cmd = f"git diff --name-only {tag} {tag}^"
             result = run_command(cmd, interactive=False)
 
-            if self.ioc_name in result:
+            if ioc_name in result:
                 typer.echo(f"  {tag}")
