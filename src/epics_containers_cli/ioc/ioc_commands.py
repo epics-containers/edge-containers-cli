@@ -7,6 +7,7 @@ import typer
 
 from epics_containers_cli.globals import Context
 from epics_containers_cli.ioc.helm import Helm
+from epics_containers_cli.logging import log
 from epics_containers_cli.shell import EC_LOG_URL, check_domain, check_ioc, run_command
 
 
@@ -71,7 +72,7 @@ class IocCommands:
 
     def log_history(self):
         if EC_LOG_URL is None:
-            typer.echo("K8S_LOG_URL environment not set")
+            log.error("K8S_LOG_URL environment not set")
             raise typer.Exit(1)
 
         url = EC_LOG_URL.format(ioc_name=self.ioc_name)

@@ -3,7 +3,7 @@ import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Dict, List, Union
+from typing import Callable, Dict, List, Union
 
 from mock import patch
 from pytest import fixture
@@ -18,24 +18,36 @@ os.environ["EC_LOG_URL"] = (
     "source&width=1489&highlightMessage=&relative=172800&q=pod_name%3A{ioc_name}*"
 )
 os.environ["EC_DEBUG"] = "1"
-os.environ["EC_CONTAINER_CLI"] = "podman"
 
 TMPDIR = Path("/tmp/ec_tests")
 
 
 class MockRun:
-    cmd: str = "cmd"
-    rsp: str = "rsp"
+    """
+    A Class to mock the shell.run_command function. As the primary function
+    of all ec commands mocking this lets us test the majority of functionality
+    in isolation.
+    """
+
+    cmd = "cmd"
+    rsp = "rsp"
 
     def __init__(self):
         self.cmd_rsp = {}
         self._runner = CliRunner()
         self.log: str = ""
+        self.params: List[str] = []
 
     def _str_command(
         self, command: str, interactive: bool = True, error_OK: bool = False
     ):
-        self.log += f"\n\nCMD: {command}"
+        """
+        A function to replace shell.run_command that verifies the command
+        against the expected sequence of commands and returns the test
+        response.
+        """
+        self.log += f"\n\nFNC: ec {' '.join(self.params)}"
+        self.log += f"\nCMD: {command}"
 
         cmd_rsp = self.cmd_rsp.pop(0)
         cmd = cmd_rsp[self.cmd]
@@ -55,20 +67,43 @@ class MockRun:
 
         return rsp
 
-    def set_response(self, cmd_rsp: List[Dict[str, Union[str, bool]]]):
+    def set_seq(self, cmd_rsp: List[Dict[str, Union[str, bool]]]):
+        """
+        Set up the expected sequence of commands that we expect to see come
+        through the mock of run_command. Also supplies the response to
+        return for each command. The structure of the list is as per the
+        YAML files used in the tests e.g. tests/data/ioc.yaml
+        """
         shutil.rmtree(TMPDIR, ignore_errors=True)
         self.log = ""
         self.cmd_rsp = cmd_rsp
 
-    def run_cli(self, args: str):
-        params = [str(x) for x in args.split(" ")]
-        self.log = ""
+    def call(self, func: Callable, *args, **kwargs):
+        """
+        Call a function and report the sequence of commands / repsponses when
+        an error occurs.
+        """
+        self.params = [func.__name__]
 
-        result = self._runner.invoke(cli, params)
+        try:
+            result = func(*args, **kwargs)
+        except Exception:
+            log.error(self.log)
+            raise
+
+        return result
+
+    def run_cli(self, args: str):
+        """
+        Call a typer CLI function and report the sequence of commands /
+        repsponses when an error occurs.
+        """
+        self.params = [str(x) for x in args.split(" ")]
+
+        result = self._runner.invoke(cli, self.params)
         if result.exception:
             log.error(self.log)
             raise result.exception
-        assert result.exit_code == 0, result
 
 
 MOCKRUN = MockRun()
@@ -102,5 +137,12 @@ def data() -> Path:
 @fixture()
 def ioc(data):
     file = Path(__file__).parent / "data" / "ioc.yaml"
+    yaml = YAML(typ="safe").load(file)
+    return SimpleNamespace(**yaml)
+
+
+@fixture()
+def dev(data):
+    file = Path(__file__).parent / "data" / "dev.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)

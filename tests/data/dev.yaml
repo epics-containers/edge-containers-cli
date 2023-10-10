@@ -1,0 +1,39 @@
+checks:
+  - cmd: docker --version
+    rsp: ""
+  - cmd: podman buildx version
+    rsp: buildah 1.29.0
+
+checks_buildx:
+  - cmd: docker --version
+    rsp: Docker version 20.10.7, build f0df350
+  - cmd: docker buildx version
+    rsp: buildx 0.29.0
+
+get_git_name:
+  - cmd: git rev-parse --show-toplevel
+    rsp: /tmp/bl45p
+  - cmd: git remote -v
+    rsp: |
+      github  git@github.com:epics-containers/bl45p.git (fetch)
+      github  git@github.com:epics-containers/bl45p.git (push)
+
+get_git_name_https:
+  - cmd: git rev-parse --show-toplevel
+    rsp: /tmp/ioc-adsimdetector
+  - cmd: git remote -v
+    rsp: |
+      origin  https://github.com/epics-containers/ioc-adsimdetector (fetch)
+      origin  https://github.com/epics-containers/ioc-adsimdetector (push)
+
+launch_local_generic:
+  - cmd: podman stop -t0 test-ioc
+    rsp: "test-ioc stopped"
+  - cmd: podman rm test-ioc
+    rsp: "test-ioc"
+  - cmd: >-
+      podman run --rm --entrypoint 'bash' --name test-ioc -e DISPLAY -e SHELL
+      --security-opt=label=type:container_runtime_t -v
+      /tmp/ec_tests/ioc-template:/epics/ioc/config/ghcr.io/epics-containers/ioc-adsimdetector-Architecture.linux-Targets.developer:local
+      -c '/epics/ioc/start.sh; bash'
+    rsp: True

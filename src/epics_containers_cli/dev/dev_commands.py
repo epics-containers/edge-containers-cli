@@ -1,4 +1,3 @@
-import os
 import re
 import sys
 import time
@@ -60,7 +59,9 @@ class DevCommands:
                     self.docker, self.is_docker = "docker", True
                     log.debug(f"using docker {result}")
 
-        result = run_command("docker buildx version", interactive=False, error_OK=True)
+        result = run_command(
+            f"{self.docker} buildx version", interactive=False, error_OK=True
+        )
         if result and "buildah" not in result:
             self.is_buildx = True
 
@@ -77,7 +78,7 @@ class DevCommands:
         # code looks a little opaque I figure a nice dictionary definition
         # of the matrix of options might work better
 
-        if os.isatty(sys.stdin.fileno()):
+        if sys.stdin.isatty():
             # interactive
             env = "-e DISPLAY -e SHELL -e TERM -it"
         else:
@@ -93,7 +94,7 @@ class DevCommands:
 
         log.debug(f"env={env} volumes={volumes} opts={opts}")
 
-        return f"{env} {volumes} {opts}"
+        return f"{env}{volumes} {opts}"
 
     def _do_launch(
         self,
@@ -120,14 +121,14 @@ class DevCommands:
 
         start_script = f"-c '{execute}'"
 
-        config = self._all_params() + f' {" ".join(mounts)} ' + args
+        config = self._all_params() + f' {" ".join(mounts)}' + args
 
         if target == Targets.developer:
             image = image.replace(Targets.runtime, Targets.developer)
 
         run_command(
             f"{self.docker} run --rm --entrypoint 'bash' --name {ioc_name} {config}"
-            f" {image} {start_script}",
+            f"{image} {start_script}",
             interactive=True,
         )
 
@@ -160,7 +161,7 @@ class DevCommands:
             log.debug(f"mounts: {mounts}")
             execute = f"{IOC_START}; bash"
 
-        repo, _ = get_git_name(generic_ioc, full=True)
+        repo, _ = get_git_name(generic_ioc)
         image = get_image_name(repo, target=target) + f":{tag}"
 
         self._do_launch(ioc_name, target, image, execute, args, mounts)
@@ -188,7 +189,7 @@ class DevCommands:
         ioc_instance = ioc_instance.resolve()
         values = ioc_instance / "values.yaml"
         if not values.exists():
-            typer.echo(f"values.yaml not found in {ioc_instance}")
+            log.error(f"values.yaml not found in {ioc_instance}")
             raise typer.Exit(1)
         mounts.append(f"-v {ioc_instance}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}")
 
@@ -198,7 +199,7 @@ class DevCommands:
             tag = tag or matches[0][1]
             image = matches[0][0] + f":{tag}"
         else:
-            typer.echo(f"image tag definition not found in {values}")
+            log.error(f"image tag definition not found in {values}")
             raise typer.Exit(1)
 
         self._do_launch(ioc_name, target, image, execute, args, mounts)
@@ -228,10 +229,10 @@ class DevCommands:
         get the versions of a container image available in the registry
         """
         if image == "":
-            repo, _ = get_git_name(generic_ioc, full=True)
+            repo, _ = get_git_name(generic_ioc)
             image = image or get_image_name(repo, arch)
 
-        typer.echo(f"looking for versions of image {image}")
+        log.info(f"looking for versions of image {image}")
         run_command(
             f"{self.docker} run --rm quay.io/skopeo/stable "
             f"list-tags docker://{image}"
@@ -264,7 +265,7 @@ class DevCommands:
                 break
             time.sleep(1)
         else:
-            typer.echo(f"PV {pv_name} not found in {ioc_name}")
+            log.error(f"PV {pv_name} not found in {ioc_name}")
             raise typer.Exit(1)
 
     def build(
@@ -283,7 +284,7 @@ class DevCommands:
         """
         build a local image from a Dockerfile
         """
-        repo, _ = get_git_name(generic_ioc, full=True)
+        repo, _ = get_git_name(generic_ioc)
         args = f" --platform {platform} {'--no-cache' if not cache else ''}"
 
         if self.is_buildx and buildx:
