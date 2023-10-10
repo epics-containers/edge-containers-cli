@@ -49,3 +49,13 @@ def test_stop(mock_run, dev, data):
 def test_exec(mock_run, dev, data):
     mock_run.set_seq(dev.checks + dev.exec)
     mock_run.run_cli("dev exec")
+
+
+def test_wait_pv(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.wait_pv)
+    mock_run.run_cli("dev wait-pv BL45P-EA-IOC-01:UPTIME")
+
+
+def test_build(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.get_git_name + dev.build)
+    mock_run.run_cli("dev build")

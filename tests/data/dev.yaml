@@ -63,3 +63,13 @@ stop:
 exec:
   - cmd: podman exec -e DISPLAY -e SHELL  test-ioc bash -c "bash"
     rsp: True
+
+wait_pv:
+  - cmd: podman exec test-ioc bash -c "caget BL45P-EA-IOC-01:UPTIME"
+    rsp: "BL45P-EA-IOC-01:UPTIME 00:00:07"
+
+build:
+  - cmd: podman build --target developer --build-arg TARGET_ARCHITECTURE=linux --platform linux/amd64  -t ghcr.io/epics-containers/bl45p-linux-developer:local .
+    rsp: True
+  - cmd: podman build --target runtime --build-arg TARGET_ARCHITECTURE=linux --platform linux/amd64  -t ghcr.io/epics-containers/bl45p-linux-runtime:local .
+    rsp: True
