@@ -23,7 +23,7 @@ MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
 
 
 # parameters for container launches
-PODMAN_OPT = "--security-opt=label=type:container_runtime_t"
+PODMAN_OPT = " --security-opt=label=type:container_runtime_t"
 # NOTE: I have removed --net host so that tested IOCs are isolated
 # TODO: review this choice when implementing GUIs
 
@@ -94,7 +94,7 @@ class DevCommands:
 
         log.debug(f"env={env} volumes={volumes} opts={opts}")
 
-        return f"{env}{volumes} {opts}"
+        return f"{env}{volumes}{opts}"
 
     def _do_launch(
         self,
@@ -121,7 +121,7 @@ class DevCommands:
 
         start_script = f"-c '{execute}'"
 
-        args = args.strip() + " " if args else ""
+        args = " " + args.strip("' ") if args else ""
         config = self._all_params() + f' {" ".join(mounts)}' + args
 
         if target == Targets.developer:
