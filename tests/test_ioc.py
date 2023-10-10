@@ -39,3 +39,28 @@ def test_instances(mock_run, ioc):
 def test_exec(mock_run, ioc):
     mock_run.set_seq(ioc.checks + ioc.exec)
     mock_run.run_cli("ioc exec bl45p-ea-ioc-01")
+
+
+def test_log_history(mock_run, ioc):
+    mock_run.set_seq(ioc.log_history)
+    mock_run.run_cli("ioc log-history bl45p-ea-ioc-01")
+
+
+def test_logs(mock_run, ioc):
+    mock_run.set_seq(ioc.checks + ioc.logs)
+    mock_run.run_cli("ioc logs bl45p-ea-ioc-01")
+
+
+def test_restart(mock_run, ioc):
+    mock_run.set_seq(ioc.checks + ioc.restart)
+    mock_run.run_cli("ioc restart bl45p-ea-ioc-01")
+
+
+def test_start(mock_run, ioc):
+    mock_run.set_seq(ioc.checks + ioc.start)
+    mock_run.run_cli("ioc start bl45p-ea-ioc-01")
+
+
+def test_stop(mock_run, ioc):
+    mock_run.set_seq(ioc.checks + ioc.stop)
+    mock_run.run_cli("ioc stop bl45p-ea-ioc-01")

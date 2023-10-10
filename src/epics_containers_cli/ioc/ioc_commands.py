@@ -95,11 +95,11 @@ class IocCommands:
 
     def start(self):
         run_command(
-            f"kkubectl scale -n {self.domain} deploy " "--replicas=1 {self.ioc_name}"
+            f"kubectl scale -n {self.domain} deploy/{self.ioc_name} --replicas=1"
         )
 
     def stop(self):
         """Stop an IOC"""
         run_command(
-            f"kubectl scale -n {self.domain} deploy --replicas=0 {self.ioc_name}"
+            f"kubectl scale -n {self.domain} deploy/{self.ioc_name} --replicas=0 "
         )

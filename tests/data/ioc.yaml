@@ -49,3 +49,28 @@ exec:
 exec2:
   - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
     rsp: True
+
+log_history:
+  - cmd: "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message\
+      %2Csource&width=1489&highlightMessage=&relative=172800&q=pod_name%3A\
+      bl45p-ea-ioc-01*"
+    rsp: True
+
+logs:
+  - cmd: kubectl -n bl45p logs deploy/bl45p-ea-ioc-01
+    rsp: True
+
+restart:
+  - cmd: kubectl get -n bl45p pod -l app=bl45p-ea-ioc-01 -o name
+    rsp: bl45p-ea-ioc-01-xxxx
+  - cmd: kubectl delete -n bl45p bl45p-ea-ioc-01-xxxx
+    rsp: True
+
+start:
+  - cmd: kubectl scale -n bl45p deploy/bl45p-ea-ioc-01 --replicas=1
+    rsp: True
+
+stop:
+  - cmd: kubectl scale -n bl45p deploy/bl45p-ea-ioc-01 --replicas=0
+    rsp: True
+

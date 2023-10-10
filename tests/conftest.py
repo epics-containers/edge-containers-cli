@@ -57,8 +57,10 @@ class MockRun:
         self.log += f"\nARG: interactive:{interactive}, error_OK:{error_OK}"
         self.log += f"\nRET: {rsp}\n"
 
-        matches = re.match(cmd, command)
-        assert matches is not None, f"command mismatch: {cmd} != {command}"
+        # try a raw match first then use the test value as a regex
+        if cmd != command:
+            matches = re.match(cmd, command)
+            assert matches is not None, f"command mismatch: {cmd} != {command}"
 
         if interactive:
             assert isinstance(rsp, bool), "interactive commands must return bool"
@@ -117,6 +119,7 @@ def mktempdir():
 patch("epics_containers_cli.shell.run_command", MOCKRUN._str_command).start()
 patch("typer.confirm", return_value=True).start()
 patch("tempfile.mkdtemp", mktempdir).start()
+patch("webbrowser.open", MOCKRUN._str_command).start()
 
 
 # import project code last so that the patches above are applied
