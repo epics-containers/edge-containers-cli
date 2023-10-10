@@ -31,6 +31,11 @@ def test_launch(mock_run, dev, data):
     mock_run.run_cli(f"dev launch {data / 'iocs' / 'bl45p-ea-ioc-01'}")
 
 
+def test_launch_dit(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.launch_dit)
+    mock_run.run_cli(f"dev launch {data / 'iocs' / 'bl45p-ea-ioc-01'} --args '-dit'")
+
+
 def test_debug_last(mock_run, dev, data):
     mock_run.set_seq(dev.checks + dev.debug_last1 + dev.get_git_name + dev.debug_last2)
     mock_run.run_cli("dev debug-last")
