@@ -34,6 +34,6 @@ launch_local_generic:
   - cmd: >-
       podman run --rm --entrypoint 'bash' --name test-ioc -e DISPLAY -e SHELL
       --security-opt=label=type:container_runtime_t -v
-      /tmp/ec_tests/ioc-template:/epics/ioc/config/ghcr.io/epics-containers/ioc-adsimdetector-Architecture.linux-Targets.developer:local
+      /tmp/ec_tests/ioc-template:/epics/ioc/config/ghcr.io/epics-containers/ioc-adsimdetector-linux.developer:local
       -c '/epics/ioc/start.sh; bash'
     rsp: True

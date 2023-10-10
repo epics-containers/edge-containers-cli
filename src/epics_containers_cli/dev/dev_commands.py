@@ -121,6 +121,7 @@ class DevCommands:
 
         start_script = f"-c '{execute}'"
 
+        args = args.strip() + " " if args else ""
         config = self._all_params() + f' {" ".join(mounts)}' + args
 
         if target == Targets.developer:

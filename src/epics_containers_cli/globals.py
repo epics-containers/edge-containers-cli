@@ -18,10 +18,16 @@ class Architecture(str, Enum):
     rtems = "rtems"
     arm = "arm"
 
+    def __str__(self):
+        return str(self.value)
+
 
 class Targets(str, Enum):
     developer = "developer"
     runtime = "runtime"
+
+    def __str__(self):
+        return str(self.value)
 
 
 # common stings used in paths

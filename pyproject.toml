@@ -28,6 +28,7 @@ dev = [
     "mypy",
     "pipdeptree",
     "pre-commit",
+    "pre-commit-hooks",
     "pydata-sphinx-theme>=0.12",
     "pytest",
     "pytest-cov",
