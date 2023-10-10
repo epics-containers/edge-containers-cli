@@ -1,0 +1,9 @@
+ioc_name: test-ibek-ioc
+description: a basic example for testing ioc-template
+
+entities:
+  - type: devIocStats.iocAdminSoft
+    IOC: test-ibek-ioc
+
+  - type: epics.StartupCommand
+    command: dbLoadRecords("/epics/ioc/config/ioc.db")

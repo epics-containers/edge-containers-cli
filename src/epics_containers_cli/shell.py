@@ -37,22 +37,26 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
         f"(interactive={interactive}, error_OK={error_OK})\n"
     )
 
-    result = subprocess.run(command, capture_output=not interactive, shell=True)
+    p_result = subprocess.run(command, capture_output=not interactive, shell=True)
 
-    if result.returncode != 0 and not error_OK:
-        if interactive:
-            raise typer.Exit(1)
+    output = "" if interactive else p_result.stdout.decode() + p_result.stderr.decode()
+
+    if p_result.returncode != 0 and not error_OK:
+        log.error(f"Command Failed:\n{output}")
+        raise typer.Exit(1)
 
     if interactive:
-        return result.returncode == 0
+        result: Union[str, bool] = p_result.returncode == 0
     else:
-        return result.stdout.decode()
+        result = p_result.stdout.decode() + p_result.stderr.decode()
+    log.debug(f"returning: {result}")
+    return result
 
 
 def check_ioc(ioc_name: str, domain: str):
     cmd = f"kubectl get -n {domain} deploy/{ioc_name}"
     if not run_command(cmd, interactive=False, error_OK=True):
-        typer.echo(f"ioc {ioc_name} does not exist in domain {domain}")
+        log.error(f"ioc {ioc_name} does not exist in domain {domain}")
         raise typer.Exit(1)
 
 
@@ -61,12 +65,12 @@ def check_domain(domain: Optional[str]):
     Verify we have a good domain that exists in the cluster
     """
     if domain is None:
-        typer.echo("Please set EC_EPICS_DOMAIN or pass --domain")
+        log.error("Please set EC_EPICS_DOMAIN or pass --domain")
         raise typer.Exit(1)
 
     cmd = f"kubectl get namespace {domain} -o name"
     if not run_command(cmd, interactive=False, error_OK=True):
-        typer.echo(f"domain {domain} does not exist")
+        log.error(f"domain {domain} does not exist")
         raise typer.Exit(1)
 
     log.info("domain = %s", domain)
@@ -82,7 +86,7 @@ def get_image_name(
     return image
 
 
-def get_git_name(folder: Path = Path("."), full: bool = False) -> Tuple[str, Path]:
+def get_git_name(folder: Path = Path(".")) -> Tuple[str, Path]:
     """
     work out the git repo name and top level folder for a local clone
     """
@@ -93,16 +97,12 @@ def get_git_name(folder: Path = Path("."), full: bool = False) -> Tuple[str, Pat
     remotes = str(run_command("git remote -v", interactive=False))
     log.debug(f"remotes = {remotes}")
 
-    if full:
-        matches = re.findall(r"(((git@)|(http)).*(?:\.git)?) ", remotes)
-    else:
-        matches = re.findall(r"\/(.*)(?:\.git)? ", remotes)
-    log.debug(f"matches = {matches}")
+    matches = re.findall(r"((?:(?:git@)|(?:http[s]+:\/\/)).*) (?:.fetch.)", remotes)
 
     if len(matches) > 0:
-        repo_name = str(matches[0][0])
+        repo_name = str(matches[0])
     else:
-        typer.echo(f"folder {folder.absolute()} cannot get repo name")
+        log.error(f"folder {folder.absolute()} cannot parse repo name {remotes}")
         raise typer.Exit(1)
 
     log.debug(f"repo_name = {repo_name}, git_root = {git_root}")
@@ -122,13 +122,13 @@ def repo2registry(repo_name: str) -> str:
             source_reg, org, repo = match.groups()
             break
     else:
-        typer.echo(f"repo {repo_name} is not a valid git remote")
+        log.error(f"repo {repo_name} is not a valid git remote")
         raise typer.Exit(1)
 
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
 
     if not EC_REGISTRY_MAPPING:
-        typer.echo("environment variable EC_REGISTRY_MAPPING not set")
+        log.error("environment variable EC_REGISTRY_MAPPING not set")
         raise typer.Exit(1)
 
     for mapping in EC_REGISTRY_MAPPING.split():
@@ -137,8 +137,8 @@ def repo2registry(repo_name: str) -> str:
             registry = f"{registry}/{org}/{repo}"
             break
     else:
-        typer.echo(f"repo {repo_name} does not match any registry mapping")
-        typer.echo("please update the environment variable EC_REGISTRY_MAPPING")
+        log.error(f"repo {repo_name} does not match any registry mapping")
+        log.error("please update the environment variable EC_REGISTRY_MAPPING")
         raise typer.Exit(1)
 
     return registry

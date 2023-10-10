@@ -1,0 +1,76 @@
+checks:
+  - cmd: kubectl get namespace bl45p -o name
+    rsp: namespace/bl45p
+  - cmd: kubectl get -n bl45p deploy/bl45p-ea-ioc-01
+    rsp: bl45p-ea-ioc-01   1/1     1            1           5d5h
+
+attach:
+  - cmd: kubectl -it -n bl45p attach deploy/bl45p-ea-ioc-01
+    rsp: True
+
+delete:
+  - cmd: helm delete -n bl45p bl45p-ea-ioc-01
+    rsp: True
+
+template:
+  - cmd: 'bash -c "helm template bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart --version
+      20.*--namespace bl45p -f .*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
+    rsp: |
+      # Source: bl45p-ea-ioc-01/templates/configmap.yaml
+      apiVersion: v1
+      ...
+
+# TODO blank response is that OK?
+deploy_local:
+  - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart
+      --version 20.*--namespace bl45p -f .*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
+    rsp: ""
+
+deploy:
+  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=2.0
+    rsp: ""
+  - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart --version 2.0 --namespace bl45p -f /tmp/ec_tests/iocs/bl45p-ea-ioc-01/values.yaml.*'
+    rsp: ""
+
+instances:
+  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
+    rsp: Cloning into /tmp/xxxx...
+  - cmd: git tag
+    rsp: |
+      2.0
+  - cmd: git diff --name-only 2.0 2.0\^
+    rsp: |
+      2.0
+
+exec:
+  - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
+    rsp: True
+
+exec2:
+  - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
+    rsp: True
+
+log_history:
+  - cmd: "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message\
+      %2Csource&width=1489&highlightMessage=&relative=172800&q=pod_name%3A\
+      bl45p-ea-ioc-01*"
+    rsp: True
+
+logs:
+  - cmd: kubectl -n bl45p logs deploy/bl45p-ea-ioc-01
+    rsp: True
+
+restart:
+  - cmd: kubectl get -n bl45p pod -l app=bl45p-ea-ioc-01 -o name
+    rsp: bl45p-ea-ioc-01-xxxx
+  - cmd: kubectl delete -n bl45p bl45p-ea-ioc-01-xxxx
+    rsp: True
+
+start:
+  - cmd: kubectl scale -n bl45p deploy/bl45p-ea-ioc-01 --replicas=1
+    rsp: True
+
+stop:
+  - cmd: kubectl scale -n bl45p deploy/bl45p-ea-ioc-01 --replicas=0
+    rsp: True
+

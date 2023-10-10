@@ -13,17 +13,18 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 description = "One line description of your module"
-dependencies = ["typer[all]", "ruamel.yaml", "GitPython", "jinja2"]
+dependencies = ["typer[all]", "ruamel.yaml", "jinja2"]
 
 # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.rst"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 
 [project.optional-dependencies]
 dev = [
     "black",
+    "mock",
     "mypy",
     "pipdeptree",
     "pre-commit",

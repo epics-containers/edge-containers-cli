@@ -1,0 +1,25 @@
+# A template for the Chart.yaml file for an IOC instance
+#
+# We generate a new helm chart for each IOC instance deployment. This is
+# primarily because helm cannot package the config folder at install time.
+# This approach could be reviewed when this PR is released:
+#
+# Two other reasons for this approach:
+# 1. We prefer for the chart name to be the same as the IOC name as this looks
+#   better in K8S dashboard. (this can only be set in Chart.yaml)
+# 2. We prefer to set the Chart version as this is the primary version that
+#   is shown in the dashboard. (this can be changed at package time so does
+#   not strictly need to set be in this template)
+#
+# To deploy at IOC using beamline chart:
+# 1. Render this Jinja template to create a Chart.yaml file
+# 2. package the chart using helm package
+# 3. install the chart using helm upgrade --install passing the image name e.g.
+#    --set image=ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
+# You may also use --set to override any of the values in the values.yaml file
+
+apiVersion: v2
+name: {{ ioc_name }}
+
+version: {{ ioc_version }}
+appVersion: {{ ioc_version }}

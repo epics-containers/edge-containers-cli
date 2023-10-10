@@ -1,0 +1,65 @@
+# default values for all IOCs on bl45p
+# see end of file for values that may be overriden per individual IOC
+
+beamline: bl45p
+serviceAccount: bl45p-priv
+
+# useHostNetwork - use host network for IOC - required for Channel Access
+# to work outside of the cluster
+hostNetwork: true
+
+# useAffinity - only run on nodes with label beamline:bl45p
+useAffinity: true
+
+# root folder for ioc source/binaries inside generic IOC container
+# not expected to change
+iocFolder: /epics/ioc
+
+# the following are added to the pod's environment
+globalenv:
+  # Where to find RTEMS IOC files
+  - name: "K8S_IOC_TFTP_ADDR"
+    value: "172.23.168.220"
+  - name: "K8S_IOC_TFTP_PORT"
+    value: "69"
+  - name: "K8S_IOC_NFS_MOUNT"
+    value: "172.23.168.220:iocs"
+
+# reasonable defaults for securityContext
+securityContext:
+  allowPrivilegeEscalation: false
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+########################################################################################
+# The following values are expected to be overridden in individual IOC values.yaml
+########################################################################################
+
+# this value is the only mandatory override
+# note that the configuration for the generic IOC is provided by placing its
+# config folder into beamline-chart/config. When the chart is packaged, the
+# template
+image:
+
+# provide a PVC for autosave
+autosave: true
+
+# Somewhere to mount at /data if needed
+dataVolume:
+  # A PVC to write data into
+  pvc: true
+  # A path on the host machine to write data into, ignored if dataVolume.pvc is true
+  hostPath: ""
+
+# default resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi

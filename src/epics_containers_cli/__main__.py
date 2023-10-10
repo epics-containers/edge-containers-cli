@@ -3,11 +3,11 @@ from typing import Optional
 import typer
 
 from . import __version__
-from .cmd_cluster import cluster
-from .cmd_ioc import ioc
-from .dev.cli import dev
+from .dev.dev_cli import dev
 from .globals import Context
-from .kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
+from .ioc.ioc_cli import ioc
+from .k8s.k8s_cli import cluster
+from .k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
 from .shell import (
     EC_DOMAIN_REPO,
@@ -34,7 +34,7 @@ cli.add_typer(
 )
 cli.add_typer(
     cluster,
-    name="cluster",
+    name="k8s",
     help="Commands communicating with the k8s cluster. See 'ec cluster --help",
 )
 
@@ -76,10 +76,13 @@ def main(
     log_level: str = typer.Option(
         "WARN", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
     ),
+    debug: bool = typer.Option(
+        False, "-d", "--debug", help="Enable debug logging to console"
+    ),
 ):
     """EPICS Containers assistant CLI"""
 
-    init_logging(log_level.upper())
+    init_logging(log_level.upper(), debug)
 
     # create a context dictionary to pass to all sub commands
     ctx.ensure_object(Context)
