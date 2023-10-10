@@ -129,7 +129,7 @@ class DevCommands:
 
         run_command(
             f"{self.docker} run --rm --entrypoint 'bash' --name {ioc_name} {config}"
-            f"{image} {start_script}",
+            f" {image} {start_script}",
             interactive=True,
         )
 

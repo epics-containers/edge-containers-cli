@@ -9,9 +9,9 @@ log = logging.getLogger("epics-containers-cli")
 handler = logging.StreamHandler()
 
 
-def init_logging(level: str):
+def init_logging(level: str, debug: bool = False):
     log.setLevel(level)
-    if EC_DEBUG:
+    if EC_DEBUG or debug:
         log.setLevel(logging.DEBUG)
     if log.level == logging.DEBUG:
         formatter = logging.Formatter(

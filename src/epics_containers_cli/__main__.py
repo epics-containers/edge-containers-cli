@@ -76,10 +76,13 @@ def main(
     log_level: str = typer.Option(
         "WARN", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
     ),
+    debug: bool = typer.Option(
+        False, "-d", "--debug", help="Enable debug logging to console"
+    ),
 ):
     """EPICS Containers assistant CLI"""
 
-    init_logging(log_level.upper())
+    init_logging(log_level.upper(), debug)
 
     # create a context dictionary to pass to all sub commands
     ctx.ensure_object(Context)

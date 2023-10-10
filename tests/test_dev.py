@@ -34,3 +34,18 @@ def test_launch(mock_run, dev, data):
 def test_debug_last(mock_run, dev, data):
     mock_run.set_seq(dev.checks + dev.debug_last1 + dev.get_git_name + dev.debug_last2)
     mock_run.run_cli("dev debug-last")
+
+
+def test_versions(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.get_git_name + dev.versions)
+    mock_run.run_cli(f"dev versions {data / 'iocs' / 'bl45p-ea-ioc-01'}")
+
+
+def test_stop(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.stop)
+    mock_run.run_cli("dev stop")
+
+
+def test_exec(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.exec)
+    mock_run.run_cli("dev exec")
