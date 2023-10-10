@@ -218,7 +218,7 @@ class DevCommands:
         _, repo_root = get_git_name(generic_ioc)
 
         if mount_repos:
-            params += f" -v{repo_root}:/epics/ioc/${repo_root.name} "
+            params += f" -v{repo_root}:/epics/ioc/${repo_root.name}"
 
         run_command(
             f"{self.docker} run --entrypoint bash --rm --name debug_build "

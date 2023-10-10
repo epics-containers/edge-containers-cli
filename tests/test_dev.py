@@ -19,8 +19,18 @@ def test_get_git_name_https(mock_run, dev):
     )
 
 
-def test_launch_local_generic(mock_run, dev, data):
+def test_launch_local_generic(mock_run, dev):
     mock_run.set_seq(dev.checks + dev.get_git_name_https + dev.launch_local_generic)
     root = TMPDIR / "ioc-template"
     root.mkdir(parents=True)
     mock_run.run_cli(f"dev launch-local {root}")
+
+
+def test_launch(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.launch)
+    mock_run.run_cli(f"dev launch {data / 'iocs' / 'bl45p-ea-ioc-01'}")
+
+
+def test_debug_last(mock_run, dev, data):
+    mock_run.set_seq(dev.checks + dev.debug_last1 + dev.get_git_name + dev.debug_last2)
+    mock_run.run_cli("dev debug-last")
