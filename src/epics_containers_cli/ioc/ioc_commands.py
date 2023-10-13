@@ -17,20 +17,20 @@ class IocCommands:
     """
 
     def __init__(self, ctx: Optional[Context], ioc_name: str = ""):
-        self.domain: str = ""
+        self.namespace: str = ""
         self.beamline_repo: str = ""
         if ctx is not None:
-            domain = ctx.domain
+            domain = ctx.namespace
             check_domain(domain)
             if ioc_name != "":
                 check_ioc(ioc_name, domain)
-            self.domain = domain
+            self.namespace = domain
             self.beamline_repo = ctx.beamline_repo
         self.ioc_name: str = ioc_name
 
     def attach(self):
         run_command(
-            f"kubectl -it -n {self.domain} attach deploy/{self.ioc_name}",
+            f"kubectl -it -n {self.namespace} attach deploy/{self.ioc_name}",
             interactive=True,
         )
 
@@ -41,7 +41,7 @@ class IocCommands:
         ):
             raise typer.Abort()
 
-        run_command(f"helm delete -n {self.domain} {self.ioc_name}")
+        run_command(f"helm delete -n {self.namespace} {self.ioc_name}")
 
     def template(self, ioc_instance: Path, args: str):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
@@ -49,26 +49,28 @@ class IocCommands:
         ioc_name = ioc_instance.name.lower()
 
         chart = Helm(
-            self.domain, ioc_name, args=args, template=True, repo=self.beamline_repo
+            self.namespace, ioc_name, args=args, template=True, repo=self.beamline_repo
         )
         chart.deploy_local(ioc_instance)
 
     def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
         ioc_name = ioc_instance.name.lower()
 
-        chart = Helm(self.domain, ioc_name, args=args)
+        chart = Helm(self.namespace, ioc_name, args=args)
         chart.deploy_local(ioc_instance, yes)
 
     def deploy(self, ioc_name: str, version: str, args: str):
-        chart = Helm(self.domain, ioc_name, args, version, repo=self.beamline_repo)
+        chart = Helm(self.namespace, ioc_name, args, version, repo=self.beamline_repo)
         chart.deploy()
 
     def instances(self):
-        chart = Helm(self.domain, self.ioc_name, repo=self.beamline_repo)
+        chart = Helm(self.namespace, self.ioc_name, repo=self.beamline_repo)
         chart.versions()
 
     def exec(self):
-        run_command(f"kubectl -it -n {self.domain} exec deploy/{self.ioc_name} -- bash")
+        run_command(
+            f"kubectl -it -n {self.namespace} exec deploy/{self.ioc_name} -- bash"
+        )
 
     def log_history(self):
         if EC_LOG_URL is None:
@@ -83,23 +85,23 @@ class IocCommands:
         fol = "-f" if follow else ""
 
         run_command(
-            f"kubectl -n {self.domain} logs deploy/{self.ioc_name} {previous} {fol}"
+            f"kubectl -n {self.namespace} logs deploy/{self.ioc_name} {previous} {fol}"
         )
 
     def restart(self):
         pod_name = run_command(
-            f"kubectl get -n {self.domain} pod -l app={self.ioc_name} -o name",
+            f"kubectl get -n {self.namespace} pod -l app={self.ioc_name} -o name",
             interactive=False,
         )
-        run_command(f"kubectl delete -n {self.domain} {pod_name}")
+        run_command(f"kubectl delete -n {self.namespace} {pod_name}")
 
     def start(self):
         run_command(
-            f"kubectl scale -n {self.domain} deploy/{self.ioc_name} --replicas=1"
+            f"kubectl scale -n {self.namespace} deploy/{self.ioc_name} --replicas=1"
         )
 
     def stop(self):
         """Stop an IOC"""
         run_command(
-            f"kubectl scale -n {self.domain} deploy/{self.ioc_name} --replicas=0 "
+            f"kubectl scale -n {self.namespace} deploy/{self.ioc_name} --replicas=0 "
         )

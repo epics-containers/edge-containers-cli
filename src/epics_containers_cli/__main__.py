@@ -11,7 +11,6 @@ from .k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
 from .shell import (
     EC_DOMAIN_REPO,
-    EC_EPICS_DOMAIN,
     EC_GIT_ORG,
     EC_K8S_NAMESPACE,
     check_domain,
@@ -55,9 +54,6 @@ def main(
         is_eager=True,
         help="Log the version of ec and exit",
     ),
-    domain: str = typer.Option(
-        EC_EPICS_DOMAIN, "-d", "--domain", help="beamline or accelerator domain to use"
-    ),
     org: str = typer.Option(
         EC_GIT_ORG,
         "-o",
@@ -86,7 +82,7 @@ def main(
 
     # create a context dictionary to pass to all sub commands
     ctx.ensure_object(Context)
-    context = Context(domain, namespace, repo, org)
+    context = Context(namespace, repo, org)
     ctx.obj = context
 
 
@@ -101,7 +97,7 @@ def ps(
     ),
 ):
     """List the IOCs running in the current domain"""
-    domain = ctx.obj.domain
+    domain = ctx.obj.namespace
     check_domain(domain)
 
     if all:

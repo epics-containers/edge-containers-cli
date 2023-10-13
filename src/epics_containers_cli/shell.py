@@ -13,14 +13,13 @@ import typer
 from .globals import Architecture
 from .logging import log
 
-EC_EPICS_DOMAIN = os.environ.get("EC_EPICS_DOMAIN") or os.environ.get("BEAMLINE")
-EC_GIT_ORG = os.environ.get("EC_GIT_ORG")
-EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO", f"{EC_GIT_ORG}/{EC_EPICS_DOMAIN}")
+EC_GIT_ORG = os.environ.get("EC_GIT_ORG", "")
+EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO", "")
 EC_REGISTRY_MAPPING = os.environ.get(
     "EC_REGISTRY_MAPPING",
     "github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-privreg/controls/ioc",
 )
-EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", EC_EPICS_DOMAIN)
+EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", "")
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
 EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
 
@@ -65,7 +64,7 @@ def check_domain(domain: Optional[str]):
     Verify we have a good domain that exists in the cluster
     """
     if domain is None:
-        log.error("Please set EC_EPICS_DOMAIN or pass --domain")
+        log.error("Please set EC_K8S_NAMESPACE or pass --namespace")
         raise typer.Exit(1)
 
     cmd = f"kubectl get namespace {domain} -o name"

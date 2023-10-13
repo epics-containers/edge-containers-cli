@@ -7,8 +7,7 @@ from enum import Enum
 class Context:
     """Define a context for passing root parameters to sub-commands"""
 
-    domain: str = ""
-    kubernetes_namespace: str = ""
+    namespace: str = ""
     beamline_repo: str = ""
     beamline_org: str = ""
 
