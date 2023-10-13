@@ -10,8 +10,8 @@ from pytest import fixture
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-os.environ["EC_EPICS_DOMAIN"] = "bl45p"
 os.environ["EC_K8S_NAMESPACE"] = "bl45p"
+os.environ["EC_DOMAIN_REPO"] = "https://github.com/epics-containers/bl45p"
 os.environ["EC_GIT_ORG"] = "https://github.com/epics-containers"
 os.environ["EC_LOG_URL"] = (
     "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message%2C"
@@ -27,6 +27,12 @@ class MockRun:
     A Class to mock the shell.run_command function. As the primary function
     of all ec commands mocking this lets us test the majority of functionality
     in isolation.
+
+    IMPORTANT: to debug these tests - just run pytest from the command line.
+    When there are failed tests they will dump the sequence of calls to
+    run_command and the expected response. You can then copy and paste the
+    command back into the test YAML in the tests/data to fix the test.
+    (after verifying that it is and expected command!)
     """
 
     cmd = "cmd"

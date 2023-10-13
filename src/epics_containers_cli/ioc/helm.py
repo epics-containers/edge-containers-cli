@@ -32,7 +32,7 @@ class Helm:
         """
         self.ioc_name = ioc_name
         self.repo = repo
-        self.domain = domain
+        self.namespace = domain
         self.args = args
         self.version = version or datetime.strftime(
             datetime.now(), "%Y.%-m.%-d-b%-H.%-M"
@@ -71,7 +71,7 @@ class Helm:
         if not yes and not self.template:
             typer.echo(
                 f"Deploy {ioc_name} TEMPORARY version {self.version} "
-                f"from {ioc_path} to domain {self.domain}"
+                f"from {ioc_path} to domain {self.namespace}"
             )
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
@@ -131,7 +131,7 @@ class Helm:
         cmd = (
             f"bash -c "
             f'"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} '
-            f"--version {self.version} --namespace {self.domain} -f {values}"
+            f"--version {self.version} --namespace {self.namespace} -f {values}"
             f" 2> >(grep -v 'found symbolic link' >&2)\""
         )
         if self.args:
