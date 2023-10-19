@@ -6,7 +6,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
 import typer
 
@@ -22,6 +22,10 @@ EC_REGISTRY_MAPPING = os.environ.get(
 EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", "")
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
 EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
+# local deploy means we use docker standalone on the local machine for deployment
+# users of this feature could use portainer or other management tools to
+# track and manage the IOC local deployments
+EC_LOCAL_DEPLOY = EC_K8S_NAMESPACE == ""
 
 
 def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bool]:
@@ -50,29 +54,6 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
         result = p_result.stdout.decode() + p_result.stderr.decode()
     log.debug(f"returning: {result}")
     return result
-
-
-def check_ioc(ioc_name: str, domain: str):
-    cmd = f"kubectl get -n {domain} deploy/{ioc_name}"
-    if not run_command(cmd, interactive=False, error_OK=True):
-        log.error(f"ioc {ioc_name} does not exist in domain {domain}")
-        raise typer.Exit(1)
-
-
-def check_namespace(domain: Optional[str]):
-    """
-    Verify we have a good namespace that exists in the cluster
-    """
-    if domain is None:
-        log.error("Please set EC_K8S_NAMESPACE or pass --namespace")
-        raise typer.Exit(1)
-
-    cmd = f"kubectl get namespace {domain} -o name"
-    if not run_command(cmd, interactive=False, error_OK=True):
-        log.error(f"domain {domain} does not exist")
-        raise typer.Exit(1)
-
-    log.info("domain = %s", domain)
 
 
 def get_image_name(

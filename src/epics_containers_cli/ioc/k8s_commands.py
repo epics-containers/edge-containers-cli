@@ -8,12 +8,30 @@ import typer
 from epics_containers_cli.globals import Context
 from epics_containers_cli.ioc.helm import Helm
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import (
-    EC_LOG_URL,
-    check_ioc,
-    check_namespace,
-    run_command,
-)
+from epics_containers_cli.shell import EC_LOG_URL, run_command
+
+
+def check_ioc(ioc_name: str, domain: str):
+    cmd = f"kubectl get -n {domain} deploy/{ioc_name}"
+    if not run_command(cmd, interactive=False, error_OK=True):
+        log.error(f"ioc {ioc_name} does not exist in domain {domain}")
+        raise typer.Exit(1)
+
+
+def check_namespace(domain: Optional[str]):
+    """
+    Verify we have a good namespace that exists in the cluster
+    """
+    if domain is None:
+        log.error("Please set EC_K8S_NAMESPACE or pass --namespace")
+        raise typer.Exit(1)
+
+    cmd = f"kubectl get namespace {domain} -o name"
+    if not run_command(cmd, interactive=False, error_OK=True):
+        log.error(f"domain {domain} does not exist")
+        raise typer.Exit(1)
+
+    log.info("domain = %s", domain)
 
 
 class IocK8sCommands:

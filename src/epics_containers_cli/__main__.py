@@ -13,7 +13,6 @@ from .shell import (
     EC_DOMAIN_REPO,
     EC_GIT_ORG,
     EC_K8S_NAMESPACE,
-    check_namespace,
     run_command,
 )
 
@@ -98,7 +97,6 @@ def ps(
 ):
     """List the IOCs running in the current domain"""
     domain = ctx.obj.namespace
-    check_namespace(domain)
 
     if all:
         run_command(f"kubectl -n {domain} get deploy -l is_ioc==True -o {fmt_deploys}")
