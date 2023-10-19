@@ -6,6 +6,11 @@ from typing import Optional
 
 import typer
 
+from epics_containers_cli.git import get_git_name, get_image_name
+from epics_containers_cli.logging import log
+from epics_containers_cli.shell import EC_CONTAINER_CLI, run_command
+from epics_containers_cli.utils import get_instance_image_name
+
 from ..globals import (
     CONFIG_FOLDER,
     IOC_CONFIG_FOLDER,
@@ -13,8 +18,6 @@ from ..globals import (
     Architecture,
     Targets,
 )
-from ..logging import log
-from ..shell import EC_CONTAINER_CLI, get_git_name, get_image_name, run_command
 
 dev = typer.Typer()
 
@@ -185,25 +188,11 @@ class DevCommands:
             f" execute={execute} target={target} args={args}"
         )
 
-        mounts = []
+        mounts = [f"-v {ioc_instance}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}"]
 
-        ioc_instance = ioc_instance.resolve()
-        values = ioc_instance / "values.yaml"
-        if not values.exists():
-            log.error(f"values.yaml not found in {ioc_instance}")
-            raise typer.Exit(1)
-        mounts.append(f"-v {ioc_instance}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}")
+        image_name = image or get_instance_image_name(ioc_instance, tag)
 
-        values_text = values.read_text()
-        matches = re.findall(r"image: (.*):(.*)", values_text)
-        if len(matches) == 1:
-            tag = tag or matches[0][1]
-            image = matches[0][0] + f":{tag}"
-        else:
-            log.error(f"image tag definition not found in {values}")
-            raise typer.Exit(1)
-
-        self._do_launch(ioc_name, target, image, execute, args, mounts)
+        self._do_launch(ioc_name, target, image_name, execute, args, mounts)
 
     def debug_last(self, generic_ioc: Path, mount_repos: bool):
         """

@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 import typer
@@ -9,13 +10,7 @@ from .ioc.ioc_cli import ioc
 from .k8s.k8s_cli import cluster
 from .k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
-from .shell import (
-    EC_DOMAIN_REPO,
-    EC_GIT_ORG,
-    EC_K8S_NAMESPACE,
-    check_domain,
-    run_command,
-)
+from .shell import run_command
 
 __all__ = ["main"]
 
@@ -55,19 +50,19 @@ def main(
         help="Log the version of ec and exit",
     ),
     org: str = typer.Option(
-        EC_GIT_ORG,
+        "",
         "-o",
         "--org",
         help="git remote organisation of domain repos",
     ),
     repo: str = typer.Option(
-        EC_DOMAIN_REPO,
+        "",
         "-r",
         "--repo",
         help="beamline or accelerator domain repository of ioc instances",
     ),
     namespace: str = typer.Option(
-        EC_K8S_NAMESPACE, "-n", "--namespace", help="kubernetes namespace to use"
+        "", "-n", "--namespace", help="kubernetes namespace to use"
     ),
     log_level: str = typer.Option(
         "WARN", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
@@ -81,6 +76,9 @@ def main(
     init_logging(log_level.upper(), debug)
 
     # create a context dictionary to pass to all sub commands
+    org = org or os.environ.get("EC_GIT_ORG", "")
+    repo = repo or os.environ.get("EC_DOMAIN_REPO", "")
+    namespace = namespace or os.environ.get("EC_K8S_NAMESPACE", "")
     ctx.ensure_object(Context)
     context = Context(namespace, repo, org)
     ctx.obj = context
@@ -98,7 +96,6 @@ def ps(
 ):
     """List the IOCs running in the current domain"""
     domain = ctx.obj.namespace
-    check_domain(domain)
 
     if all:
         run_command(f"kubectl -n {domain} get deploy -l is_ioc==True -o {fmt_deploys}")

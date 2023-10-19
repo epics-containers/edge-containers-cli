@@ -32,7 +32,7 @@ def test_deploy(mock_run, data, ioc):
 
 
 def test_instances(mock_run, ioc):
-    mock_run.set_seq(ioc.checks + ioc.instances)
+    mock_run.set_seq(ioc.instances)
     mock_run.run_cli("ioc instances bl45p-ea-ioc-01")
 
 
