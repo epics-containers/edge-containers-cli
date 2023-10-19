@@ -1,4 +1,3 @@
-import os
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -10,7 +9,7 @@ import typer
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import check_beamline_repo, run_command
+from epics_containers_cli.shell import run_command
 from epics_containers_cli.utils import check_ioc_instance_path
 
 

@@ -99,7 +99,7 @@ def versions(beamline_repo: str, ioc_name: str, folder: Path):
 
     ioc_name = Path(ioc_name).name
     os.chdir(folder)
-    result = run_command("git tag", interactive=False)
+    result = str(run_command("git tag", interactive=False))
     log.debug(f"checking these tags for changes in the instance: {result}")
 
     tags = result.split("\n")
@@ -107,7 +107,7 @@ def versions(beamline_repo: str, ioc_name: str, folder: Path):
         if tag == "":
             continue
         cmd = f"git diff --name-only {tag} {tag}^"
-        result = run_command(cmd, interactive=False)
+        result = str(run_command(cmd, interactive=False))
 
         if ioc_name in result:
             typer.echo(f"  {tag}")
