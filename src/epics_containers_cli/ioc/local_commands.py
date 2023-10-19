@@ -14,8 +14,10 @@ from typing import Optional
 
 import typer
 
-from epics_containers_cli.globals import Context
+from epics_containers_cli.globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, Context
+from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
+from epics_containers_cli.utils import get_instance_image_name
 
 
 class IocLocalCommands:
@@ -43,7 +45,22 @@ class IocLocalCommands:
         run_command(f"docker rm -f {self.ioc_name}")
 
     def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
-        pass
+        image = get_instance_image_name(ioc_instance)
+        log.debug(f"deploying {ioc_instance} with image {image}")
+        config = ioc_instance / CONFIG_FOLDER
+        ioc_name = ioc_instance.name
+        volume = f"{ioc_name}_config"
+
+        run_command(f"docker container rm -f {ioc_name}", interactive=False)
+        run_command(f"docker volume rm -f {volume}", interactive=False)
+        run_command(f"docker volume create {volume}", interactive=False)
+
+        vol = f"-v {volume}:{IOC_CONFIG_FOLDER}"
+        cmd = "run -dit --restart unless-stopped"
+        dest = f"{ioc_name}:{IOC_CONFIG_FOLDER}"
+
+        run_command(f"docker {cmd} --name {ioc_name} {vol} {image}")
+        run_command(f"docker cp {config}/* {dest}", interactive=False)
 
     def deploy(self, ioc_name: str, version: str, args: str):
         pass

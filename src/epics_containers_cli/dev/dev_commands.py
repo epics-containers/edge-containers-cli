@@ -6,6 +6,14 @@ from typing import Optional
 
 import typer
 
+from epics_containers_cli.logging import log
+from epics_containers_cli.shell import EC_CONTAINER_CLI, run_command
+from epics_containers_cli.utils import (
+    get_git_name,
+    get_image_name,
+    get_instance_image_name,
+)
+
 from ..globals import (
     CONFIG_FOLDER,
     IOC_CONFIG_FOLDER,
@@ -13,8 +21,6 @@ from ..globals import (
     Architecture,
     Targets,
 )
-from ..logging import log
-from ..shell import EC_CONTAINER_CLI, get_git_name, get_image_name, run_command
 
 dev = typer.Typer()
 
@@ -26,25 +32,6 @@ MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
 PODMAN_OPT = " --security-opt=label=type:container_runtime_t"
 # NOTE: I have removed --net host so that tested IOCs are isolated
 # TODO: review this choice when implementing GUIs
-
-
-def get_instance_image_name(ioc_instance: Path, tag: Optional[str]) -> str:
-    ioc_instance = ioc_instance.resolve()
-    values = ioc_instance / "values.yaml"
-    if not values.exists():
-        log.error(f"values.yaml not found in {ioc_instance}")
-        raise typer.Exit(1)
-
-    values_text = values.read_text()
-    matches = re.findall(r"image: (.*):(.*)", values_text)
-    if len(matches) == 1:
-        tag = tag or matches[0][1]
-        image = matches[0][0] + f":{tag}"
-    else:
-        log.error(f"image tag definition not found in {values}")
-        raise typer.Exit(1)
-
-    return image
 
 
 class DevCommands:

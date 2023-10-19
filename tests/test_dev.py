@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from epics_containers_cli.shell import get_git_name
+from epics_containers_cli.utils import get_git_name
 from tests.conftest import TMPDIR
 
 
