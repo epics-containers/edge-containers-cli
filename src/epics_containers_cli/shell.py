@@ -59,9 +59,9 @@ def check_ioc(ioc_name: str, domain: str):
         raise typer.Exit(1)
 
 
-def check_domain(domain: Optional[str]):
+def check_namespace(domain: Optional[str]):
     """
-    Verify we have a good domain that exists in the cluster
+    Verify we have a good namespace that exists in the cluster
     """
     if domain is None:
         log.error("Please set EC_K8S_NAMESPACE or pass --namespace")

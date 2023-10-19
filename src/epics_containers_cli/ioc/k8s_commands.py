@@ -8,10 +8,15 @@ import typer
 from epics_containers_cli.globals import Context
 from epics_containers_cli.ioc.helm import Helm
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import EC_LOG_URL, check_domain, check_ioc, run_command
+from epics_containers_cli.shell import (
+    EC_LOG_URL,
+    check_ioc,
+    check_namespace,
+    run_command,
+)
 
 
-class IocCommands:
+class IocK8sCommands:
     """
     A class for implementing the ioc command namespace
     """
@@ -20,11 +25,11 @@ class IocCommands:
         self.namespace: str = ""
         self.beamline_repo: str = ""
         if ctx is not None:
-            domain = ctx.namespace
-            check_domain(domain)
+            namespace = ctx.namespace
+            check_namespace(namespace)
             if ioc_name != "":
-                check_ioc(ioc_name, domain)
-            self.namespace = domain
+                check_ioc(ioc_name, namespace)
+            self.namespace = namespace
             self.beamline_repo = ctx.beamline_repo
         self.ioc_name: str = ioc_name
 

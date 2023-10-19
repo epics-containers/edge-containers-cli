@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-from epics_containers_cli.ioc.ioc_commands import IocCommands
+from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 
 ioc = typer.Typer()
 
@@ -15,7 +15,7 @@ def attach(
     """
     Attach to the IOC shell of a live IOC
     """
-    IocCommands(ctx.obj, ioc_name).attach()
+    IocK8sCommands(ctx.obj, ioc_name).attach()
 
 
 @ioc.command()
@@ -26,7 +26,7 @@ def delete(
     """
     Remove an IOC helm deployment from the cluster
     """
-    IocCommands(ctx.obj, ioc_name).delete()
+    IocK8sCommands(ctx.obj, ioc_name).delete()
 
 
 @ioc.command()
@@ -38,7 +38,7 @@ def template(
     """
     print out the helm template generated from a local ioc instance
     """
-    IocCommands(ctx.obj).template(ioc_instance, args)
+    IocK8sCommands(ctx.obj).template(ioc_instance, args)
 
 
 @ioc.command()
@@ -51,7 +51,7 @@ def deploy_local(
     """
     Deploy a local IOC helm chart directly to the cluster with dated beta version
     """
-    IocCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
+    IocK8sCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
 
 
 @ioc.command()
@@ -64,7 +64,7 @@ def deploy(
     """
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
-    IocCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
+    IocK8sCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
 
 
 @ioc.command()
@@ -73,7 +73,7 @@ def instances(
     ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
 ):
     """List all versions of the IOC available in the helm registry"""
-    IocCommands(ctx.obj, ioc_name).instances()
+    IocK8sCommands(ctx.obj, ioc_name).instances()
 
 
 @ioc.command()
@@ -82,7 +82,7 @@ def exec(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to run in"),
 ):
     """Execute a bash prompt in a live IOC's container"""
-    IocCommands(ctx.obj, ioc_name).exec()
+    IocK8sCommands(ctx.obj, ioc_name).exec()
 
 
 @ioc.command()
@@ -93,7 +93,7 @@ def log_history(
     ),
 ):
     """Open historical logs for an IOC"""
-    IocCommands(None, ioc_name).log_history()
+    IocK8sCommands(None, ioc_name).log_history()
 
 
 @ioc.command()
@@ -106,7 +106,7 @@ def logs(
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow the log stream"),
 ):
     """Show logs for current and previous instances of an IOC"""
-    IocCommands(ctx.obj, ioc_name).logs(prev, follow)
+    IocK8sCommands(ctx.obj, ioc_name).logs(prev, follow)
 
 
 @ioc.command()
@@ -115,7 +115,7 @@ def restart(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to restart"),
 ):
     """Restart an IOC"""
-    IocCommands(ctx.obj, ioc_name).restart()
+    IocK8sCommands(ctx.obj, ioc_name).restart()
 
 
 @ioc.command()
@@ -124,7 +124,7 @@ def start(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to start"),
 ):
     """Start an IOC"""
-    IocCommands(ctx.obj, ioc_name).start()
+    IocK8sCommands(ctx.obj, ioc_name).start()
 
 
 @ioc.command()
@@ -133,4 +133,4 @@ def stop(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to stop"),
 ):
     """Stop an IOC"""
-    IocCommands(ctx.obj, ioc_name).stop()
+    IocK8sCommands(ctx.obj, ioc_name).stop()
