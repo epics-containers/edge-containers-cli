@@ -10,7 +10,7 @@ import typer
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import run_command
+from epics_containers_cli.shell import check_beamline_repo, run_command
 from epics_containers_cli.utils import check_ioc_instance_path
 
 
@@ -32,7 +32,7 @@ class Helm:
         Create a helm chart from a local or a remote repo
         """
         self.ioc_name = ioc_name
-        self.repo = repo
+        self.beamline_repo = repo
         self.namespace = domain
         self.args = args
         self.version = version or datetime.strftime(
@@ -85,7 +85,7 @@ class Helm:
             raise typer.Exit("ERROR: version is required")
 
         run_command(
-            f"git clone {self.repo} {self.tmp} --depth=1 "
+            f"git clone {self.beamline_repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
             interactive=False,
         )
@@ -136,9 +136,10 @@ class Helm:
 
     def versions(self):
         # TODO this function has nothing to do with helm and should be moved
+        check_beamline_repo(self.beamline_repo)
         typer.echo(f"Available instance versions for {self.ioc_name}:")
 
-        run_command(f"git clone {self.repo} {self.tmp}", interactive=False)
+        run_command(f"git clone {self.beamline_repo} {self.tmp}", interactive=False)
 
         ioc_name = Path(self.ioc_name).name
         cmd = "git tag"

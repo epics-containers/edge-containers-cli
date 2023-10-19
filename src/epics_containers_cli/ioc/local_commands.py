@@ -19,7 +19,7 @@ import typer
 
 from epics_containers_cli.globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, Context
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import run_command
+from epics_containers_cli.shell import check_beamline_repo, run_command
 from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
 
 
@@ -36,6 +36,7 @@ class IocLocalCommands:
         self.ioc_name: str = ioc_name
 
         self.tmp = Path(mkdtemp())
+        self.ioc_config_folder = self.tmp / "iocs" / ioc_name / CONFIG_FOLDER
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection
@@ -44,7 +45,7 @@ class IocLocalCommands:
                 shutil.rmtree(self.tmp, ignore_errors=True)
 
     def attach(self):
-        run_command(f"docker attach -it {self.ioc_name}")
+        run_command(f"docker attach {self.ioc_name}")
 
     def delete(self):
         if not typer.confirm(
@@ -71,7 +72,7 @@ class IocLocalCommands:
 
         vol = f"-v {volume}:{IOC_CONFIG_FOLDER}"
         label = f"-l is_IOC=true -l version={version}"
-        cmd = f"run -dit --restart unless-stopped {label} {vol} {args}"
+        cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args}"
         dest = f"{ioc_name}:{IOC_CONFIG_FOLDER}"
 
         run_command(f"docker {cmd} --name {ioc_name} {image}")
@@ -96,21 +97,25 @@ class IocLocalCommands:
         """
         deploy a tagged version of an ioc from a remote repo
         """
+
+        check_beamline_repo(self.beamline_repo)
+
         run_command(
             f"git clone {self.beamline_repo} {self.tmp} --depth=1 "
-            f"--single-branch --branch={self.version}",
+            f"--single-branch --branch={version}",
             interactive=False,
         )
-        self._do_deploy(self.tmp, version, args)
+
+        self._do_deploy(self.ioc_config_folder, version, args)
 
     def exec(self):
         run_command(f"docker exec -it {self.ioc_name} bash")
 
     def logs(self, prev: bool, follow: bool):
-        previous = "-p" if prev else ""
-        fol = "-f" if follow else ""
+        previous = " -p" if prev else ""
+        fol = " -f" if follow else ""
 
-        run_command(f"docker logs {previous} {fol} {self.ioc_name}")
+        run_command(f"docker logs{previous}{fol} {self.ioc_name}")
 
     def restart(self):
         run_command(f"docker restart {self.ioc_name}")

@@ -104,6 +104,8 @@ def check_ioc_instance_path(ioc_path: Path, yes: bool = False):
     """
     ioc_path = ioc_path.absolute()
     ioc_name = ioc_path.name.lower()
+
+    log.info(f"checking IOC instance {ioc_name} at {ioc_path}")
     if (
         not (ioc_path / "values.yaml").exists()
         or not (ioc_path / CONFIG_FOLDER).is_dir()

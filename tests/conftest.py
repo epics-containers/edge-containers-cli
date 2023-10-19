@@ -151,6 +151,14 @@ def ioc(data):
 
 
 @fixture()
+def local(data):
+    file = Path(__file__).parent / "data" / "local.yaml"
+    os.environ["EC_K8S_NAMESPACE"] = ""
+    yaml = YAML(typ="safe").load(file)
+    return SimpleNamespace(**yaml)
+
+
+@fixture()
 def dev(data):
     file = Path(__file__).parent / "data" / "dev.yaml"
     yaml = YAML(typ="safe").load(file)
