@@ -1,7 +1,9 @@
 from pathlib import Path
+from tempfile import mkdtemp
 
 import typer
 
+from epics_containers_cli.git import versions
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
 from epics_containers_cli.logging import log
@@ -93,7 +95,7 @@ def instances(
 ):
     """List all versions of the IOC available in the helm registry"""
     # this function works on git repos only so works for all deployment types
-    IocK8sCommands(ctx.obj, ioc_name).instances()
+    versions(ctx.obj.beamline_repo, ioc_name, Path(mkdtemp()))
 
 
 @ioc.command()

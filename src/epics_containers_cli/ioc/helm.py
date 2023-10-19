@@ -133,26 +133,3 @@ class Helm:
 
         output = run_command(cmd, interactive=False)
         typer.echo(output)
-
-    def versions(self):
-        # TODO this function has nothing to do with helm and should be moved
-        check_beamline_repo(self.beamline_repo)
-        typer.echo(f"Available instance versions for {self.ioc_name}:")
-
-        run_command(f"git clone {self.beamline_repo} {self.tmp}", interactive=False)
-
-        ioc_name = Path(self.ioc_name).name
-        cmd = "git tag"
-        os.chdir(self.tmp)
-        result = run_command(cmd, interactive=False)
-        log.debug(f"checking these tags for changes in the instance: {result}")
-
-        tags = result.split("\n")
-        for tag in tags:
-            if tag == "":
-                continue
-            cmd = f"git diff --name-only {tag} {tag}^"
-            result = run_command(cmd, interactive=False)
-
-            if ioc_name in result:
-                typer.echo(f"  {tag}")

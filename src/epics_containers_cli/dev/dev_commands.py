@@ -6,13 +6,10 @@ from typing import Optional
 
 import typer
 
+from epics_containers_cli.git import get_git_name, get_image_name
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import EC_CONTAINER_CLI, run_command
-from epics_containers_cli.utils import (
-    get_git_name,
-    get_image_name,
-    get_instance_image_name,
-)
+from epics_containers_cli.utils import get_instance_image_name
 
 from ..globals import (
     CONFIG_FOLDER,
