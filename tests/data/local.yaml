@@ -15,8 +15,10 @@ deploy_local:
     rsp: bl45p-ea-ioc-01-config
   - cmd: docker volume create bl45p-ea-ioc-01_config
     rsp: bl45p-ea-ioc-01-config
-  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=2023.10.19-b14.50 -v bl45p-ea-ioc-01_config:/epics/ioc/config/  --name bl45p-ea-ioc-01 ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
-    rsp: bl45p-ea-ioc-01
+  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=.* -v bl45p-ea-ioc-01_config:\/epics\/ioc\/config\/  --name bl45p-ea-ioc-01 ghcr.io\/epics-containers\/ioc-adaravis-linux-runtime:23.9.4
+    rsp: True
+  - cmd: docker cp .*epics-containers-cli\/tests\/data\/iocs\/bl45p-ea-ioc-01\/config\/\* bl45p-ea-ioc-01:\/epics\/ioc\/config\/
+    rsp: 32123f4d0b0f
 
 deploy:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=2.0
@@ -27,6 +29,10 @@ deploy:
     rsp: bl45p-ea-ioc-01-config
   - cmd: docker volume create bl45p-ea-ioc-01_config
     rsp: bl45p-ea-ioc-01-config
+  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=2.0 -v bl45p-ea-ioc-01_config:/epics/ioc/config/  --name bl45p-ea-ioc-01 ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
+    rsp: True
+  - cmd: docker cp /tmp/ec_tests/iocs/bl45p-ea-ioc-01/config/* bl45p-ea-ioc-01:/epics/ioc/config/
+    rsp: copied
 
 instances:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*

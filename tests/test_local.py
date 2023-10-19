@@ -26,7 +26,7 @@ def test_deploy(mock_run, data, local):
     mock_run.set_seq(local.deploy)
     # prep what deploy expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "beamline-chart", TMPDIR / "beamline-chart")
+    shutil.copytree(data / "iocs", TMPDIR / "iocs")
     mock_run.run_cli("ioc deploy bl45p-ea-ioc-01 2.0")
 
 

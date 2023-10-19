@@ -36,7 +36,7 @@ class IocLocalCommands:
         self.ioc_name: str = ioc_name
 
         self.tmp = Path(mkdtemp())
-        self.ioc_config_folder = self.tmp / "iocs" / ioc_name / CONFIG_FOLDER
+        self.ioc_folder = self.tmp / "iocs" / ioc_name
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection
@@ -106,7 +106,7 @@ class IocLocalCommands:
             interactive=False,
         )
 
-        self._do_deploy(self.ioc_config_folder, version, args)
+        self._do_deploy(self.ioc_folder, version, args)
 
     def exec(self):
         run_command(f"docker exec -it {self.ioc_name} bash")
