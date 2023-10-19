@@ -14,7 +14,7 @@ delete:
 
 template:
   - cmd: 'bash -c "helm template bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart --version
-      20.*--namespace bl45p -f .*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
+      20.*--namespace bl45p -f \/.*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
     rsp: |
       # Source: bl45p-ea-ioc-01/templates/configmap.yaml
       apiVersion: v1
@@ -23,7 +23,7 @@ template:
 # TODO blank response is that OK?
 deploy_local:
   - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart
-      --version 20.*--namespace bl45p -f .*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
+      --version 20.*--namespace bl45p -f \/.*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
     rsp: ""
 
 deploy:
