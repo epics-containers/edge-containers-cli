@@ -9,7 +9,7 @@ import typer
 from epics_containers_cli.git import get_git_name, get_image_name
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import EC_CONTAINER_CLI, run_command
-from epics_containers_cli.utils import get_instance_image_name
+from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
 
 from ..globals import (
     CONFIG_FOLDER,
@@ -188,9 +188,12 @@ class DevCommands:
             f" execute={execute} target={target} args={args}"
         )
 
-        mounts = [f"-v {ioc_instance}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}"]
+        ioc_name_std, ioc_path = check_ioc_instance_path(ioc_instance)
+        ioc_name = ioc_name or ioc_name_std
 
-        image_name = image or get_instance_image_name(ioc_instance, tag)
+        mounts = [f"-v {ioc_path}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}"]
+
+        image_name = image or get_instance_image_name(ioc_path, tag)
 
         self._do_launch(ioc_name, target, image_name, execute, args, mounts)
 
