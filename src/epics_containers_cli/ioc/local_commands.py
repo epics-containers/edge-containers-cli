@@ -9,7 +9,10 @@ However, for the moment, Using this by connecting to each server and running
 tool like Portainer is a decent workflow.
 """
 
+import shutil
+from datetime import datetime
 from pathlib import Path
+from tempfile import mkdtemp
 from typing import Optional
 
 import typer
@@ -17,7 +20,7 @@ import typer
 from epics_containers_cli.globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, Context
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
-from epics_containers_cli.utils import get_instance_image_name
+from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
 
 
 class IocLocalCommands:
@@ -29,7 +32,16 @@ class IocLocalCommands:
         self.beamline_repo: str = ""
         if ctx is not None:
             self.beamline_repo = ctx.beamline_repo
+
         self.ioc_name: str = ioc_name
+
+        self.tmp = Path(mkdtemp())
+
+    def __del__(self):
+        # keep the tmp folder if debug is enabled for inspection
+        if log.level != "DEBUG":
+            if hasattr(self, "tmp"):
+                shutil.rmtree(self.tmp, ignore_errors=True)
 
     def attach(self):
         run_command(f"docker attach -it {self.ioc_name}")
@@ -44,7 +56,9 @@ class IocLocalCommands:
         run_command(f"docker stop -t0 {self.ioc_name}")
         run_command(f"docker rm -f {self.ioc_name}")
 
-    def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
+    def _do_deploy(self, ioc_instance: Path, version: str, args: str):
+        ioc_name, ioc_path = check_ioc_instance_path(ioc_instance)
+
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
         config = ioc_instance / CONFIG_FOLDER
@@ -56,14 +70,38 @@ class IocLocalCommands:
         run_command(f"docker volume create {volume}", interactive=False)
 
         vol = f"-v {volume}:{IOC_CONFIG_FOLDER}"
-        cmd = "run -dit --restart unless-stopped"
+        label = f"-l is_IOC=true -l version={version}"
+        cmd = f"run -dit --restart unless-stopped {label} {vol} {args}"
         dest = f"{ioc_name}:{IOC_CONFIG_FOLDER}"
 
-        run_command(f"docker {cmd} --name {ioc_name} {vol} {image}")
+        run_command(f"docker {cmd} --name {ioc_name} {image}")
         run_command(f"docker cp {config}/* {dest}", interactive=False)
 
+    def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
+        """
+        Use a local copy of an ioc instance definition to deploy a temporary
+        version of the IOC to the local docker instance
+        """
+        version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
+        if not yes:
+            typer.echo(
+                f"Deploy TEMPORARY version {version} "
+                f"from {ioc_instance} to the local docker instance"
+            )
+            if not typer.confirm("Are you sure ?"):
+                raise typer.Abort()
+        self._do_deploy(ioc_instance, version, args)
+
     def deploy(self, ioc_name: str, version: str, args: str):
-        pass
+        """
+        deploy a tagged version of an ioc from a remote repo
+        """
+        run_command(
+            f"git clone {self.beamline_repo} {self.tmp} --depth=1 "
+            f"--single-branch --branch={self.version}",
+            interactive=False,
+        )
+        self._do_deploy(self.tmp, version, args)
 
     def exec(self):
         run_command(f"docker exec -it {self.ioc_name} bash")

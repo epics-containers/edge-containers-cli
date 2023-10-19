@@ -74,7 +74,9 @@ def deploy(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
     version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
-    args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
+    args: str = typer.Option(
+        "", help="Additional args for helm or docker, 'must be quoted'"
+    ),
 ):
     """
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster

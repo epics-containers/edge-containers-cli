@@ -11,6 +11,7 @@ import typer
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
+from epics_containers_cli.utils import check_ioc_instance_path
 
 
 class Helm:
@@ -59,14 +60,7 @@ class Helm:
         Deploy a local IOC helm chart directly to the cluster with dated beta version
         """
 
-        ioc_path = ioc_path.absolute()
-        ioc_name = ioc_path.name.lower()
-        if (
-            not (ioc_path / "values.yaml").exists()
-            or not (ioc_path / CONFIG_FOLDER).is_dir()
-        ):
-            log.error("ERROR: IOC instance requires values.yaml and config")
-            raise typer.Exit(1)
+        ioc_name, ioc_path = check_ioc_instance_path(ioc_path)
 
         if not yes and not self.template:
             typer.echo(

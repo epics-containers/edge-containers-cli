@@ -8,7 +8,7 @@ import typer
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import EC_REGISTRY_MAPPING, run_command
 
-from .globals import Architecture
+from .globals import CONFIG_FOLDER, Architecture
 
 
 def get_instance_image_name(ioc_instance: Path, tag: Optional[str] = None) -> str:
@@ -96,3 +96,19 @@ def repo2registry(repo_name: str) -> str:
         raise typer.Exit(1)
 
     return registry
+
+
+def check_ioc_instance_path(ioc_path: Path, yes: bool = False):
+    """
+    verify that the ioc instance path is valid
+    """
+    ioc_path = ioc_path.absolute()
+    ioc_name = ioc_path.name.lower()
+    if (
+        not (ioc_path / "values.yaml").exists()
+        or not (ioc_path / CONFIG_FOLDER).is_dir()
+    ):
+        log.error("ERROR: IOC instance requires values.yaml and config")
+        raise typer.Exit(1)
+
+    return ioc_name, ioc_path
