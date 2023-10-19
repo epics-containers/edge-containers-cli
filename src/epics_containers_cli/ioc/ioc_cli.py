@@ -3,6 +3,9 @@ from pathlib import Path
 import typer
 
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
+from epics_containers_cli.ioc.local_commands import IocLocalCommands
+from epics_containers_cli.logging import log
+from epics_containers_cli.shell import EC_LOCAL_DEPLOY
 
 ioc = typer.Typer()
 
@@ -15,7 +18,10 @@ def attach(
     """
     Attach to the IOC shell of a live IOC
     """
-    IocK8sCommands(ctx.obj, ioc_name).attach()
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).attach()
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).attach()
 
 
 @ioc.command()
@@ -26,7 +32,10 @@ def delete(
     """
     Remove an IOC helm deployment from the cluster
     """
-    IocK8sCommands(ctx.obj, ioc_name).delete()
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).delete()
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).delete()
 
 
 @ioc.command()
@@ -38,7 +47,10 @@ def template(
     """
     print out the helm template generated from a local ioc instance
     """
-    IocK8sCommands(ctx.obj).template(ioc_instance, args)
+    if EC_LOCAL_DEPLOY:
+        typer.echo("Not applicable to local deployments")
+    else:
+        IocK8sCommands(ctx.obj).template(ioc_instance, args)
 
 
 @ioc.command()
@@ -51,7 +63,10 @@ def deploy_local(
     """
     Deploy a local IOC helm chart directly to the cluster with dated beta version
     """
-    IocK8sCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
+    else:
+        IocK8sCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
 
 
 @ioc.command()
@@ -64,7 +79,10 @@ def deploy(
     """
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
-    IocK8sCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
 
 
 @ioc.command()
@@ -73,6 +91,7 @@ def instances(
     ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
 ):
     """List all versions of the IOC available in the helm registry"""
+    # this function works on git repos only so works for all deployment types
     IocK8sCommands(ctx.obj, ioc_name).instances()
 
 
@@ -82,7 +101,10 @@ def exec(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to run in"),
 ):
     """Execute a bash prompt in a live IOC's container"""
-    IocK8sCommands(ctx.obj, ioc_name).exec()
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).exec()
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).exec()
 
 
 @ioc.command()
@@ -106,7 +128,10 @@ def logs(
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow the log stream"),
 ):
     """Show logs for current and previous instances of an IOC"""
-    IocK8sCommands(ctx.obj, ioc_name).logs(prev, follow)
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).logs(prev, follow)
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).logs(prev, follow)
 
 
 @ioc.command()
@@ -115,7 +140,10 @@ def restart(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to restart"),
 ):
     """Restart an IOC"""
-    IocK8sCommands(ctx.obj, ioc_name).restart()
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).restart()
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).restart()
 
 
 @ioc.command()
@@ -124,7 +152,11 @@ def start(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to start"),
 ):
     """Start an IOC"""
-    IocK8sCommands(ctx.obj, ioc_name).start()
+    log.debug("Starting IOC with LOCAL={EC_LOCAL_DEPLOY}")
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).start()
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).start()
 
 
 @ioc.command()
@@ -133,4 +165,7 @@ def stop(
     ioc_name: str = typer.Argument(..., help="Name of the IOC container to stop"),
 ):
     """Stop an IOC"""
-    IocK8sCommands(ctx.obj, ioc_name).stop()
+    if EC_LOCAL_DEPLOY:
+        IocLocalCommands(ctx.obj, ioc_name).stop()
+    else:
+        IocK8sCommands(ctx.obj, ioc_name).stop()
