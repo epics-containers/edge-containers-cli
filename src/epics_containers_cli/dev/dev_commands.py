@@ -28,6 +28,25 @@ PODMAN_OPT = " --security-opt=label=type:container_runtime_t"
 # TODO: review this choice when implementing GUIs
 
 
+def get_instance_image_name(ioc_instance: Path, tag: Optional[str]) -> str:
+    ioc_instance = ioc_instance.resolve()
+    values = ioc_instance / "values.yaml"
+    if not values.exists():
+        log.error(f"values.yaml not found in {ioc_instance}")
+        raise typer.Exit(1)
+
+    values_text = values.read_text()
+    matches = re.findall(r"image: (.*):(.*)", values_text)
+    if len(matches) == 1:
+        tag = tag or matches[0][1]
+        image = matches[0][0] + f":{tag}"
+    else:
+        log.error(f"image tag definition not found in {values}")
+        raise typer.Exit(1)
+
+    return image
+
+
 class DevCommands:
     """
     A class to implement the set of commands in the 'dev' namespace
@@ -185,25 +204,11 @@ class DevCommands:
             f" execute={execute} target={target} args={args}"
         )
 
-        mounts = []
+        mounts = [f"-v {ioc_instance}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}"]
 
-        ioc_instance = ioc_instance.resolve()
-        values = ioc_instance / "values.yaml"
-        if not values.exists():
-            log.error(f"values.yaml not found in {ioc_instance}")
-            raise typer.Exit(1)
-        mounts.append(f"-v {ioc_instance}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}")
+        image_name = image or get_instance_image_name(ioc_instance, tag)
 
-        values_text = values.read_text()
-        matches = re.findall(r"image: (.*):(.*)", values_text)
-        if len(matches) == 1:
-            tag = tag or matches[0][1]
-            image = matches[0][0] + f":{tag}"
-        else:
-            log.error(f"image tag definition not found in {values}")
-            raise typer.Exit(1)
-
-        self._do_launch(ioc_name, target, image, execute, args, mounts)
+        self._do_launch(ioc_name, target, image_name, execute, args, mounts)
 
     def debug_last(self, generic_ioc: Path, mount_repos: bool):
         """

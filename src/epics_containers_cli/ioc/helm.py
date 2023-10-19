@@ -141,6 +141,7 @@ class Helm:
         typer.echo(output)
 
     def versions(self):
+        # TODO this function has nothing to do with helm and should be moved
         typer.echo(f"Available instance versions for {self.ioc_name}:")
 
         run_command(f"git clone {self.repo} {self.tmp}", interactive=False)
