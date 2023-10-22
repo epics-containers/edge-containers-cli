@@ -101,7 +101,7 @@ class IocK8sCommands:
         )
 
     def log_history(self):
-        if EC_LOG_URL is None:
+        if not EC_LOG_URL:
             log.error("K8S_LOG_URL environment not set")
             raise typer.Exit(1)
 
