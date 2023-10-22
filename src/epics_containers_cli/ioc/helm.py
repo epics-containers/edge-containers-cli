@@ -4,7 +4,6 @@ from pathlib import Path
 from tempfile import mkdtemp
 from typing import Optional
 
-import jinja2
 import typer
 
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
@@ -42,7 +41,6 @@ class Helm:
         self.tmp = Path(mkdtemp())
 
         self.bl_chart_folder = self.tmp / BEAMLINE_CHART_FOLDER
-        self.jinja_path = self.bl_chart_folder / "Chart.yaml.jinja"
         self.bl_chart_path = self.bl_chart_folder / "Chart.yaml"
         self.bl_config_folder = self.bl_chart_folder / CONFIG_FOLDER
 
@@ -92,16 +90,11 @@ class Helm:
 
     def _do_deploy(self, config_folder: Path):
         """
-        Generate an on the fly chart using beamline chart with config folder
-        and generated Chart.yaml. Deploy the resulting helm chart to the cluster.
+        Generate an on the fly chart using beamline chart with config folder.
+        Deploy the resulting helm chart to the cluster.
         """
         # values.yaml is a peer to the config folder
         values_path = config_folder.parent / "values.yaml"
-
-        # render a Chart.yaml from the jinja template
-        template = jinja2.Template(self.jinja_path.read_text())
-        chart = template.render(ioc_name=self.ioc_name, ioc_version=self.version)
-        self.bl_chart_path.write_text(chart)
 
         # add the config folder to the helm chart
         self.bl_config_folder.symlink_to(config_folder)
@@ -124,7 +117,8 @@ class Helm:
         cmd = (
             f"bash -c "
             f'"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} '
-            f"--version {self.version} --namespace {self.namespace} -f {values}"
+            f"--version {self.version} --namespace {self.namespace} -f {values} "
+            f"--set ioc_name={self.ioc_name} --set ioc_version={self.version} "
             f" 2> >(grep -v 'found symbolic link' >&2)\""
         )
         if self.args:

@@ -40,11 +40,15 @@ def check_ioc_instance_path(ioc_path: Path, yes: bool = False):
     ioc_name = ioc_path.name.lower()
 
     log.info(f"checking IOC instance {ioc_name} at {ioc_path}")
-    if (
-        not (ioc_path / "values.yaml").exists()
-        or not (ioc_path / CONFIG_FOLDER).is_dir()
-    ):
-        log.error("ERROR: IOC instance requires values.yaml and config")
+    if ioc_path.is_dir():
+        if (
+            not (ioc_path / "values.yaml").exists()
+            or not (ioc_path / CONFIG_FOLDER).is_dir()
+        ):
+            log.error("IOC instance requires values.yaml and config")
+            raise typer.Exit(1)
+    else:
+        log.error(f"IOC instance path {ioc_path} does not exist")
         raise typer.Exit(1)
 
     return ioc_name, ioc_path
