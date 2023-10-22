@@ -50,9 +50,3 @@ def check_beamline_repo(repo: str):
     if repo == "":
         typer.echo("Please set EC_DOMAIN_REPO or pass --repo")
         raise typer.Exit(1)
-
-
-def check_org(org: str):
-    if org == "":
-        typer.echo("Please set EC_GIT_ORG or pass --org")
-        raise typer.Exit(1)

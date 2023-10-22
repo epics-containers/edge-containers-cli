@@ -12,7 +12,6 @@ from typer.testing import CliRunner
 
 os.environ["EC_K8S_NAMESPACE"] = "bl45p"
 os.environ["EC_DOMAIN_REPO"] = "https://github.com/epics-containers/bl45p"
-os.environ["EC_GIT_ORG"] = "https://github.com/epics-containers"
 os.environ["EC_LOG_URL"] = (
     "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message%2C"
     "source&width=1489&highlightMessage=&relative=172800&q=pod_name%3A{ioc_name}*"

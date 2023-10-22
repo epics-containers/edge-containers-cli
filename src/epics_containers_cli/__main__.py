@@ -49,12 +49,6 @@ def main(
         is_eager=True,
         help="Log the version of ec and exit",
     ),
-    org: str = typer.Option(
-        "",
-        "-o",
-        "--org",
-        help="git remote organisation of domain repos",
-    ),
     repo: str = typer.Option(
         "",
         "-r",
@@ -76,11 +70,10 @@ def main(
     init_logging(log_level.upper(), debug)
 
     # create a context dictionary to pass to all sub commands
-    org = org or os.environ.get("EC_GIT_ORG", "")
     repo = repo or os.environ.get("EC_DOMAIN_REPO", "")
     namespace = namespace or os.environ.get("EC_K8S_NAMESPACE", "")
     ctx.ensure_object(Context)
-    context = Context(namespace, repo, org)
+    context = Context(namespace, repo)
     ctx.obj = context
 
 

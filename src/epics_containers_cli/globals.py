@@ -9,7 +9,6 @@ class Context:
 
     namespace: str = ""
     beamline_repo: str = ""
-    beamline_org: str = ""
 
 
 class Architecture(str, Enum):

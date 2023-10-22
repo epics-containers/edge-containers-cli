@@ -16,9 +16,6 @@ echo "Loading IOC environment for BL45P ..."
 # a mapping between genenric IOC repo roots and the related container registry
 export EC_REGISTRY_MAPPING='github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-privreg/controls/ioc'
 
-# the git organisation used for beamline repositories
-export EC_GIT_ORG=https://github.com/epics-containers
-
 # the git rempos used for the current beamline
 export EC_DOMAIN_REPO=git@github.com:epics-containers/bl45p.git
 
