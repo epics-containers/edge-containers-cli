@@ -76,7 +76,7 @@ class IocLocalCommands:
         dest = f"{ioc_name}:{IOC_CONFIG_FOLDER}"
 
         run_command(f"docker {cmd} --name {ioc_name} {image}")
-        run_command(f"docker cp {config}/* {dest}", interactive=False)
+        run_command(f"docker cp {config} {dest}", interactive=False)
 
     def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
         """

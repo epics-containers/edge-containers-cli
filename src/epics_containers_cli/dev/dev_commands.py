@@ -1,14 +1,13 @@
-import re
-import sys
 import time
 from pathlib import Path
 from typing import Optional
 
 import typer
 
+from epics_containers_cli.docker import Docker
 from epics_containers_cli.git import get_git_name, get_image_name
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import EC_CONTAINER_CLI, run_command
+from epics_containers_cli.shell import run_command
 from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
 
 from ..globals import (
@@ -21,15 +20,6 @@ from ..globals import (
 
 dev = typer.Typer()
 
-IMAGE_TAG = "local"
-MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
-
-
-# parameters for container launches
-PODMAN_OPT = " --security-opt=label=type:container_runtime_t"
-# NOTE: I have removed --net host so that tested IOCs are isolated
-# TODO: review this choice when implementing GUIs
-
 
 class DevCommands:
     """
@@ -37,67 +27,7 @@ class DevCommands:
     """
 
     def __init__(self):
-        self.docker = "podman"
-        self.is_docker = False
-        self.is_buildx = False
-        self._check_docker()
-
-    def _check_docker(self):
-        """
-        Decide if we will use docker or podman cli.
-
-        Also look to see if buildx is available.
-
-        Prefer docker if it is installed, otherwise use podman
-        """
-        if EC_CONTAINER_CLI:
-            self.docker = EC_CONTAINER_CLI
-        else:
-            # default to podman if we do not find a docker>=20.0.0
-            result = run_command("docker --version", interactive=False, error_OK=True)
-            match = re.match(r"[^\d]*(\d+)", result)
-            if match is not None:
-                version = int(match.group(1))
-                if version >= 20:
-                    self.docker, self.is_docker = "docker", True
-                    log.debug(f"using docker {result}")
-
-        result = run_command(
-            f"{self.docker} buildx version", interactive=False, error_OK=True
-        )
-        if result and "buildah" not in result:
-            self.is_buildx = True
-
-        log.debug(f"buildx={self.is_buildx} ({result})")
-
-    def _all_params(self, exec: bool = False):
-        """
-        set up parameters for call to docker/podman
-        """
-
-        # TODO - can we tidy up the argument generation ?
-        # we are trying to cope with building / running / execing / stopping
-        # containers with podman / docker / buildx and at present the
-        # code looks a little opaque I figure a nice dictionary definition
-        # of the matrix of options might work better
-
-        if sys.stdin.isatty():
-            # interactive
-            env = "-e DISPLAY -e SHELL -e TERM -it"
-        else:
-            env = "-e DISPLAY -e SHELL"
-
-        volumes = ""
-        for file in MOUNTED_FILES:
-            file_path = Path(file)
-            if file_path.exists():
-                volumes += f" -v {file}:/root/{file_path.name}"
-
-        opts = PODMAN_OPT if not self.is_docker and not exec else ""
-
-        log.debug(f"env={env} volumes={volumes} opts={opts}")
-
-        return f"{env}{volumes}{opts}"
+        self.docker = Docker(devcontainer=True)
 
     def _do_launch(
         self,
@@ -117,23 +47,18 @@ class DevCommands:
         )
 
         # make sure there is not already an IOC of this name running
-        run_command(
-            f"{self.docker} stop -t0 {ioc_name}", error_OK=True, interactive=False
-        )
-        run_command(f"{self.docker} rm {ioc_name}", error_OK=True, interactive=False)
+        self.docker.remove(ioc_name)
 
         start_script = f"-c '{execute}'"
-
-        args = " " + args.strip("' ") if args else ""
-        config = self._all_params() + f' {" ".join(mounts)}' + args
 
         if target == Targets.developer:
             image = image.replace(Targets.runtime, Targets.developer)
 
-        run_command(
-            f"{self.docker} run --rm --entrypoint 'bash' --name {ioc_name} {config}"
-            f" {image} {start_script}",
-            interactive=True,
+        args = " " + args.strip("'") if args else ""
+        self.docker.run(
+            name=ioc_name,
+            args=f"--entrypoint 'bash'{args} {image} {start_script}",
+            mounts=mounts,
         )
 
     def launch_local(
@@ -161,7 +86,7 @@ class DevCommands:
             ioc_instance = ioc_instance.resolve()
             if (ioc_instance / CONFIG_FOLDER).exists():
                 ioc_instance = ioc_instance / CONFIG_FOLDER
-            mounts.append(f"-v {ioc_instance}:{IOC_CONFIG_FOLDER}")
+            mounts.append(f"{ioc_instance}:{IOC_CONFIG_FOLDER}")
             log.debug(f"mounts: {mounts}")
             execute = f"{IOC_START}; bash"
 
@@ -191,7 +116,7 @@ class DevCommands:
         ioc_name_std, ioc_path = check_ioc_instance_path(ioc_instance)
         ioc_name = ioc_name or ioc_name_std
 
-        mounts = [f"-v {ioc_path}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}"]
+        mounts = [f"{ioc_path}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}"]
 
         image_name = image or get_instance_image_name(ioc_path, tag)
 
