@@ -13,6 +13,8 @@ delete:
     rsp: True
 
 template:
+  - cmd: helm dependency update /tmp/ec_tests/beamline-chart
+    rsp: ""
   - cmd: 'bash -c "helm template bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart --version
       20.*--namespace bl45p -f \/.*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
     rsp: |
@@ -22,12 +24,16 @@ template:
 
 # TODO blank response is that OK?
 deploy_local:
+  - cmd: helm dependency update /tmp/ec_tests/beamline-chart
+    rsp: ""
   - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart
       --version 20.*--namespace bl45p -f \/.*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
     rsp: ""
 
 deploy:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=2.0
+    rsp: ""
+  - cmd: helm dependency update /tmp/ec_tests/beamline-chart
     rsp: ""
   - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart --version 2.0 --namespace bl45p -f /tmp/ec_tests/iocs/bl45p-ea-ioc-01/values.yaml.*'
     rsp: ""
