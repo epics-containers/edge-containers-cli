@@ -99,6 +99,8 @@ class Helm:
         # add the config folder to the helm chart
         self.bl_config_folder.symlink_to(config_folder)
 
+        # get library charts
+        run_command(f"helm dependency update {self.bl_chart_folder}", interactive=False)
         # use helm to install the chart
         self._install(
             values=values_path,
