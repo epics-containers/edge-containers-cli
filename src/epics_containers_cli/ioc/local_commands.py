@@ -1,8 +1,8 @@
 """
 Implements functions for deploying and managing local ioc instances using
-local docker standalone. This is an initial experimetal implementation.
+local docker standalone. This is an initial experimental implementation.
 In future we could support remote deployment and possibly creating
-portainer mainfests.
+portainer manifests.
 
 However, for the moment, Using this by connecting to each server and running
 'ec deploy <ioc_name> <ioc_version> and then managing the network with a
@@ -17,6 +17,7 @@ from typing import Optional
 
 import typer
 
+import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.docker import Docker
 from epics_containers_cli.globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, Context
 from epics_containers_cli.logging import log
@@ -41,8 +42,8 @@ class IocLocalCommands:
         self.docker = Docker()
 
     def __del__(self):
-        # keep the tmp folder if debug is enabled for inspection
-        if log.level != "DEBUG":
+        # keep the tmp folder if debug is enabled for inspection_del
+        if not glob_vars.EC_DEBUG:
             if hasattr(self, "tmp"):
                 shutil.rmtree(self.tmp, ignore_errors=True)
 

@@ -6,9 +6,10 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import Architecture
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import EC_CONTAINER_CLI, run_command
+from epics_containers_cli.shell import run_command
 
 IMAGE_TAG = "local"
 MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
@@ -41,8 +42,8 @@ class Docker:
         Returns:
             Tuple[str, bool]: docker command, is_docker, is_buildx
         """
-        if EC_CONTAINER_CLI:
-            self.docker = EC_CONTAINER_CLI
+        if glob_vars.EC_CONTAINER_CLI:
+            self.docker = glob_vars.EC_CONTAINER_CLI
         else:
             # default to podman if we do not find a docker>=20.0.0
             result = run_command("docker --version", interactive=False, error_OK=True)

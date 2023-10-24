@@ -9,6 +9,8 @@ class Context:
 
     namespace: str = ""
     beamline_repo: str = ""
+    verbose: bool = False
+    debug: bool = False
 
 
 class Architecture(str, Enum):
@@ -35,3 +37,11 @@ IOC_CONFIG_FOLDER = "/epics/ioc/config/"
 IOC_START = "/epics/ioc/start.sh"
 IOC_NAME = "test-ioc"
 EC_DEBUG = os.environ.get("EC_DEBUG")
+EC_VERBOSE = os.environ.get("EC_VERBOSE")
+
+EC_REGISTRY_MAPPING = os.environ.get(
+    "EC_REGISTRY_MAPPING",
+    "github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-privreg/controls/ioc",
+)
+EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
+EC_LOG_URL = os.environ.get("EC_LOG_URL", None)

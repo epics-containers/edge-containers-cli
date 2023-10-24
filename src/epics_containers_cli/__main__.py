@@ -3,9 +3,10 @@ from typing import Optional
 
 import typer
 
+import epics_containers_cli.globals as glob_vars
+
 from . import __version__
 from .dev.dev_cli import dev
-from .globals import Context
 from .ioc.ioc_cli import ioc
 from .k8s.k8s_cli import cluster
 from .k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
@@ -61,19 +62,24 @@ def main(
     log_level: str = typer.Option(
         "WARN", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
     ),
+    verbose: bool = typer.Option(
+        glob_vars.EC_VERBOSE, "-v", "--verbose", help="print the commands we run"
+    ),
     debug: bool = typer.Option(
-        False, "-d", "--debug", help="Enable debug logging to console"
+        glob_vars.EC_DEBUG, "-d", "--debug", help="Enable debug logging to console"
     ),
 ):
     """EPICS Containers assistant CLI"""
 
-    init_logging(log_level.upper(), debug)
+    glob_vars.EC_VERBOSE, glob_vars.EC_DEBUG = verbose, debug
+
+    init_logging(log_level.upper())
 
     # create a context dictionary to pass to all sub commands
     repo = repo or os.environ.get("EC_DOMAIN_REPO", "")
     namespace = namespace or os.environ.get("EC_K8S_NAMESPACE", "")
-    ctx.ensure_object(Context)
-    context = Context(namespace, repo)
+    ctx.ensure_object(glob_vars.Context)
+    context = glob_vars.Context(namespace, repo)
     ctx.obj = context
 
 

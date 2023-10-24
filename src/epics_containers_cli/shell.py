@@ -2,20 +2,14 @@
 functions for executing commands and querying environment in the linux shell
 """
 
-import os
 import subprocess
 from typing import Union
 
 import typer
 
-from .logging import log
+import epics_containers_cli.globals as glob_vars
 
-EC_REGISTRY_MAPPING = os.environ.get(
-    "EC_REGISTRY_MAPPING",
-    "github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-privreg/controls/ioc",
-)
-EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
-EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
+from .logging import log
 
 
 def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bool]:
@@ -29,6 +23,9 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
         f"running command:\n   {command}\n   "
         f"(interactive={interactive}, error_OK={error_OK})\n"
     )
+
+    if glob_vars.EC_VERBOSE:
+        typer.echo(f"+ {command}")
 
     p_result = subprocess.run(command, capture_output=not interactive, shell=True)
 

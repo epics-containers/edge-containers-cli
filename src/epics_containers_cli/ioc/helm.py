@@ -6,8 +6,8 @@ from typing import Optional
 
 import typer
 
+import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
-from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
 from epics_containers_cli.utils import check_ioc_instance_path
 
@@ -48,7 +48,7 @@ class Helm:
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection
-        if log.level != "DEBUG":
+        if not glob_vars.EC_DEBUG:
             if hasattr(self, "tmp"):
                 shutil.rmtree(self.tmp, ignore_errors=True)
 

@@ -3,15 +3,15 @@ Setup logging for the project
 """
 import logging
 
-from epics_containers_cli.globals import EC_DEBUG
+import epics_containers_cli.globals as glob_vars
 
 log = logging.getLogger("epics-containers-cli")
 handler = logging.StreamHandler()
 
 
-def init_logging(level: str, debug: bool = False):
+def init_logging(level: str):
     log.setLevel(level)
-    if EC_DEBUG or debug:
+    if glob_vars.EC_DEBUG:
         log.setLevel(logging.DEBUG)
     if log.level == logging.DEBUG:
         formatter = logging.Formatter(

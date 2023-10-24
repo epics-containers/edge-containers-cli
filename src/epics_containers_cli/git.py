@@ -9,10 +9,10 @@ from typing import Tuple
 
 import typer
 
+import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import Architecture
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import (
-    EC_REGISTRY_MAPPING,
     check_beamline_repo,
     run_command,
 )
@@ -69,11 +69,11 @@ def repo2registry(repo_name: str) -> str:
 
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
 
-    if not EC_REGISTRY_MAPPING:
+    if not glob_vars.EC_REGISTRY_MAPPING:
         log.error("environment variable EC_REGISTRY_MAPPING not set")
         raise typer.Exit(1)
 
-    for mapping in EC_REGISTRY_MAPPING.split():
+    for mapping in glob_vars.EC_REGISTRY_MAPPING.split():
         if mapping.split("=")[0] == source_reg:
             registry = mapping.split("=")[1]
             registry = f"{registry}/{org}/{repo}"
