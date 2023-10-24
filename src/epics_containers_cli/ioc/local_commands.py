@@ -17,6 +17,7 @@ from typing import Optional
 
 import typer
 
+from epics_containers_cli.docker import Docker
 from epics_containers_cli.globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, Context
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo, run_command
@@ -37,6 +38,7 @@ class IocLocalCommands:
 
         self.tmp = Path(mkdtemp())
         self.ioc_folder = self.tmp / "iocs" / ioc_name
+        self.docker = Docker()
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection
@@ -45,7 +47,7 @@ class IocLocalCommands:
                 shutil.rmtree(self.tmp, ignore_errors=True)
 
     def attach(self):
-        run_command(f"docker attach {self.ioc_name}")
+        self.docker.attach(self.ioc_name)
 
     def delete(self):
         if not typer.confirm(
@@ -53,9 +55,7 @@ class IocLocalCommands:
             "from the cluster. Are you sure ?"
         ):
             raise typer.Abort()
-
-        run_command(f"docker stop -t0 {self.ioc_name}")
-        run_command(f"docker rm -f {self.ioc_name}")
+        self.docker.remove(self.ioc_name)
 
     def _do_deploy(self, ioc_instance: Path, version: str, args: str):
         ioc_name, ioc_path = check_ioc_instance_path(ioc_instance)
@@ -66,17 +66,17 @@ class IocLocalCommands:
         ioc_name = ioc_instance.name
         volume = f"{ioc_name}_config"
 
-        run_command(f"docker container rm -f {ioc_name}", interactive=False)
-        run_command(f"docker volume rm -f {volume}", interactive=False)
-        run_command(f"docker volume create {volume}", interactive=False)
+        self.docker.remove(ioc_name)
+        run_command(f"{self.docker.docker} volume rm -f {volume}", interactive=False)
+        run_command(f"{self.docker.docker} volume create {volume}", interactive=False)
 
         vol = f"-v {volume}:{IOC_CONFIG_FOLDER}"
         label = f"-l is_IOC=true -l version={version}"
         cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args}"
         dest = f"{ioc_name}:{IOC_CONFIG_FOLDER}"
 
-        run_command(f"docker {cmd} --name {ioc_name} {image}")
-        run_command(f"docker cp {config} {dest}", interactive=False)
+        run_command(f"{self.docker.docker} {cmd} --name {ioc_name} {image}")
+        run_command(f"{self.docker.docker} cp {config} {dest}", interactive=False)
 
     def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
         """
@@ -109,19 +109,16 @@ class IocLocalCommands:
         self._do_deploy(self.ioc_folder, version, args)
 
     def exec(self):
-        run_command(f"docker exec -it {self.ioc_name} bash")
+        self.docker.exec(self.ioc_name, "bash", args="-it")
 
     def logs(self, prev: bool, follow: bool):
-        previous = " -p" if prev else ""
-        fol = " -f" if follow else ""
-
-        run_command(f"docker logs{previous}{fol} {self.ioc_name}")
+        self.docker.logs(self.ioc_name, prev, follow)
 
     def restart(self):
-        run_command(f"docker restart {self.ioc_name}")
+        run_command(f"{self.docker.docker} restart {self.ioc_name}")
 
     def start(self):
-        run_command(f"docker start {self.ioc_name}")
+        run_command(f"{self.docker.docker} start {self.ioc_name}")
 
     def stop(self):
-        run_command(f"docker stop {self.ioc_name}")
+        run_command(f"{self.docker.docker} stop {self.ioc_name}")

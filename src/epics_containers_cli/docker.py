@@ -4,7 +4,7 @@ Utility functions for working interacting with docker / podman CLI
 import re
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from epics_containers_cli.globals import Architecture
 from epics_containers_cli.logging import log
@@ -30,7 +30,7 @@ class Docker:
         self.is_buildx: bool = False
         self._check_docker()
 
-    def _check_docker(self) -> Tuple[str, bool, bool]:
+    def _check_docker(self):
         """
         Decide if we will use docker or podman cli.
 
@@ -46,7 +46,7 @@ class Docker:
         else:
             # default to podman if we do not find a docker>=20.0.0
             result = run_command("docker --version", interactive=False, error_OK=True)
-            match = re.match(r"[^\d]*(\d+)", result)
+            match = re.match(r"[^\d]*(\d+)", str(result))
             if match is not None:
                 version = int(match.group(1))
                 if version >= 20:
@@ -56,7 +56,7 @@ class Docker:
         result = run_command(
             f"{self.docker} buildx version", interactive=False, error_OK=True
         )
-        self.is_buildx = result and "buildah" not in result
+        self.is_buildx = bool(result) and "buildah" not in result
 
         log.debug(f"buildx={self.is_buildx} ({result})")
 
@@ -136,7 +136,7 @@ class Docker:
         """
         args = f"{args} " if args else ""
         result = run_command(
-            f'{self.docker} exec {container} {args}bash -c "{command}"',
+            f'{self.docker} exec {args}{container} bash -c "{command}"',
             interactive=interactive,
         )
         return result
@@ -146,7 +146,9 @@ class Docker:
         Stop and delete a container. Don't fail if it does not exist
         """
         self.stop(container)
-        run_command(f"{self.docker} rm {container}", error_OK=True, interactive=False)
+        run_command(
+            f"{self.docker} rm -f {container}", error_OK=True, interactive=False
+        )
 
     def stop(self, container: str):
         """
@@ -155,3 +157,18 @@ class Docker:
         run_command(
             f"{self.docker} stop -t0 {container}", error_OK=True, interactive=False
         )
+
+    def attach(self, container: str):
+        """
+        attach to a container
+        """
+        run_command(f"{self.docker} attach {container}")
+
+    def logs(self, container: str, previous: bool = False, follow: bool = False):
+        """
+        show logs from a container
+        """
+        prev = " -p" if previous else ""
+        fol = " -f" if follow else ""
+
+        run_command(f"docker logs{prev}{fol} {container}")
