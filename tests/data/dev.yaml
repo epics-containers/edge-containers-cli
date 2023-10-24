@@ -29,37 +29,37 @@ get_git_name_https:
 launch_local_generic:
   - cmd: podman stop -t0 test-ioc
     rsp: "test-ioc stopped"
-  - cmd: podman rm test-ioc
+  - cmd: podman rm -f test-ioc
     rsp: "test-ioc"
-  - cmd: podman run --rm --entrypoint 'bash' --name test-ioc -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v /tmp/ec_tests/ioc-template:/epics/ioc/config/ ghcr.io/epics-containers/ioc-adsimdetector-linux.developer:local -c '/epics/ioc/start.sh; bash'
+  - cmd: podman run --rm --name test-ioc -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v /tmp/ec_tests/ioc-template:/epics/ioc/config/ --entrypoint 'bash' ghcr.io/epics-containers/ioc-adsimdetector-linux.developer:local -c '/epics/ioc/start.sh; bash'
     rsp: True
 
 launch:
   - cmd: podman stop -t0 test-ioc
     rsp: "test-ioc stopped"
-  - cmd: podman rm test-ioc
+  - cmd: podman rm -f test-ioc
     rsp: "test-ioc"
-  - cmd: podman run --rm --entrypoint 'bash' --name test-ioc -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v .*/iocs/bl45p-ea-ioc-01/config:/epics/ioc/config/ ghcr.io/epics-containers/ioc-adaravis-linux-developer:23.9.4 -c '/epics/ioc/start.sh; bash'
+  - cmd: podman run --rm --name test-ioc -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v {data}/iocs/bl45p-ea-ioc-01/config:/epics/ioc/config/ --entrypoint 'bash' ghcr.io/epics-containers/ioc-adaravis-linux-developer:23.9.4 -c '/epics/ioc/start.sh; bash'
     rsp: True
 
 launch_dit:
   - cmd: podman stop -t0 test-ioc
     rsp: "test-ioc stopped"
-  - cmd: podman rm test-ioc
+  - cmd: podman rm -f test-ioc
     rsp: "test-ioc"
-  - cmd: podman run --rm --entrypoint 'bash' --name test-ioc -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v .*/iocs/bl45p-ea-ioc-01/config:/epics/ioc/config/ -dit ghcr.io/epics-containers/ioc-adaravis-linux-developer:23.9.4 -c '/epics/ioc/start.sh; bash'
+  - cmd: podman run --rm --name test-ioc -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v {data}/iocs/bl45p-ea-ioc-01/config:/epics/ioc/config/ --entrypoint 'bash' -dit ghcr.io/epics-containers/ioc-adaravis-linux-developer:23.9.4 -c '/epics/ioc/start.sh; bash'
     rsp: True
 
 debug_last1:
-  - cmd: podman images | awk '{print $3}' | awk 'NR==2'
+  - cmd: podman images | awk '{{print $3}}' | awk 'NR==2'
     rsp: ea2378de0b5f
 
 debug_last2:
-  - cmd: podman run --entrypoint bash --rm --name debug_build -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v/tmp/bl45p:/epics/ioc/$bl45p ea2378de0b5f
+  - cmd: podman run --rm --name debug_build -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v /tmp/bl45p:/epics/ioc/$bl45p --entrypoint bash ea2378de0b5f
     rsp: True
 
 versions:
-  - cmd: podman run --rm quay.io/skopeo/stable list-tags docker://ghcr.io/epics-containers/bl45p-linux-developer
+  - cmd: podman run --rm --name versions -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t quay.io/skopeo/stable list-tags docker://ghcr.io/epics-containers/bl45p-linux-developer
     rsp: True
 
 stop:
@@ -69,7 +69,7 @@ stop:
     rsp: "test-ioc"
 
 exec:
-  - cmd: podman exec -e DISPLAY -e SHELL test-ioc bash -c "bash"
+  - cmd: podman exec test-ioc bash -c "bash"
     rsp: True
 
 wait_pv:

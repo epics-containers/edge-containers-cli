@@ -1,15 +1,24 @@
+setup:
+  - cmd: docker --version
+    rsp: |
+      Docker version 20.10.7, build f0df350
+  - cmd: docker buildx version
+    rsp: ""
+
 attach:
   - cmd: docker attach bl45p-ea-ioc-01
     rsp: True
 
 delete:
   - cmd: docker stop -t0 bl45p-ea-ioc-01
-    rsp: True
+    rsp: ""
   - cmd: docker rm -f bl45p-ea-ioc-01
-    rsp: True
+    rsp: ""
 
 deploy_local:
-  - cmd: docker container rm -f bl45p-ea-ioc-01
+  - cmd: docker stop -t0 bl45p-ea-ioc-01
+    rsp: bl45p-ea-ioc-01
+  - cmd: docker rm -f bl45p-ea-ioc-01
     rsp: bl45p-ea-ioc-01
   - cmd: docker volume rm -f bl45p-ea-ioc-01_config
     rsp: bl45p-ea-ioc-01-config
@@ -17,13 +26,15 @@ deploy_local:
     rsp: bl45p-ea-ioc-01-config
   - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=.* -v bl45p-ea-ioc-01_config:\/epics\/ioc\/config\/  --name bl45p-ea-ioc-01 ghcr.io\/epics-containers\/ioc-adaravis-linux-runtime:23.9.4
     rsp: True
-  - cmd: docker cp \/.*epics-containers-cli\/tests\/data\/iocs\/bl45p-ea-ioc-01\/config\/\* bl45p-ea-ioc-01:\/epics\/ioc\/config\/
+  - cmd: docker cp {data}/iocs/bl45p-ea-ioc-01/config/* bl45p-ea-ioc-01:/epics/ioc/config/
     rsp: 32123f4d0b0f
 
 deploy:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=2.0
     rsp: Cloning into '/tmp/ec_tests'...
-  - cmd: docker container rm -f bl45p-ea-ioc-01
+  - cmd: docker stop -t0 bl45p-ea-ioc-01
+    rsp: bl45p-ea-ioc-01
+  - cmd: docker rm -f bl45p-ea-ioc-01
     rsp: bl45p-ea-ioc-01
   - cmd: docker volume rm -f bl45p-ea-ioc-01_config
     rsp: bl45p-ea-ioc-01-config
@@ -45,11 +56,7 @@ instances:
       2.0
 
 exec:
-  - cmd: docker exec -it bl45p-ea-ioc-01 bash
-    rsp: True
-
-exec2:
-  - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
+  - cmd: docker exec -it bl45p-ea-ioc-01 bash -c "bash"
     rsp: True
 
 logs:

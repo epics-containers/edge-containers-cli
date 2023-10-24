@@ -19,6 +19,7 @@ os.environ["EC_LOG_URL"] = (
 os.environ["EC_DEBUG"] = "1"
 
 TMPDIR = Path("/tmp/ec_tests")
+DATA_PATH = Path(__file__).parent / "data"
 
 
 class MockRun:
@@ -55,7 +56,7 @@ class MockRun:
         self.log += f"\nCMD: {command}"
 
         cmd_rsp = self.cmd_rsp.pop(0)
-        cmd = cmd_rsp[self.cmd]
+        cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]
 
         self.log += f"\nTST: {cmd}"
@@ -139,7 +140,7 @@ def mock_run():
 
 @fixture
 def data() -> Path:
-    return Path(__file__).parent / "data"
+    return DATA_PATH
 
 
 @fixture()

@@ -148,17 +148,18 @@ def stop(
 @dev.command()
 def exec(
     ctx: typer.Context,
-    command: str = typer.Argument(
-        "bash", help="command to execute inside the container must be 'single quoted'"
-    ),
     ioc_name: str = typer.Option(
         IOC_NAME, help="container name override. Use to run multiple instances"
     ),
+    command: str = typer.Argument(
+        "bash", help="command to execute inside the container must be 'single quoted'"
+    ),
+    args: str = typer.Option("", help="Additional args for exec, 'must be quoted'"),
 ):
     """
     Execute a command inside a running local IOC container
     """
-    DevCommands().exec(command, ioc_name)
+    DevCommands().exec(ioc_name, command, args)
 
 
 @dev.command()
@@ -187,7 +188,6 @@ def build(
         Architecture.linux, help="choose target architecture"
     ),
     platform: str = typer.Option("linux/amd64", help="target platform"),
-    buildx: bool = typer.Option(False, help="use buildx if available"),
     cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
     cache_to: Optional[str] = typer.Option(None, help="buildx cache to folder"),
     cache_from: Optional[str] = typer.Option(None, help="buildx cache from folder"),
@@ -204,7 +204,6 @@ def build(
         tag,
         arch,
         platform,
-        buildx,
         cache,
         cache_to,
         cache_from,

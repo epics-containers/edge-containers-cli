@@ -10,10 +10,11 @@ from typing import Optional
 
 import typer
 
+import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import Context
 from epics_containers_cli.ioc.helm import Helm
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import EC_LOG_URL, run_command
+from epics_containers_cli.shell import run_command
 
 
 def check_ioc(ioc_name: str, domain: str):
@@ -101,11 +102,11 @@ class IocK8sCommands:
         )
 
     def log_history(self):
-        if not EC_LOG_URL:
+        if not glob_vars.EC_LOG_URL:
             log.error("K8S_LOG_URL environment not set")
             raise typer.Exit(1)
 
-        url = EC_LOG_URL.format(ioc_name=self.ioc_name)
+        url = glob_vars.EC_LOG_URL.format(ioc_name=self.ioc_name)
         webbrowser.open(url)
 
     def logs(self, prev: bool, follow: bool):
