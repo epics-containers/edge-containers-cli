@@ -4,8 +4,9 @@ Utility functions for working interacting with docker / podman CLI
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
+from epics_containers_cli.globals import Architecture
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import EC_CONTAINER_CLI, run_command
 
@@ -24,7 +25,10 @@ class Docker:
 
     def __init__(self, devcontainer: bool = False):
         self.devcontainer = devcontainer
-        self.docker, self.is_docker, self.is_buildx = self._check_docker()
+        self.docker: str = "podman"
+        self.is_docker: bool = False
+        self.is_buildx: bool = False
+        self._check_docker()
 
     def _check_docker(self) -> Tuple[str, bool, bool]:
         """
@@ -37,11 +41,8 @@ class Docker:
         Returns:
             Tuple[str, bool]: docker command, is_docker, is_buildx
         """
-        # defaults
-        docker_cmd, is_docker = "podman", False
-
         if EC_CONTAINER_CLI:
-            docker_cmd = EC_CONTAINER_CLI
+            self.docker = EC_CONTAINER_CLI
         else:
             # default to podman if we do not find a docker>=20.0.0
             result = run_command("docker --version", interactive=False, error_OK=True)
@@ -49,19 +50,19 @@ class Docker:
             if match is not None:
                 version = int(match.group(1))
                 if version >= 20:
-                    docker_cmd, is_docker = "docker", True
+                    self.docker, self.is_docker = "docker", True
                     log.debug(f"using docker {result}")
 
         result = run_command(
-            f"{docker_cmd} buildx version", interactive=False, error_OK=True
+            f"{self.docker} buildx version", interactive=False, error_OK=True
         )
-        is_buildx = result and "buildah" not in result
+        self.is_buildx = result and "buildah" not in result
 
-        log.debug(f"buildx={is_buildx} ({result})")
+        log.debug(f"buildx={self.is_buildx} ({result})")
 
-        return docker_cmd, is_docker, is_buildx
-
-    def _all_params(self, args: str, mounts: List[Path], exec: bool = False):
+    def _all_params(
+        self, args: str, mounts: Optional[List[Path]] = None, exec: bool = False
+    ):
         """
         set up parameters for call to docker/podman
         """
@@ -75,12 +76,13 @@ class Docker:
                 env = "-e DISPLAY -e SHELL"
 
             volumes = ""
-            for file in MOUNTED_FILES + mounts:
+            for file in MOUNTED_FILES:
                 file_path = Path(file)
                 if file_path.exists():
                     volumes += f" -v {file}:/root/{file_path.name}"
-            for mount in mounts:
-                volumes += f" -v {mount}"
+            if mounts is not None:
+                for mount in mounts:
+                    volumes += f" -v {mount}"
 
             log.debug(f"env={env} volumes={volumes} opts={opts}")
 
@@ -90,32 +92,66 @@ class Docker:
 
         return params
 
-    def run(self, name: str, mounts: List[Path], args: str = ""):
+    def run(self, name: str, args: str = "", mounts: Optional[List[Path]] = None):
         """
         run a command in a local container
         """
         params = self._all_params(args, mounts=mounts)
         run_command(f"{self.docker} run --rm --name {name} {params}", interactive=True)
 
-    def build(self, container: str, args: str = ""):
+    def build(
+        self,
+        context: str,
+        name: str,
+        target: str,
+        args: str = "",
+        cache_from: str = "",
+        cache_to: str = "",
+        push: bool = False,
+        arch: Architecture = Architecture.linux,
+    ):
         """
         build a container
         """
-        params = self._all_params(args)
-        run_command(f"{self.docker} build {params} {container}")
+        if self.is_buildx:
+            cmd = f"{self.docker} buildx"
+            run_command(
+                f"{cmd} create --driver docker-container --use", interactive=False
+            )
+            args += f" --cache-from={cache_from}" if cache_from else ""
+            args += f" --cache-to={cache_to},mode=max" if cache_to else ""
+            args += " --push" if push else " --load "
+        else:
+            cmd = f"{self.docker}"
 
-    def exec(self, command: str, container: str, args: str = ""):
+        t_arch = f" --build-arg TARGET_ARCHITECTURE={arch}" if self.devcontainer else ""
+
+        run_command(f"{cmd} build --target {target}{t_arch} {args} -t {name} {context}")
+
+    def exec(
+        self, container: str, command: str, args: str = "", interactive: bool = True
+    ):
         """
         execute a command in a local IOC instance
         """
-        config = self._all_params(args, exec=True)
-        run_command(f'{self.docker} exec {config} {container} bash -c "{command}"')
+        args = f"{args} " if args else ""
+        result = run_command(
+            f'{self.docker} exec {container} {args}bash -c "{command}"',
+            interactive=interactive,
+        )
+        return result
 
     def remove(self, container: str):
         """
         Stop and delete a container. Don't fail if it does not exist
         """
+        self.stop(container)
+        run_command(f"{self.docker} rm {container}", error_OK=True, interactive=False)
+
+    def stop(self, container: str):
+        """
+        Stop a container
+        """
         run_command(
             f"{self.docker} stop -t0 {container}", error_OK=True, interactive=False
         )
-        run_command(f"{self.docker} rm {container}", error_OK=True, interactive=False)

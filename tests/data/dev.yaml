@@ -51,15 +51,15 @@ launch_dit:
     rsp: True
 
 debug_last1:
-  - cmd: podman images | awk '{print $3}' | awk 'NR==2'
+  - cmd: podman images | awk '{{print $3}}' | awk 'NR==2'
     rsp: ea2378de0b5f
 
 debug_last2:
-  - cmd: podman run --security-opt=label=type:container_runtime_t -v/tmp/bl45p:/epics/ioc/$bl45p ea2378de0b5f --entrypoint bash --rm --name debug_build -e DISPLAY -e SHELL
+  - cmd: podman run --rm --name debug_build -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t -v /tmp/bl45p:/epics/ioc/$bl45p --entrypoint bash ea2378de0b5f
     rsp: True
 
 versions:
-  - cmd: podman run --rm quay.io/skopeo/stable list-tags docker://ghcr.io/epics-containers/bl45p-linux-developer
+  - cmd: podman run --rm --name versions -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t quay.io/skopeo/stable list-tags docker://ghcr.io/epics-containers/bl45p-linux-developer
     rsp: True
 
 stop:
@@ -69,7 +69,7 @@ stop:
     rsp: "test-ioc"
 
 exec:
-  - cmd: podman exec -e DISPLAY -e SHELL test-ioc bash -c "bash"
+  - cmd: podman exec test-ioc bash -c "bash"
     rsp: True
 
 wait_pv:
