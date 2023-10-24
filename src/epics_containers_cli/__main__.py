@@ -71,7 +71,7 @@ def main(
 ):
     """EPICS Containers assistant CLI"""
 
-    glob_vars.EC_VERBOSE, glob_vars.EC_DEBUG = verbose, debug
+    glob_vars.EC_VERBOSE, glob_vars.EC_DEBUG = bool(verbose), bool(debug)
 
     init_logging(log_level.upper())
 

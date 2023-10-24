@@ -36,8 +36,9 @@ CONFIG_FOLDER = "config"
 IOC_CONFIG_FOLDER = "/epics/ioc/config/"
 IOC_START = "/epics/ioc/start.sh"
 IOC_NAME = "test-ioc"
-EC_DEBUG = os.environ.get("EC_DEBUG")
-EC_VERBOSE = os.environ.get("EC_VERBOSE")
+# these should be set to 0 or 1 in the environment - blank is treated as false
+EC_DEBUG = bool(os.environ.get("EC_DEBUG"))
+EC_VERBOSE = bool(os.environ.get("EC_VERBOSE"))
 
 EC_REGISTRY_MAPPING = os.environ.get(
     "EC_REGISTRY_MAPPING",
