@@ -67,9 +67,9 @@ def launch(
     ioc_instance: Path = typer.Argument(
         ...,
         help="local IOC definition folder from domain repo",
-        dir_okay=True,
         file_okay=False,
         exists=True,
+        resolve_path=True,
     ),
     execute: str = typer.Option(
         f"{IOC_START}; bash",
@@ -98,7 +98,9 @@ def launch(
 
 @dev.command()
 def debug_last(
-    generic_ioc: Path = typer.Argument(Path("."), help="Container project folder"),
+    generic_ioc: Path = typer.Argument(
+        Path("."), help="Container project folder", exists=True, file_okay=False
+    ),
     mount_repos: bool = typer.Option(
         True, help="Mount generic IOC repo folder into the container"
     ),
@@ -114,7 +116,9 @@ def debug_last(
 @dev.command()
 def versions(
     ctx: typer.Context,
-    generic_ioc: Path = typer.Argument(Path("."), help="Generic IOC project folder"),
+    generic_ioc: Path = typer.Argument(
+        Path("."), help="Generic IOC project folder", exists=True, file_okay=False
+    ),
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"
     ),
@@ -182,7 +186,9 @@ def wait_pv(
 @dev.command()
 def build(
     ctx: typer.Context,
-    generic_ioc: Path = typer.Option(Path("."), help="Generic IOC project folder"),
+    generic_ioc: Path = typer.Option(
+        Path("."), help="Generic IOC project folder", exists=True, file_okay=False
+    ),
     tag: str = typer.Option(IMAGE_TAG, help="version tag for the image"),
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"

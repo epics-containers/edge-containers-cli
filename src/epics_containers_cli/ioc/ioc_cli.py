@@ -42,7 +42,13 @@ def delete(
 @ioc.command()
 def template(
     ctx: typer.Context,
-    ioc_instance: Path = typer.Argument(..., help="folder of local ioc definition"),
+    ioc_instance: Path = typer.Argument(
+        ...,
+        help="folder of local ioc definition",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
@@ -57,7 +63,13 @@ def template(
 @ioc.command()
 def deploy_local(
     ctx: typer.Context,
-    ioc_instance: Path = typer.Argument(..., help="folder of local ioc definition"),
+    ioc_instance: Path = typer.Argument(
+        ...,
+        help="folder of local ioc definition",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
