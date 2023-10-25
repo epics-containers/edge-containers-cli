@@ -69,10 +69,14 @@ stop:
     rsp: "test-ioc"
 
 exec:
+  - cmd: podman ps -f name=test-ioc --format .*
+    rsp: test-ioc
   - cmd: podman exec test-ioc bash -c "bash"
     rsp: True
 
 wait_pv:
+  - cmd: podman ps -f name=test-ioc --format .*
+    rsp: test-ioc
   - cmd: podman exec test-ioc bash -c "caget BL45P-EA-IOC-01:UPTIME"
     rsp: "BL45P-EA-IOC-01:UPTIME 00:00:07"
 

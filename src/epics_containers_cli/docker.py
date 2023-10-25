@@ -4,7 +4,10 @@ Utility functions for working interacting with docker / podman CLI
 import re
 import sys
 from pathlib import Path
+from time import sleep
 from typing import List, Optional
+
+import typer
 
 import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import Architecture
@@ -135,6 +138,7 @@ class Docker:
         """
         execute a command in a local IOC instance
         """
+        self.is_running(container, error=True)
         args = f"{args} " if args else ""
         result = run_command(
             f'{self.docker} exec {args}{container} bash -c "{command}"',
@@ -163,13 +167,33 @@ class Docker:
         """
         attach to a container
         """
+        self.is_running(container, error=True)
         run_command(f"{self.docker} attach {container}")
 
     def logs(self, container: str, previous: bool = False, follow: bool = False):
         """
         show logs from a container
         """
+        self.is_running(container, error=True)
         prev = " -p" if previous else ""
         fol = " -f" if follow else ""
 
-        run_command(f"docker logs{prev}{fol} {container}")
+        run_command(f"{self.docker} logs{prev}{fol} {container}")
+
+    def is_running(self, container: str, retry=1, error=False):
+        """
+        verify that a given container is up and running
+        """
+        for i in range(retry):
+            result = run_command(
+                f"{self.docker} ps -f name={container} --format '{{{{.Names}}}}'",
+                interactive=False,
+            )
+            if container in result:
+                return True
+            sleep(0.5)
+        else:
+            if error:
+                log.error(f"{container} is not running")
+                raise typer.Exit(1)
+            return False

@@ -6,6 +6,8 @@ setup:
     rsp: ""
 
 attach:
+  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
+    rsp: bl45p-ea-ioc-01
   - cmd: docker attach bl45p-ea-ioc-01
     rsp: True
 
@@ -24,10 +26,18 @@ deploy_local:
     rsp: bl45p-ea-ioc-01-config
   - cmd: docker volume create bl45p-ea-ioc-01_config
     rsp: bl45p-ea-ioc-01-config
+  - cmd: docker rm -f busybox
+    rsp: ""
+  - cmd: docker container create --name busybox -v bl45p-ea-ioc-01_config:/copyto busybox
+    rsp: ""
+  - cmd: docker cp {data}/iocs/bl45p-ea-ioc-01/config/* busybox:copyto
+    rsp: ""
+  - cmd: docker rm -f busybox
+    rsp: ""
   - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=.* -v bl45p-ea-ioc-01_config:\/epics\/ioc\/config\/  --name bl45p-ea-ioc-01 ghcr.io\/epics-containers\/ioc-adaravis-linux-runtime:23.9.4
     rsp: True
-  - cmd: docker cp {data}/iocs/bl45p-ea-ioc-01/config/* bl45p-ea-ioc-01:/epics/ioc/config/
-    rsp: 32123f4d0b0f
+  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
+    rsp: bl45p-ea-ioc-01
 
 deploy:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=2.0
@@ -40,10 +50,18 @@ deploy:
     rsp: bl45p-ea-ioc-01-config
   - cmd: docker volume create bl45p-ea-ioc-01_config
     rsp: bl45p-ea-ioc-01-config
+  - cmd: docker rm -f busybox
+    rsp: ""
+  - cmd: docker container create --name busybox -v bl45p-ea-ioc-01_config:/copyto busybox
+    rsp: ""
+  - cmd: docker cp /tmp/ec_tests/iocs/bl45p-ea-ioc-01/config/* busybox:copyto
+    rsp: ""
+  - cmd: docker rm -f busybox
+    rsp: ""
   - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=2.0 -v bl45p-ea-ioc-01_config:/epics/ioc/config/  --name bl45p-ea-ioc-01 ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
     rsp: True
-  - cmd: docker cp /tmp/ec_tests/iocs/bl45p-ea-ioc-01/config/* bl45p-ea-ioc-01:/epics/ioc/config/
-    rsp: copied
+  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
+    rsp: bl45p-ea-ioc-01
 
 instances:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
@@ -56,10 +74,14 @@ instances:
       2.0
 
 exec:
+  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
+    rsp: bl45p-ea-ioc-01
   - cmd: docker exec -it bl45p-ea-ioc-01 bash -c "bash"
     rsp: True
 
 logs:
+  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
+    rsp: bl45p-ea-ioc-01
   - cmd: docker logs bl45p-ea-ioc-01
     rsp: True
 
