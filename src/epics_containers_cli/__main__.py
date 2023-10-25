@@ -4,14 +4,14 @@ from typing import Optional
 import typer
 
 import epics_containers_cli.globals as glob_vars
+from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
+from epics_containers_cli.ioc.local_commands import IocLocalCommands
 
 from . import __version__
 from .dev.dev_cli import dev
 from .ioc.ioc_cli import ioc
 from .k8s.k8s_cli import cluster
-from .k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from .logging import init_logging
-from .shell import run_command
 
 __all__ = ["main"]
 
@@ -93,14 +93,11 @@ def ps(
         False, "--wide", "-w", help="use a wide format with additional fields"
     ),
 ):
-    """List the IOCs running in the current domain"""
-    domain = ctx.obj.namespace
-
-    if all:
-        run_command(f"kubectl -n {domain} get deploy -l is_ioc==True -o {fmt_deploys}")
+    """List the IOCs running in the current namespace"""
+    if ctx.obj.namespace == "":
+        IocLocalCommands(ctx.obj).ps(all, wide)
     else:
-        format = fmt_pods_wide if wide else fmt_pods
-        run_command(f"kubectl -n {domain} get pod -l is_ioc==True -o {format}")
+        IocK8sCommands(ctx.obj).ps(all, wide)
 
 
 # test with:

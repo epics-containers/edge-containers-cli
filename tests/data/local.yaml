@@ -75,3 +75,6 @@ stop:
   - cmd: docker stop bl45p-ea-ioc-01
     rsp: True
 
+ps:
+  - cmd: docker ps --filter label=is_IOC=true --format "table .*
+    rsp: True

@@ -58,3 +58,8 @@ def test_start(mock_run, local):
 def test_stop(mock_run, local):
     mock_run.set_seq(local.setup + local.stop)
     mock_run.run_cli("ioc stop bl45p-ea-ioc-01")
+
+
+def test_ps(mock_run, local):
+    mock_run.set_seq(local.setup + local.ps)
+    mock_run.run_cli("ps")

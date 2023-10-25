@@ -24,6 +24,8 @@ from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo, run_command
 from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
 
+PS_FORMAT = "table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.ID}}"
+
 
 class IocLocalCommands:
     """
@@ -52,8 +54,8 @@ class IocLocalCommands:
 
     def delete(self):
         if not typer.confirm(
-            f"This will remove all versions of {self.ioc_name} "
-            "from the cluster. Are you sure ?"
+            f"This will remove the IOC container {self.ioc_name} "
+            "from the this server. Are you sure ?"
         ):
             raise typer.Abort()
         self.docker.remove(self.ioc_name)
@@ -123,3 +125,10 @@ class IocLocalCommands:
 
     def stop(self):
         run_command(f"{self.docker.docker} stop {self.ioc_name}")
+
+    def ps(self, all: bool, wide: bool):
+        all = " --all" if all else ""
+        run_command(
+            f"{self.docker.docker} ps{all} --filter label=is_IOC=true "
+            f'--format "{PS_FORMAT}"'
+        )

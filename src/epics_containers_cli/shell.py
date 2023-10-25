@@ -21,22 +21,26 @@ def run_command(command: str, interactive=True, error_OK=False) -> Union[str, bo
     if interactive is true then allow stdin and stdout, return the return code,
     otherwise return True for success and False for failure
     """
+    console = Console(highlight=False, soft_wrap=True)
+
     if glob_vars.EC_VERBOSE:
-        Console(highlight=False).print(
-            command, style=Style(color="pale_turquoise4", bold=True)
-        )
+        console.print(command, style=Style(color="pale_turquoise4"))
 
     p_result = subprocess.run(command, capture_output=not interactive, shell=True)
 
     output = "" if interactive else p_result.stdout.decode() + p_result.stderr.decode()
 
-    if p_result.returncode != 0 and not error_OK:
-        raise RuntimeError(f"Command Failed:\n{command}\n{output}\n")
-
     if interactive:
         result: Union[str, bool] = p_result.returncode == 0
     else:
         result = p_result.stdout.decode() + p_result.stderr.decode()
+
+    if p_result.returncode != 0 and not error_OK:
+        console.print("\nCommand Failed:", style=Style(color="red", bold=True))
+        console.print(f"{command}", style=Style(color="pale_turquoise4"))
+        console.print(output, style=Style(color="red", bold=True))
+        raise typer.Exit(1)
+
     log.debug(f"returning: {result}")
     return result
 

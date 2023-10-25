@@ -13,6 +13,7 @@ import typer
 import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import Context
 from epics_containers_cli.ioc.helm import Helm
+from epics_containers_cli.k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
 
@@ -134,3 +135,16 @@ class IocK8sCommands:
         run_command(
             f"kubectl scale -n {self.namespace} deploy/{self.ioc_name} --replicas=0 "
         )
+
+    def ps(self, all: bool, wide: bool):
+        """List all IOCs in the current namespace"""
+
+        if all:
+            run_command(
+                f"kubectl -n {self.namespace} get deploy -l is_ioc==True -o {fmt_deploys}"
+            )
+        else:
+            format = fmt_pods_wide if wide else fmt_pods
+            run_command(
+                f"kubectl -n {self.namespace} get pod -l is_ioc==True -o {format}"
+            )
