@@ -25,20 +25,21 @@ def check_ioc(ioc_name: str, domain: str):
         raise typer.Exit(1)
 
 
-def check_namespace(domain: Optional[str]):
+def check_namespace(namespace: Optional[str]):
     """
     Verify we have a good namespace that exists in the cluster
     """
-    if domain is None:
+    if namespace is None:
         log.error("Please set EC_K8S_NAMESPACE or pass --namespace")
         raise typer.Exit(1)
 
-    cmd = f"kubectl get namespace {domain} -o name"
-    if not run_command(cmd, interactive=False, error_OK=True):
-        log.error(f"domain {domain} does not exist")
+    cmd = f"kubectl get namespace {namespace} -o name"
+    result = run_command(cmd, interactive=False, error_OK=True)
+    if "NotFound" in str(result):
+        log.error(f"namespace {namespace} not found - please check your environment")
         raise typer.Exit(1)
 
-    log.info("domain = %s", domain)
+    log.info("domain = %s", namespace)
 
 
 class IocK8sCommands:

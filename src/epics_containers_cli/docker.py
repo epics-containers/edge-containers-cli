@@ -189,7 +189,7 @@ class Docker:
                 f"{self.docker} ps -f name={container} --format '{{{{.Names}}}}'",
                 interactive=False,
             )
-            if container in result:
+            if container in str(result):
                 return True
             sleep(0.5)
         else:

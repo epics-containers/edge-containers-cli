@@ -142,8 +142,8 @@ class IocLocalCommands:
         run_command(f"{self.docker.docker} stop {self.ioc_name}")
 
     def ps(self, all: bool, wide: bool):
-        all = " --all" if all else ""
+        all_arg = " --all" if all else ""
         run_command(
-            f"{self.docker.docker} ps{all} --filter label=is_IOC=true "
+            f"{self.docker.docker} ps{all_arg} --filter label=is_IOC=true "
             f'--format "{PS_FORMAT}"'
         )
