@@ -133,7 +133,12 @@ class Docker:
         run_command(f"{cmd} build --target {target}{t_arch} {args} -t {name} {context}")
 
     def exec(
-        self, container: str, command: str, args: str = "", interactive: bool = True
+        self,
+        container: str,
+        command: str,
+        args: str = "",
+        interactive: bool = True,
+        errorOK: bool = False,
     ):
         """
         execute a command in a local IOC instance
@@ -143,6 +148,7 @@ class Docker:
         result = run_command(
             f'{self.docker} exec {args}{container} bash -c "{command}"',
             interactive=interactive,
+            error_OK=errorOK,
         )
         return result
 

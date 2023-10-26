@@ -1,6 +1,5 @@
 import time
 from pathlib import Path
-from subprocess import CalledProcessError
 from typing import Optional
 
 import typer
@@ -158,23 +157,21 @@ class DevCommands:
         """
         self.docker.stop(ioc_name)
 
-    def exec(self, command: str, ioc_name: str, args: str = ""):
+    def exec(self, ioc_name: str, command: str, args: str = ""):
         """
         execute a command in a locally running container
         """
-        self.docker.exec(command, ioc_name, args)
+        self.docker.exec(container=ioc_name, command=command, args=args)
 
     def wait_pv(self, pv_name: str, ioc_name: str, attempts: int):
         """
         wait for a local IOC instance to start by monitoring for a PV
         """
         for i in range(attempts):
-            try:
-                cmd = f"caget {pv_name}"
-                result = self.docker.exec(ioc_name, cmd, interactive=False)
-            except CalledProcessError:
-                pass  # assume the IOC is not running yet
-
+            cmd = f"caget {pv_name}"
+            result = self.docker.exec(
+                container=ioc_name, command=cmd, interactive=False, errorOK=True
+            )
             if str(result).startswith(pv_name):
                 break
             time.sleep(1)
