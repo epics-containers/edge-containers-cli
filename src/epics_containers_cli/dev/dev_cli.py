@@ -211,8 +211,8 @@ def build(
         arch,
         platform,
         cache,
-        cache_to,
         cache_from,
+        cache_to,
         push,
         rebuild,
     )
