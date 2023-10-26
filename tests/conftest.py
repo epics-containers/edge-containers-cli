@@ -113,6 +113,10 @@ class MockRun:
             log.error(self.log)
             raise result.exception
 
+        if len(self.cmd_rsp) > 0:
+            log.error(self.log)
+            raise AssertionError("not all commands were run")
+
 
 MOCKRUN = MockRun()
 

@@ -13,6 +13,7 @@ import typer
 import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import Context
 from epics_containers_cli.ioc.helm import Helm
+from epics_containers_cli.k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
 
@@ -24,20 +25,21 @@ def check_ioc(ioc_name: str, domain: str):
         raise typer.Exit(1)
 
 
-def check_namespace(domain: Optional[str]):
+def check_namespace(namespace: Optional[str]):
     """
     Verify we have a good namespace that exists in the cluster
     """
-    if domain is None:
+    if namespace is None:
         log.error("Please set EC_K8S_NAMESPACE or pass --namespace")
         raise typer.Exit(1)
 
-    cmd = f"kubectl get namespace {domain} -o name"
-    if not run_command(cmd, interactive=False, error_OK=True):
-        log.error(f"domain {domain} does not exist")
+    cmd = f"kubectl get namespace {namespace} -o name"
+    result = run_command(cmd, interactive=False, error_OK=True)
+    if "NotFound" in str(result):
+        log.error(f"namespace {namespace} not found - please check your environment")
         raise typer.Exit(1)
 
-    log.info("domain = %s", domain)
+    log.info("domain = %s", namespace)
 
 
 class IocK8sCommands:
@@ -134,3 +136,16 @@ class IocK8sCommands:
         run_command(
             f"kubectl scale -n {self.namespace} deploy/{self.ioc_name} --replicas=0 "
         )
+
+    def ps(self, all: bool, wide: bool):
+        """List all IOCs in the current namespace"""
+
+        if all:
+            run_command(
+                f"kubectl -n {self.namespace} get deploy -l is_ioc==True -o {fmt_deploys}"
+            )
+        else:
+            format = fmt_pods_wide if wide else fmt_pods
+            run_command(
+                f"kubectl -n {self.namespace} get pod -l is_ioc==True -o {format}"
+            )

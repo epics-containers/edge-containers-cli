@@ -57,7 +57,13 @@ def launch_local(
     IOC project folder.
     """
     DevCommands().launch_local(
-        ioc_instance, generic_ioc, execute, target, tag, args, ioc_name
+        ioc_instance=ioc_instance,
+        generic_ioc=generic_ioc,
+        execute=execute,
+        target=target,
+        tag=tag,
+        args=args,
+        ioc_name=ioc_name,
     )
 
 
@@ -67,9 +73,9 @@ def launch(
     ioc_instance: Path = typer.Argument(
         ...,
         help="local IOC definition folder from domain repo",
-        dir_okay=True,
         file_okay=False,
         exists=True,
+        resolve_path=True,
     ),
     execute: str = typer.Option(
         f"{IOC_START}; bash",
@@ -93,12 +99,22 @@ def launch(
     instances. You may find the devcontainer a more convenient way to
     do this.
     """
-    DevCommands().launch(ioc_instance, execute, target, image, tag, args, ioc_name)
+    DevCommands().launch(
+        ioc_instance=ioc_instance,
+        execute=execute,
+        target=target,
+        image=image,
+        tag=tag,
+        args=args,
+        ioc_name=ioc_name,
+    )
 
 
 @dev.command()
 def debug_last(
-    generic_ioc: Path = typer.Argument(Path("."), help="Container project folder"),
+    generic_ioc: Path = typer.Argument(
+        Path("."), help="Container project folder", exists=True, file_okay=False
+    ),
     mount_repos: bool = typer.Option(
         True, help="Mount generic IOC repo folder into the container"
     ),
@@ -108,13 +124,15 @@ def debug_last(
     Useful for debugging failed builds - if the last build failed it will
     start the container after the most recent successful build step.
     """
-    DevCommands().debug_last(generic_ioc, mount_repos)
+    DevCommands().debug_last(generic_ioc=generic_ioc, mount_repos=mount_repos)
 
 
 @dev.command()
 def versions(
     ctx: typer.Context,
-    generic_ioc: Path = typer.Argument(Path("."), help="Generic IOC project folder"),
+    generic_ioc: Path = typer.Argument(
+        Path("."), help="Generic IOC project folder", exists=True, file_okay=False
+    ),
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"
     ),
@@ -129,7 +147,7 @@ def versions(
     or the local project folder (defaults to .) e.g.
         ec dev versions ../ioc-template
     """
-    DevCommands().versions(generic_ioc, arch, image)
+    DevCommands().versions(generic_ioc=generic_ioc, arch=arch, image=image)
 
 
 @dev.command()
@@ -142,24 +160,24 @@ def stop(
     """
     Stop a running local IOC container
     """
-    DevCommands().stop(ioc_name)
+    DevCommands().stop(ioc_name=ioc_name)
 
 
 @dev.command()
 def exec(
     ctx: typer.Context,
-    ioc_name: str = typer.Option(
-        IOC_NAME, help="container name override. Use to run multiple instances"
-    ),
     command: str = typer.Argument(
         "bash", help="command to execute inside the container must be 'single quoted'"
+    ),
+    ioc_name: str = typer.Option(
+        IOC_NAME, help="container name override. Use to run multiple instances"
     ),
     args: str = typer.Option("", help="Additional args for exec, 'must be quoted'"),
 ):
     """
     Execute a command inside a running local IOC container
     """
-    DevCommands().exec(ioc_name, command, args)
+    DevCommands().exec(ioc_name=ioc_name, command=command, args=args)
 
 
 @dev.command()
@@ -176,13 +194,15 @@ def wait_pv(
     """
     Execute a command inside a running local IOC container
     """
-    DevCommands().wait_pv(pv_name, ioc_name, attempts)
+    DevCommands().wait_pv(pv_name=pv_name, ioc_name=ioc_name, attempts=attempts)
 
 
 @dev.command()
 def build(
     ctx: typer.Context,
-    generic_ioc: Path = typer.Option(Path("."), help="Generic IOC project folder"),
+    generic_ioc: Path = typer.Option(
+        Path("."), help="Generic IOC project folder", exists=True, file_okay=False
+    ),
     tag: str = typer.Option(IMAGE_TAG, help="version tag for the image"),
     arch: Architecture = typer.Option(
         Architecture.linux, help="choose target architecture"
@@ -200,13 +220,13 @@ def build(
     Builds both developer and runtime targets.
     """
     DevCommands().build(
-        generic_ioc,
-        tag,
-        arch,
-        platform,
-        cache,
-        cache_to,
-        cache_from,
-        push,
-        rebuild,
+        generic_ioc=generic_ioc,
+        tag=tag,
+        arch=arch,
+        platform=platform,
+        cache=cache,
+        cache_from=cache_from,
+        cache_to=cache_to,
+        push=push,
+        rebuild=rebuild,
     )

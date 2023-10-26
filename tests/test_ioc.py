@@ -64,3 +64,8 @@ def test_start(mock_run, ioc):
 def test_stop(mock_run, ioc):
     mock_run.set_seq(ioc.checks + ioc.stop)
     mock_run.run_cli("ioc stop bl45p-ea-ioc-01")
+
+
+def test_ps(mock_run, ioc):
+    mock_run.set_seq(ioc.ps)
+    mock_run.run_cli("ps")

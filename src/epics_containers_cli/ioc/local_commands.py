@@ -27,7 +27,7 @@ from epics_containers_cli.utils import check_ioc_instance_path, get_instance_ima
 
 class IocLocalCommands:
     """
-    A class for implementing the ioc command namespace
+    A class for implementing the ioc command namespace for local docker/podman
     """
 
     def __init__(self, ctx: Optional[Context], ioc_name: str = ""):
@@ -52,8 +52,8 @@ class IocLocalCommands:
 
     def delete(self):
         if not typer.confirm(
-            f"This will remove all versions of {self.ioc_name} "
-            "from the cluster. Are you sure ?"
+            f"This will remove the IOC container {self.ioc_name} "
+            "from the this server. Are you sure ?"
         ):
             raise typer.Abort()
         self.docker.remove(self.ioc_name)
@@ -63,7 +63,7 @@ class IocLocalCommands:
 
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
-        config = ioc_instance / CONFIG_FOLDER
+        config = ioc_instance / CONFIG_FOLDER / "*"
         ioc_name = ioc_instance.name
         volume = f"{ioc_name}_config"
 
@@ -74,10 +74,25 @@ class IocLocalCommands:
         vol = f"-v {volume}:{IOC_CONFIG_FOLDER}"
         label = f"-l is_IOC=true -l version={version}"
         cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args}"
-        dest = f"{ioc_name}:{IOC_CONFIG_FOLDER}"
+        dest = "busybox:copyto"
 
-        run_command(f"{self.docker.docker} {cmd} --name {ioc_name} {image}")
+        # get the config into the volume before launching the IOC container
+        run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
+        run_command(
+            f"{self.docker.docker} container create --name busybox "
+            f"-v {volume}:/copyto busybox",
+            interactive=False,
+        )
         run_command(f"{self.docker.docker} cp {config} {dest}", interactive=False)
+        run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
+
+        # launch the ioc container with mounted config volume
+        run_command(f"{self.docker.docker} {cmd} --name {ioc_name} {image}")
+        if not self.docker.is_running(ioc_name, retry=5):
+            typer.echo(
+                f"Failed to start {ioc_name} please try 'ec ioc logs {ioc_name}'"
+            )
+            raise typer.Exit(1)
 
     def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
         """
@@ -123,3 +138,24 @@ class IocLocalCommands:
 
     def stop(self):
         run_command(f"{self.docker.docker} stop {self.ioc_name}")
+
+    def ps(self, all: bool, wide: bool):
+        all_arg = " --all" if all else ""
+
+        format = "{{.Names}}%{{.Labels.version}}%{{.Status}}%{{.Image}}"
+        result = run_command(
+            f"{self.docker.docker} ps{all_arg} --filter label=is_IOC=true "
+            f'--format "{format}"',
+            interactive=False,
+        )
+        # we have to build the table ourselves because the docker ps format
+        # fails to make a heading for the version column using:
+        # --format "table {{.Names}}\t{{.Status}}\t{{.Image}}\y{{.Labels.version}}"
+        lines = ["IOC NAME%VERSION%STATUS%IMAGE"]
+        lines += str(result).splitlines()
+        rows = []
+        for line in lines:
+            rows.append(line.split("%"))
+
+        for row in rows:
+            print("{0: <20.20} {1: <20.20} {2: <23.23} {3}".format(*row))

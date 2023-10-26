@@ -102,6 +102,7 @@ def versions(beamline_repo: str, ioc_name: str, folder: Path):
     result = str(run_command("git tag", interactive=False))
     log.debug(f"checking these tags for changes in the instance: {result}")
 
+    count = 0
     tags = result.split("\n")
     for tag in tags:
         if tag == "":
@@ -111,3 +112,11 @@ def versions(beamline_repo: str, ioc_name: str, folder: Path):
 
         if ioc_name in result:
             typer.echo(f"  {tag}")
+            count += 1
+
+    if count == 0:
+        # also look to see if the first tag was when the instance was created
+        cmd = f"git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)"
+        result = str(run_command(cmd, interactive=False))
+        if ioc_name in result:
+            typer.echo(f"  {tags[0]}")
