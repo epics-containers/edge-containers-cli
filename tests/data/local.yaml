@@ -98,5 +98,5 @@ stop:
     rsp: True
 
 ps:
-  - cmd: docker ps --filter label=is_IOC=true --format "table .*
-    rsp: True
+  - cmd: docker ps --filter label=is_IOC=true --format ".*
+    rsp: bl45p-ea-ioc-01%2023.10.9%Up%an image

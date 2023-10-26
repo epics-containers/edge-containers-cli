@@ -24,8 +24,6 @@ from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo, run_command
 from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
 
-PS_FORMAT = "table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.ID}}"
-
 
 class IocLocalCommands:
     """
@@ -143,7 +141,21 @@ class IocLocalCommands:
 
     def ps(self, all: bool, wide: bool):
         all_arg = " --all" if all else ""
-        run_command(
+
+        format = "{{.Names}}%{{.Labels.version}}%{{.Status}}%{{.Image}}"
+        result = run_command(
             f"{self.docker.docker} ps{all_arg} --filter label=is_IOC=true "
-            f'--format "{PS_FORMAT}"'
+            f'--format "{format}"',
+            interactive=False,
         )
+        # we have to build the table ourselves because the docker ps format
+        # fails to make a heading for the version column using:
+        # --format "table {{.Names}}\t{{.Status}}\t{{.Image}}\y{{.Labels.version}}"
+        lines = ["IOC NAME%VERSION%STATUS%IMAGE"]
+        lines += str(result).splitlines()
+        rows = []
+        for line in lines:
+            rows.append(line.split("%"))
+
+        for row in rows:
+            print("{:<20}{:<20}{:<20}{}".format(*row))
