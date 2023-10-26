@@ -65,8 +65,6 @@ versions:
 stop:
   - cmd: podman stop -t0 test-ioc
     rsp: "test-ioc stopped"
-  - cmd: podman rm test-ioc
-    rsp: "test-ioc"
 
 exec:
   - cmd: podman ps -f name=test-ioc --format .*
