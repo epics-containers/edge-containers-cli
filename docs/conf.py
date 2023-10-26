@@ -153,6 +153,7 @@ html_theme_options = dict(
     logo=dict(
         text=project,
     ),
+    navigation_with_keys=True,
     use_edit_page_button=True,
     github_url=f"https://github.com/{github_user}/{github_repo}",
     icon_links=[
