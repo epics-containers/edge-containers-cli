@@ -158,4 +158,4 @@ class IocLocalCommands:
             rows.append(line.split("%"))
 
         for row in rows:
-            print("{:<20}{:<20}{:<20}{}".format(*row))
+            print("{0: <20.20} {1: <20.20} {2: <23.23} {3}".format(*row))
