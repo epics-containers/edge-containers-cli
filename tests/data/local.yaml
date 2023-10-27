@@ -30,7 +30,7 @@ deploy_local:
     rsp: ""
   - cmd: docker container create --name busybox -v bl45p-ea-ioc-01_config:/copyto busybox
     rsp: ""
-  - cmd: docker cp {data}/iocs/bl45p-ea-ioc-01/config/* busybox:copyto
+  - cmd: docker cp {data}/iocs/bl45p-ea-ioc-01/config/ioc.yaml busybox:copyto
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
@@ -54,7 +54,7 @@ deploy:
     rsp: ""
   - cmd: docker container create --name busybox -v bl45p-ea-ioc-01_config:/copyto busybox
     rsp: ""
-  - cmd: docker cp /tmp/ec_tests/iocs/bl45p-ea-ioc-01/config/* busybox:copyto
+  - cmd: docker cp /tmp/ec_tests/iocs/bl45p-ea-ioc-01/config/ioc.yaml busybox:copyto
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
