@@ -63,7 +63,7 @@ class IocLocalCommands:
 
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
-        config = ioc_instance / CONFIG_FOLDER / "*"
+        config = ioc_instance / CONFIG_FOLDER
         ioc_name = ioc_instance.name
         volume = f"{ioc_name}_config"
 
@@ -83,7 +83,8 @@ class IocLocalCommands:
             f"-v {volume}:/copyto busybox",
             interactive=False,
         )
-        run_command(f"{self.docker.docker} cp {config} {dest}", interactive=False)
+        for file in config.glob("*"):
+            run_command(f"{self.docker.docker} cp {file} {dest}", interactive=False)
         run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
 
         # launch the ioc container with mounted config volume
