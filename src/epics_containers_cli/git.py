@@ -55,6 +55,24 @@ def get_git_name(folder: Path = Path(".")) -> Tuple[str, Path]:
 def repo2registry(repo_name: str) -> str:
     """convert a repo name to the related a container registry name"""
 
+    # First try matching using the regex mappings environment variable
+    registry = ""
+
+    for mapping in glob_vars.EC_REGISTRY_MAPPING_REGEX.split("\n"):
+        if mapping == "":
+            continue
+        regex, replacement = mapping.split(" ")
+        log.debug("regex = %s replacement = %s", regex, replacement)
+        match = re.match(regex, repo_name)
+        if match is not None:
+            registry = match.expand(replacement)
+            break
+
+    if registry:
+        return registry
+
+    # Now try matching using the simple mappings environment variable.
+    # Here automatically add the organization name to the image root URL
     log.debug("extracting fields from repo name %s", repo_name)
 
     match_git = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)", repo_name)
@@ -68,10 +86,6 @@ def repo2registry(repo_name: str) -> str:
         raise typer.Exit(1)
 
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
-
-    if not glob_vars.EC_REGISTRY_MAPPING:
-        log.error("environment variable EC_REGISTRY_MAPPING not set")
-        raise typer.Exit(1)
 
     for mapping in glob_vars.EC_REGISTRY_MAPPING.split():
         if mapping.split("=")[0] == source_reg:
