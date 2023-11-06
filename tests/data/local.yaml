@@ -109,6 +109,6 @@ validate:
     rsp: "1.4.0"
   - cmd: yajsv -s \/tmp\/ec_tests\/schema.json .*\/data\/iocs\/bl45p-ea-ioc-01\/config\/ioc.yaml
     rsp: "OK"
-  - cmd: docker image inspect ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
+  - cmd: docker manifest inspect ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
     rsp: "OK"
 
