@@ -220,7 +220,7 @@ class IocLocalCommands:
                 raise typer.Exit(1)
 
         # verify that the values.yaml file points to a container image that exists
-        run_command(f"{self.docker.docker} image inspect {image}", interactive=False)
+        run_command(f"{self.docker.docker} manifest inspect {image}", interactive=False)
 
         shutil.rmtree(tmp, ignore_errors=True)
 
