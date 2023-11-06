@@ -33,6 +33,7 @@ class Targets(str, Enum):
 # common stings used in paths
 BEAMLINE_CHART_FOLDER = "beamline-chart"
 CONFIG_FOLDER = "config"
+CONFIG_FILE = "ioc.yaml"
 IOC_CONFIG_FOLDER = "/epics/ioc/config/"
 IOC_START = "/epics/ioc/start.sh"
 IOC_NAME = "test-ioc"

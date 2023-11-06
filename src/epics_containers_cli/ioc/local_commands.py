@@ -8,18 +8,24 @@ However, for the moment, Using this by connecting to each server and running
 'ec deploy <ioc_name> <ioc_version> and then managing the network with a
 tool like Portainer is a decent workflow.
 """
-
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from tempfile import mkdtemp
+from tempfile import TemporaryDirectory, mkdtemp
 from typing import Optional
 
+import requests
 import typer
 
 import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.docker import Docker
-from epics_containers_cli.globals import CONFIG_FOLDER, IOC_CONFIG_FOLDER, Context
+from epics_containers_cli.globals import (
+    CONFIG_FILE,
+    CONFIG_FOLDER,
+    IOC_CONFIG_FOLDER,
+    Context,
+)
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo, run_command
 from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
@@ -30,7 +36,9 @@ class IocLocalCommands:
     A class for implementing the ioc command namespace for local docker/podman
     """
 
-    def __init__(self, ctx: Optional[Context], ioc_name: str = ""):
+    def __init__(
+        self, ctx: Optional[Context], ioc_name: str = "", with_docker: bool = True
+    ):
         self.beamline_repo: str = ""
         if ctx is not None:
             self.beamline_repo = ctx.beamline_repo
@@ -39,7 +47,7 @@ class IocLocalCommands:
 
         self.tmp = Path(mkdtemp())
         self.ioc_folder = self.tmp / "iocs" / ioc_name
-        self.docker = Docker()
+        self.docker = Docker(check=with_docker)
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection_del
@@ -160,3 +168,36 @@ class IocLocalCommands:
 
         for row in rows:
             print("{0: <20.20} {1: <20.20} {2: <23.23} {3}".format(*row))
+
+    def validate_instance(self, ioc_instance: Path):
+        check_ioc_instance_path(ioc_instance)
+
+        ioc_config_file = ioc_instance / CONFIG_FOLDER / CONFIG_FILE
+
+        td = TemporaryDirectory()
+        tmp = Path(td.name)
+        schema_file = tmp / "schema.json"
+
+        # not all IOCs have a config file so no config validation for them
+        if ioc_config_file.exists():
+            config = ioc_config_file.read_text()
+            matches = re.findall(r"#.* \$schema=(.*)", config)
+            if not matches:
+                raise RuntimeError("No schema modeline found in {ioc_config_file}")
+
+            schema_url = matches[0]
+            print(schema_url)
+
+            r = requests.get(schema_url, allow_redirects=True)
+            schema_file.write_text(r.content.decode())
+
+            result = run_command(
+                f"yajsv -s {schema_file} {ioc_config_file}", error_OK=True
+            )
+            if not result:
+                log.error(f"{ioc_config_file} failed validation")
+                raise typer.Exit(1)
+
+            # verify that the values.yaml file points to a container image
+            # make some rudimentary checks on the image name and the schema name
+            # are from the same generic IOC
