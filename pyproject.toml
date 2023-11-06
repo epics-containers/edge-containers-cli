@@ -27,7 +27,7 @@ dev = [
     "mock",
     "mypy",
     "pipdeptree",
-    "pre-commit",
+    "pre-commit==3.5.0",
     "pydata-sphinx-theme>=0.12",
     "pytest",
     "pytest-cov",
