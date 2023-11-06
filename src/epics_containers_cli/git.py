@@ -5,7 +5,7 @@ Utility functions for working with git
 import os
 import re
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import typer
 
@@ -19,11 +19,17 @@ from epics_containers_cli.shell import (
 
 
 def get_image_name(
-    repo: str, arch: Architecture = Architecture.linux, target: str = "developer"
+    repo: str,
+    arch: Architecture = Architecture.linux,
+    target: str = "developer",
+    suffix: Optional[str] = None,
 ) -> str:
+    if suffix is None:
+        suffix = "-{arch}-{target}"
     registry = repo2registry(repo).lower().removesuffix(".git")
+    img_suffix = suffix.format(repo=repo, arch=arch, target=target, registry=registry)
 
-    image = f"{registry}-{arch}-{target}"
+    image = f"{registry}{img_suffix}"
     log.info("repo = %s image  = %s", repo, image)
     return image
 
@@ -55,6 +61,24 @@ def get_git_name(folder: Path = Path(".")) -> Tuple[str, Path]:
 def repo2registry(repo_name: str) -> str:
     """convert a repo name to the related a container registry name"""
 
+    # First try matching using the regex mappings environment variable
+    registry = ""
+
+    for mapping in glob_vars.EC_REGISTRY_MAPPING_REGEX.split("\n"):
+        if mapping == "":
+            continue
+        regex, replacement = mapping.split(" ")
+        log.debug("regex = %s replacement = %s", regex, replacement)
+        match = re.match(regex, repo_name)
+        if match is not None:
+            registry = match.expand(replacement)
+            break
+
+    if registry:
+        return registry
+
+    # Now try matching using the simple mappings environment variable.
+    # Here automatically add the organization name to the image root URL
     log.debug("extracting fields from repo name %s", repo_name)
 
     match_git = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)", repo_name)
@@ -68,10 +92,6 @@ def repo2registry(repo_name: str) -> str:
         raise typer.Exit(1)
 
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
-
-    if not glob_vars.EC_REGISTRY_MAPPING:
-        log.error("environment variable EC_REGISTRY_MAPPING not set")
-        raise typer.Exit(1)
 
     for mapping in glob_vars.EC_REGISTRY_MAPPING.split():
         if mapping.split("=")[0] == source_reg:

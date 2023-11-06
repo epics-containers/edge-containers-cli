@@ -27,12 +27,13 @@ class Docker:
     which CLI is being used and whether buildx is available.
     """
 
-    def __init__(self, devcontainer: bool = False):
+    def __init__(self, devcontainer: bool = False, check: bool = True):
         self.devcontainer = devcontainer
         self.docker: str = "podman"
         self.is_docker: bool = False
         self.is_buildx: bool = False
-        self._check_docker()
+        if check:
+            self._check_docker()
 
     def _check_docker(self):
         """

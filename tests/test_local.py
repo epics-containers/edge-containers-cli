@@ -63,3 +63,8 @@ def test_stop(mock_run, local):
 def test_ps(mock_run, local):
     mock_run.set_seq(local.setup + local.ps)
     mock_run.run_cli("ps")
+
+
+def test_validate(mock_run, local, data):
+    mock_run.set_seq(local.setup + local.validate)
+    mock_run.run_cli(f"ioc validate {data / 'iocs/bl45p-ea-ioc-01'}")

@@ -62,6 +62,18 @@ versions:
   - cmd: podman run --rm --name versions -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t quay.io/skopeo/stable list-tags docker://ghcr.io/epics-containers/bl45p-linux-developer
     rsp: True
 
+get_git_name_gitlab:
+  - cmd: git rev-parse --show-toplevel
+    rsp: /tmp/bl45p
+  - cmd: git remote -v
+    rsp: |
+      origin https://gitlab-ci-token:[MASKED]@gitlab.diamond.ac.uk/controls/containers/ioc/ioc-template.git (fetch)
+      origin https://gitlab-ci-token:[MASKED]@gitlab.diamond.ac.uk/controls/containers/ioc/ioc-template.git (push)
+
+versions_gitlab:
+  - cmd: podman run --rm --name versions -e DISPLAY -e SHELL --security-opt=label=type:container_runtime_t quay.io/skopeo/stable list-tags docker://gcr.io/diamond-privreg/controls/prod/ioc/ioc-template-linux-developer
+    rsp: True
+
 stop:
   - cmd: podman stop -t0 test-ioc
     rsp: "test-ioc stopped"

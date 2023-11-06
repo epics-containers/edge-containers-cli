@@ -38,8 +38,8 @@ class MockRun:
     cmd = "cmd"
     rsp = "rsp"
 
-    def __init__(self):
-        self.cmd_rsp = {}
+    def __init__(self) -> None:
+        self.cmd_rsp: List[Dict] = []
         self._runner = CliRunner()
         self.log: str = ""
         self.params: List[str] = []
@@ -121,7 +121,7 @@ class MockRun:
 MOCKRUN = MockRun()
 
 
-def mktempdir():
+def mktempdir(_1=None, _2=None, _3=None):
     TMPDIR.mkdir(parents=True, exist_ok=True)
     return str(TMPDIR)
 

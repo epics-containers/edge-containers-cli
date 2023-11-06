@@ -184,3 +184,24 @@ def stop(
         IocLocalCommands(ctx.obj, ioc_name).stop()
     else:
         IocK8sCommands(ctx.obj, ioc_name).stop()
+
+
+@ioc.command()
+def validate(
+    ctx: typer.Context,
+    ioc_instance: Path = typer.Argument(
+        ...,
+        help="folder of local ioc definition",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+):
+    """
+    Verify a local IOC definition folder is valid
+
+    Checks that values.yaml points at a valid image
+    Checks that ioc.yaml has the matching schema header and that it passes
+      scheme validation
+    """
+    IocLocalCommands(ctx.obj).validate_instance(ioc_instance)

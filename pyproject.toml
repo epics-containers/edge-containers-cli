@@ -13,7 +13,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 description = "One line description of your module"
-dependencies = ["typer[all]", "ruamel.yaml", "jinja2"]
+dependencies = ["typer[all]", "requests", "ruamel.yaml", "jinja2"]
 
 # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
@@ -27,7 +27,7 @@ dev = [
     "mock",
     "mypy",
     "pipdeptree",
-    "pre-commit",
+    "pre-commit==3.5.0",
     "pydata-sphinx-theme>=0.12",
     "pytest",
     "pytest-cov",
