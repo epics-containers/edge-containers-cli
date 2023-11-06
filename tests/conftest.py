@@ -121,7 +121,7 @@ class MockRun:
 MOCKRUN = MockRun()
 
 
-def mktempdir():
+def mktempdir(_1=None, _2=None, _3=None):
     TMPDIR.mkdir(parents=True, exist_ok=True)
     return str(TMPDIR)
 

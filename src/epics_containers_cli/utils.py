@@ -52,3 +52,15 @@ def check_ioc_instance_path(ioc_path: Path):
         raise typer.Exit(1)
 
     return ioc_name, ioc_path
+
+
+def generic_ioc_from_image(image_name: str) -> str:
+    """
+    return the generic IOC name from an image name
+    """
+    match = re.findall(r".*\/(.*)-.*-(?:runtime|developer)", image_name)
+    if not match:
+        log.error(f"cannot extract generic IOC name from {image_name}")
+        raise typer.Exit(1)
+
+    return match[0]

@@ -103,3 +103,12 @@ stop:
 ps:
   - cmd: docker ps --filter label=is_IOC=true --format ".*
     rsp: bl45p-ea-ioc-01%2023.10.9%Up%an image
+
+validate:
+  - cmd: yajsv -v
+    rsp: "1.4.0"
+  - cmd: yajsv -s \/tmp\/ec_tests\/schema.json .*\/data\/iocs\/bl45p-ea-ioc-01\/config\/ioc.yaml
+    rsp: "OK"
+  - cmd: docker image inspect ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
+    rsp: "OK"
+

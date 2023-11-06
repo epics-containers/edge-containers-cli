@@ -12,7 +12,7 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory, mkdtemp
+from tempfile import mkdtemp
 from typing import Optional
 
 import requests
@@ -28,7 +28,11 @@ from epics_containers_cli.globals import (
 )
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo, run_command
-from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
+from epics_containers_cli.utils import (
+    check_ioc_instance_path,
+    generic_ioc_from_image,
+    get_instance_image_name,
+)
 
 
 class IocLocalCommands:
@@ -172,10 +176,13 @@ class IocLocalCommands:
     def validate_instance(self, ioc_instance: Path):
         check_ioc_instance_path(ioc_instance)
 
-        ioc_config_file = ioc_instance / CONFIG_FOLDER / CONFIG_FILE
+        typer.echo(f"Validating {ioc_instance}")
 
-        td = TemporaryDirectory()
-        tmp = Path(td.name)
+        ioc_config_file = ioc_instance / CONFIG_FOLDER / CONFIG_FILE
+        image = get_instance_image_name(ioc_instance)
+        image_name, image_tag = image.split(":")
+
+        tmp = Path(mkdtemp())
         schema_file = tmp / "schema.json"
 
         # not all IOCs have a config file so no config validation for them
@@ -186,18 +193,35 @@ class IocLocalCommands:
                 raise RuntimeError("No schema modeline found in {ioc_config_file}")
 
             schema_url = matches[0]
-            print(schema_url)
 
-            r = requests.get(schema_url, allow_redirects=True)
-            schema_file.write_text(r.content.decode())
+            with requests.get(schema_url, allow_redirects=True) as r:
+                schema_file.write_text(r.content.decode())
 
-            result = run_command(
-                f"yajsv -s {schema_file} {ioc_config_file}", error_OK=True
-            )
-            if not result:
-                log.error(f"{ioc_config_file} failed validation")
+            if not run_command("yajsv -v", interactive=False, error_OK=True):
+                typer.echo(
+                    "yajsv, used for schema validation of ioc.yaml, is not installed. "
+                    "Please install from https://github.com/neilpa/yajsv"
+                )
                 raise typer.Exit(1)
 
-            # verify that the values.yaml file points to a container image
-            # make some rudimentary checks on the image name and the schema name
-            # are from the same generic IOC
+            run_command(f"yajsv -s {schema_file} {ioc_config_file}", interactive=False)
+
+            # check that the image name and the schema are from the same generic IOC
+            if image_tag not in schema_url:
+                log.error(f"image version {image_tag} and {schema_url} do not match")
+                raise typer.Exit(1)
+
+            # make sure that generic IOC name matches the schema
+            generic_ioc = generic_ioc_from_image(image_name)
+            if generic_ioc not in schema_url:
+                log.error(
+                    f"ioc.yaml schema {schema_url} does not match generic IOC {generic_ioc}"
+                )
+                raise typer.Exit(1)
+
+        # verify that the values.yaml file points to a container image that exists
+        run_command(f"{self.docker.docker} image inspect {image}", interactive=False)
+
+        shutil.rmtree(tmp, ignore_errors=True)
+
+        typer.echo(f"{ioc_instance} validated successfully")
