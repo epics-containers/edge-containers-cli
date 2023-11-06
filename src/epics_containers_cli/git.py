@@ -5,7 +5,7 @@ Utility functions for working with git
 import os
 import re
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import typer
 
@@ -19,11 +19,17 @@ from epics_containers_cli.shell import (
 
 
 def get_image_name(
-    repo: str, arch: Architecture = Architecture.linux, target: str = "developer"
+    repo: str,
+    arch: Architecture = Architecture.linux,
+    target: str = "developer",
+    suffix: Optional[str] = None,
 ) -> str:
+    if suffix is None:
+        suffix = "-{arch}-{target}"
     registry = repo2registry(repo).lower().removesuffix(".git")
+    img_suffix = suffix.format(repo=repo, arch=arch, target=target, registry=registry)
 
-    image = f"{registry}-{arch}-{target}"
+    image = f"{registry}{img_suffix}"
     log.info("repo = %s image  = %s", repo, image)
     return image
 

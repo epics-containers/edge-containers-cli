@@ -213,6 +213,10 @@ def build(
     cache_from: Optional[str] = typer.Option(None, help="buildx cache from folder"),
     push: bool = typer.Option(False, help="buildx push to registry"),
     rebuild: bool = typer.Option(True, help="rebuild the image even if it exists"),
+    target: Optional[str] = typer.Option(
+        None, help="target to build (default: developer and runtime)"
+    ),
+    suffix: Optional[str] = typer.Option(None, help="suffix for image"),
 ):
     """
     Build a generic IOC container locally from a container project.
@@ -229,4 +233,6 @@ def build(
         cache_to=cache_to,
         push=push,
         rebuild=rebuild,
+        target=target,
+        suffix=suffix,
     )

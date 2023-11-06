@@ -190,6 +190,8 @@ class DevCommands:
         cache_to: Optional[str],
         push: bool,
         rebuild: bool,
+        target: Optional[str],
+        suffix: Optional[str],
     ):
         """
         build a local image from a Dockerfile
@@ -198,7 +200,7 @@ class DevCommands:
         args = f"--platform {platform} {'--no-cache' if not cache else ''}"
 
         for target in Targets:
-            image = get_image_name(repo, arch, target)
+            image = get_image_name(repo, arch, target, suffix)
             image_name = f"{image}:{tag}"
 
             if not rebuild:

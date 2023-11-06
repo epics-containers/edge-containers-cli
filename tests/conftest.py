@@ -38,8 +38,8 @@ class MockRun:
     cmd = "cmd"
     rsp = "rsp"
 
-    def __init__(self):
-        self.cmd_rsp = {}
+    def __init__(self) -> None:
+        self.cmd_rsp: List[Dict] = []
         self._runner = CliRunner()
         self.log: str = ""
         self.params: List[str] = []
