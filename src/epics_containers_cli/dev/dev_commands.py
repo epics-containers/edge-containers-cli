@@ -199,7 +199,11 @@ class DevCommands:
         repo, _ = get_git_name(generic_ioc)
         args = f"--platform {platform} {'--no-cache' if not cache else ''}"
 
-        for target in Targets:
+        if target is None:
+            targets = [Targets.developer.value, Targets.runtime.value]
+        else:
+            targets = [target]
+        for target in targets:
             image = get_image_name(repo, arch, target, suffix)
             image_name = f"{image}:{tag}"
 
