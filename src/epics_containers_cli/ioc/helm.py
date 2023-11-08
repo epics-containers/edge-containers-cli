@@ -9,7 +9,7 @@ import typer
 import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
 from epics_containers_cli.shell import run_command
-from epics_containers_cli.utils import check_ioc_instance_path
+from epics_containers_cli.utils import check_ioc_instance_path, log
 
 
 class Helm:
@@ -86,6 +86,12 @@ class Helm:
             f"--single-branch --branch={self.version}",
             interactive=False,
         )
+        if not self.ioc_config_folder.exists():
+            log.error(
+                f"{self.ioc_name} does not exist in {self.beamline_repo} version {self.version}"
+            )
+            raise typer.Exit(1)
+
         self._do_deploy(self.ioc_config_folder)
 
     def _do_deploy(self, config_folder: Path):
