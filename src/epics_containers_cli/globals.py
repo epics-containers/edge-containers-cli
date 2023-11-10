@@ -60,7 +60,7 @@ to generate the container registry name. Mappings are separated by line
 break and regex and replacement are separated by space
 """
 EC_REGISTRY_MAPPING_REGEX = os.environ.get(
-    "EC_REGISTRY_MAPPING",
+    "EC_REGISTRY_MAPPING_REGEX",
     r"""
 .*github.com:(.*)\/(.*)\.git ghcr.io/\1/\2
 .*gitlab.diamond.ac.uk.*\/(.*).git gcr.io/diamond-privreg/controls/prod/ioc/\1
