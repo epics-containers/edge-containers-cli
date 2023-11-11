@@ -1,7 +1,6 @@
 """
 Utility functions for working interacting with docker / podman CLI
 """
-import os
 import re
 import sys
 from pathlib import Path
@@ -215,7 +214,6 @@ class Docker:
         """
         if entrypoint:
             entrypoint = f" --entrypoint {entrypoint}"
-        os.chdir(Path(__file__).parent)
         cwd = Path.cwd().resolve()
         mount = f"-w {cwd} -v {cwd}:{cwd} -v /tmp:/tmp"
         run_command(

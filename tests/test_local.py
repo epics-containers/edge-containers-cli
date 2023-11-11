@@ -2,7 +2,9 @@
 tests for local docker deployment/management commands
 """
 
+import os
 import shutil
+from pathlib import Path
 
 from tests.conftest import TMPDIR
 
@@ -67,4 +69,5 @@ def test_ps(mock_run, local):
 
 def test_validate(mock_run, local, data):
     mock_run.set_seq(local.setup + local.validate)
+    os.chdir(Path(__file__).parent)
     mock_run.run_cli(f"ioc validate {data / 'iocs/bl45p-ea-ioc-01'}")
