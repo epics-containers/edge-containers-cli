@@ -159,15 +159,20 @@ class IocLocalCommands:
     def ps(self, all: bool, wide: bool):
         all_arg = " --all" if all else ""
 
-        format = "{{.Names}}%{{.Labels.version}}%{{.Status}}%{{.Image}}"
+        # We have to build the table ourselves because docker is unable to
+        # format a table with labels.
+        format = "{{.Names}}%{{.Labels}}%{{.Status}}%{{.Image}}"
+
         result = run_command(
             f"{self.docker.docker} ps{all_arg} --filter label=is_IOC=true "
             f'--format "{format}"',
             interactive=False,
         )
-        # we have to build the table ourselves because the docker ps format
-        # fails to make a heading for the version column using:
-        # --format "table {{.Names}}\t{{.Status}}\t{{.Image}}\y{{.Labels.version}}"
+        print(result)
+        # this regex extracts just the version from the set of all labels
+        result = re.sub(r"%.*?[,%]version=([^,%]*).*?%", r"%\1%", result)
+        print(result)
+
         lines = ["IOC NAME%VERSION%STATUS%IMAGE"]
         lines += str(result).splitlines()
         rows = []
