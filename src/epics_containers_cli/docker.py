@@ -62,7 +62,7 @@ class Docker:
         result = run_command(
             f"{self.docker} buildx version", interactive=False, error_OK=True
         )
-        self.is_buildx = bool(result) and "buildah" not in result
+        self.is_buildx = "docker/buildx" in result
 
         log.debug(f"buildx={self.is_buildx} ({result})")
 
