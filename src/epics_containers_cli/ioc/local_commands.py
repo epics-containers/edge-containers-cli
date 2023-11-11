@@ -29,7 +29,7 @@ from epics_containers_cli.globals import (
 )
 from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import check_beamline_repo, run_command
+from epics_containers_cli.shell import check_beamline_repo, echo_command, run_command
 from epics_containers_cli.utils import (
     check_ioc_instance_path,
     generic_ioc_from_image,
@@ -198,6 +198,7 @@ class IocLocalCommands:
 
             schema_url = matches[0]
 
+            echo_command(f"Downloading schema file {schema_url} to {schema_file}")
             with requests.get(schema_url, allow_redirects=True) as r:
                 schema_file.write_text(r.content.decode())
 
