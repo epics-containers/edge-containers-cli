@@ -26,7 +26,7 @@ def get_image_name(
 ) -> str:
     if suffix is None:
         suffix = "-{arch}-{target}"
-    registry = repo2registry(repo).lower().removesuffix(".git")
+    registry = repo2registry(repo).lower()
     img_suffix = suffix.format(repo=repo, arch=arch, target=target, registry=registry)
 
     image = f"{registry}{img_suffix}"
@@ -63,6 +63,7 @@ def repo2registry(repo_name: str) -> str:
 
     # First try matching using the regex mappings environment variable
     registry = ""
+    repo_name = repo_name.removesuffix(".git")
 
     for mapping in glob_vars.EC_REGISTRY_MAPPING_REGEX.split("\n"):
         if mapping == "":
@@ -81,7 +82,7 @@ def repo2registry(repo_name: str) -> str:
     # Here automatically add the organization name to the image root URL
     log.debug("extracting fields from repo name %s", repo_name)
 
-    match_git = re.match(r"git@([^:]*):(.*)\/(.*)(?:.git)", repo_name)
+    match_git = re.match(r"git@([^:]*):(.*)\/(.*)", repo_name)
     match_http = re.match(r"https:\/\/([^\/]*)\/([^\/]*)\/([^\/]*)", repo_name)
     for match in [match_git, match_http]:
         if match is not None:
