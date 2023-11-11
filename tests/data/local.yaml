@@ -105,10 +105,7 @@ ps:
     rsp: bl45p-ea-ioc-01%2023.10.9%Up%an image
 
 validate:
-  - cmd: yajsv -v
-    rsp: "1.4.0"
-  - cmd: yajsv -s \/tmp\/ec_tests\/schema.json .*\/data\/iocs\/bl45p-ea-ioc-01\/config\/ioc.yaml
+  - cmd: docker run --rm -w .* -v .*:.* -v \/tmp:\/tmp ghcr.io\/epics-containers\/yajsv -s \/tmp\/ec_tests\/schema.json .*/bl45p-ea-ioc-01\/config\/ioc.yaml
+    rsp: True
+  - cmd: docker manifest inspect ghcr.io\/epics-containers\/ioc-adaravis-linux-runtime:23.9.4
     rsp: "OK"
-  - cmd: docker manifest inspect ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
-    rsp: "OK"
-

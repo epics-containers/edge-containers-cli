@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 
 from tests.conftest import TMPDIR
 
@@ -23,11 +24,12 @@ def test_deploy_local(mock_run, data, ioc):
     mock_run.run_cli(f"ioc deploy-local {data / 'iocs/bl45p-ea-ioc-01'}")
 
 
-def test_deploy(mock_run, data, ioc):
+def test_deploy(mock_run, data: Path, ioc):
     mock_run.set_seq(ioc.checks + ioc.deploy)
     # prep what deploy expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
     shutil.copytree(data / "beamline-chart", TMPDIR / "beamline-chart")
+    shutil.copytree(data / "iocs", TMPDIR / "iocs")
     mock_run.run_cli("ioc deploy bl45p-ea-ioc-01 2.0")
 
 

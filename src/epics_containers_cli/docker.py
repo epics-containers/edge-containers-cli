@@ -61,7 +61,7 @@ class Docker:
         result = run_command(
             f"{self.docker} buildx version", interactive=False, error_OK=True
         )
-        self.is_buildx = bool(result) and "buildah" not in result
+        self.is_buildx = "docker/buildx" in result
 
         log.debug(f"buildx={self.is_buildx} ({result})")
 
@@ -204,3 +204,19 @@ class Docker:
                 log.error(f"{container} is not running")
                 raise typer.Exit(1)
             return False
+
+    def run_tool(
+        self, image: str, args: str = "", entrypoint: str = "", interactive=False
+    ):
+        """
+        run a command in a container - mount the current directory
+        so that the command can see files passed on the CLI
+        """
+        if entrypoint:
+            entrypoint = f" --entrypoint {entrypoint}"
+        cwd = Path.cwd().resolve()
+        mount = f"-w {cwd} -v {cwd}:{cwd} -v /tmp:/tmp"
+        run_command(
+            f"{self.docker} run{entrypoint} --rm {mount} {image} {args}",
+            interactive=True,
+        )

@@ -24,8 +24,10 @@ from epics_containers_cli.globals import (
     CONFIG_FILE,
     CONFIG_FOLDER,
     IOC_CONFIG_FOLDER,
+    LOCAL_NAMESPACE,
     Context,
 )
+from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo, run_command
 from epics_containers_cli.utils import (
@@ -43,9 +45,11 @@ class IocLocalCommands:
     def __init__(
         self, ctx: Optional[Context], ioc_name: str = "", with_docker: bool = True
     ):
+        self.namespace = ""
         self.beamline_repo: str = ""
         if ctx is not None:
             self.beamline_repo = ctx.beamline_repo
+            self.namespace = ctx.namespace
 
         self.ioc_name: str = ioc_name
 
@@ -197,14 +201,10 @@ class IocLocalCommands:
             with requests.get(schema_url, allow_redirects=True) as r:
                 schema_file.write_text(r.content.decode())
 
-            if not run_command("yajsv -v", interactive=False, error_OK=True):
-                typer.echo(
-                    "yajsv, used for schema validation of ioc.yaml, is not installed. "
-                    "Please install from https://github.com/neilpa/yajsv"
-                )
-                raise typer.Exit(1)
-
-            run_command(f"yajsv -s {schema_file} {ioc_config_file}", interactive=False)
+            self.docker.run_tool(
+                image="ghcr.io/epics-containers/yajsv",
+                args=f"-s {schema_file} {ioc_config_file}",
+            )
 
             # check that the image name and the schema are from the same generic IOC
             if image_tag not in schema_url:
@@ -225,3 +225,18 @@ class IocLocalCommands:
         shutil.rmtree(tmp, ignore_errors=True)
 
         typer.echo(f"{ioc_instance} validated successfully")
+
+    def environment(self, verbose: bool):
+        """
+        declare the environment settings for ec
+        """
+        ns = self.namespace
+
+        if ns == LOCAL_NAMESPACE:
+            typer.echo("ioc commands deploy to the local docker/podman instance")
+        else:
+            check_namespace(ns)
+            typer.echo(f"ioc commands deploy to the {ns} namespace the K8S cluster")
+
+        typer.echo("\nEC environment variables:")
+        run_command("env | grep '^EC_'", interactive=False, show=True)
