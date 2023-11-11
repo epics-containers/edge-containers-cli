@@ -197,14 +197,10 @@ class IocLocalCommands:
             with requests.get(schema_url, allow_redirects=True) as r:
                 schema_file.write_text(r.content.decode())
 
-            if not run_command("yajsv -v", interactive=False, error_OK=True):
-                typer.echo(
-                    "yajsv, used for schema validation of ioc.yaml, is not installed. "
-                    "Please install from https://github.com/neilpa/yajsv"
-                )
-                raise typer.Exit(1)
-
-            run_command(f"yajsv -s {schema_file} {ioc_config_file}", interactive=False)
+            self.docker.run_tool(
+                image="ghcr.io/epics-containers/yajsv",
+                args=f"-s {schema_file} {ioc_config_file}",
+            )
 
             # check that the image name and the schema are from the same generic IOC
             if image_tag not in schema_url:

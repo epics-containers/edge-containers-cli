@@ -1,6 +1,7 @@
 """
 Utility functions for working interacting with docker / podman CLI
 """
+import os
 import re
 import sys
 from pathlib import Path
@@ -204,3 +205,20 @@ class Docker:
                 log.error(f"{container} is not running")
                 raise typer.Exit(1)
             return False
+
+    def run_tool(
+        self, image: str, args: str = "", entrypoint: str = "", interactive=False
+    ):
+        """
+        run a command in a container - mount the current directory
+        so that the command can see files passed on the CLI
+        """
+        if entrypoint:
+            entrypoint = f" --entrypoint {entrypoint}"
+        os.chdir(Path(__file__).parent)
+        cwd = Path.cwd().resolve()
+        mount = f"-w {cwd} -v {cwd}:{cwd} -v /tmp:/tmp"
+        run_command(
+            f"{self.docker} run{entrypoint} --rm {mount} {image} {args}",
+            interactive=True,
+        )
