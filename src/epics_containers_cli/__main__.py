@@ -94,10 +94,20 @@ def ps(
     ),
 ):
     """List the IOCs running in the current namespace"""
-    if ctx.obj.namespace == "":
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj).ps(all, wide)
     else:
         IocK8sCommands(ctx.obj).ps(all, wide)
+
+
+@cli.command()
+def env(
+    ctx: typer.Context,
+    verbose: bool = typer.Option(
+        False, "-v", "--verbose", help="show all relevant environment variables"
+    ),
+):
+    IocLocalCommands(ctx.obj).environment(verbose == verbose)
 
 
 # test with:

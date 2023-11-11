@@ -29,14 +29,14 @@ def check_namespace(namespace: Optional[str]):
     """
     Verify we have a good namespace that exists in the cluster
     """
-    if namespace is None:
+    if not namespace:
         log.error("Please set EC_K8S_NAMESPACE or pass --namespace")
         raise typer.Exit(1)
 
     cmd = f"kubectl get namespace {namespace} -o name"
     result = run_command(cmd, interactive=False, error_OK=True)
     if "NotFound" in str(result):
-        log.error(f"namespace {namespace} not found - please check your environment")
+        log.error(f"namespace {namespace} not found - please check ~/.kube/config")
         raise typer.Exit(1)
 
     log.info("domain = %s", namespace)
