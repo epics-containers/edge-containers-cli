@@ -13,13 +13,23 @@ Documentation  https://epics-containers.github.io/epics-containers-cli
 Releases       https://github.com/epics-containers/epics-containers-cli/releases
 ============== ==============================================================
 
+See the
+`epics-containers tutorials <https://epics-containers.github.io/main/user/tutorials/intro.html>`_
+for more information. In particular the notes
+`here <https://epics-containers.github.io/main/user/reference/cli.html>`_
 
-An example invocation. Calling the deploy command will execute helm and prints 
-the helm command that it makes ::
+To learn more try the help
 
-    $ ec deploy bl45p-mo-ioc-01 0.0.1-b0
-    + helm upgrade --install bl45p-mo-ioc-01 oci://ghcr.io/epics-
-    containers/bl45p-mo-ioc-01 --version 0.0.1-b0
+.. code-block:: bash
+
+    # get global help
+    ec --help
+
+    # get help on the ioc namespace
+    ec ioc --help
+
+    # use -v to show the underlying commands being executed
+    ec -v ps
 
 .. |code_ci| image:: https://github.com/epics-containers/epics-containers-cli/actions/workflows/code.yml/badge.svg?branch=main
     :target: https://github.com/epics-containers/epics-containers-cli/actions/workflows/code.yml
