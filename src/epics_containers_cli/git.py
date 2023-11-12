@@ -63,6 +63,8 @@ def repo2registry(repo_name: str) -> str:
 
     # First try matching using the regex mappings environment variable
     registry = ""
+    # remove .git suffix because regexes are hard to make with optional suffix
+    # not all git remotes have it for some reason
     repo_name = repo_name.removesuffix(".git")
 
     for mapping in glob_vars.EC_REGISTRY_MAPPING_REGEX.split("\n"):
