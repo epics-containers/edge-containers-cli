@@ -175,7 +175,8 @@ class Docker:
         attach to a container
         """
         self.is_running(container, error=True)
-        run_command(f"{self.docker} attach {container}")
+        # quitting the attach returns an error code so we have to ignore it
+        run_command(f"{self.docker} attach {container}", error_OK=True)
 
     def logs(self, container: str, previous: bool = False, follow: bool = False):
         """

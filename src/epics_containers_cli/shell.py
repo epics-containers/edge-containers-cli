@@ -13,6 +13,29 @@ import epics_containers_cli.globals as glob_vars
 
 from .logging import log
 
+console = Console(highlight=False, soft_wrap=True)
+
+
+def echo_command(command: str):
+    """
+    print a command to the console
+    """
+    console.print(command, style=Style(color="pale_turquoise4"))
+
+
+def echo_error(error: str):
+    """
+    print an error to the console
+    """
+    console.print(error, style=Style(color="red", bold=True))
+
+
+def echo_output(output: str):
+    """
+    print an output to the console
+    """
+    console.print(output, style=Style(color="deep_sky_blue3", bold=True))
+
 
 def run_command(
     command: str, interactive=True, error_OK=False, show=False
@@ -30,10 +53,8 @@ def run_command(
         error_OK: if True then do not raise an exception on failure
         show: print the command output to the console
     """
-    console = Console(highlight=False, soft_wrap=True)
-
     if glob_vars.EC_VERBOSE:
-        console.print(command, style=Style(color="pale_turquoise4"))
+        echo_command(command)
 
     p_result = subprocess.run(command, capture_output=not interactive, shell=True)
 
@@ -49,16 +70,16 @@ def run_command(
         result = output + error_out
 
     if p_result.returncode != 0 and not error_OK:
-        console.print("\nCommand Failed:", style=Style(color="red", bold=True))
+        echo_error("\nCommand Failed:")
         if not glob_vars.EC_VERBOSE:
-            console.print(f"{command}", style=Style(color="pale_turquoise4"))
-        console.print(output, style=Style(color="deep_sky_blue3", bold=True))
-        console.print(error_out, style=Style(color="red", bold=True))
+            echo_command(command)
+        echo_output(output)
+        echo_error(error_out)
         raise typer.Exit(1)
 
     if show:
-        console.print(output, style=Style(color="deep_sky_blue3", bold=True))
-        console.print(error_out, style=Style(color="red", bold=True))
+        echo_output(output)
+        echo_error(error_out)
 
     log.debug(f"returning: {result}")
 
