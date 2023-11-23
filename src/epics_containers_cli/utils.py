@@ -75,6 +75,6 @@ def drop_ioc_path(raw_input: str):
         return raw_input
 
     extracted_ioc = match[0]
-    print("Extracted ioc name", extracted_ioc, "from input:", raw_input)
+    typer.echo(f"Extracted ioc name {extracted_ioc} from input: {raw_input}")
 
     return extracted_ioc
