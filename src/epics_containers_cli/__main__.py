@@ -107,6 +107,7 @@ def env(
         False, "-v", "--verbose", help="show all relevant environment variables"
     ),
 ):
+    """List all relevant environment variables"""
     IocLocalCommands(ctx.obj).environment(verbose == verbose)
 
 
