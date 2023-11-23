@@ -30,7 +30,7 @@ cli.add_typer(
 cli.add_typer(
     cluster,
     name="k8s",
-    help="Commands communicating with the k8s cluster. See 'ec cluster --help",
+    help="Commands for communicating with the k8s cluster. See 'ec k8s --help'",
 )
 
 
