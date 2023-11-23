@@ -64,3 +64,17 @@ def generic_ioc_from_image(image_name: str) -> str:
         raise typer.Exit(1)
 
     return match[0]
+
+
+def drop_ioc_path(raw_input: str):
+    """
+    Extracts the IOC name if is a path through ioc
+    """
+    match = re.findall(r"iocs\/(.*?)(?:/|\s|$)", raw_input)  # https://regex101.com/r/L3GUvk/1
+    if not match:
+        return raw_input
+
+    extracted_ioc = match[0]
+    print("Extracted ioc name", extracted_ioc, "from input:", raw_input)
+
+    return extracted_ioc
