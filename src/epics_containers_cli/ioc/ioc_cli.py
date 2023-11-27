@@ -12,6 +12,19 @@ from epics_containers_cli.logging import log
 ioc = typer.Typer()
 
 
+def avail_IOCs(ctx: typer.Context):
+    #ioc_list = ioc_instances()
+    ioc_list = ["bl01t-ea-ioc-01", "bl01t-ea-ioc-02", "bl01t-di-dcam-01"]
+    return ioc_list
+
+
+def avail_versions(ctx: typer.Context):
+    #ioc_name = ctx.params["ioc_name"]
+    #version_list = ioc_versions(ctx.obj.beamline_repo, ioc_name, Path(mkdtemp()))
+    version_list = ["2023.11.1", "2023.11.2", "2023.11.3"]
+    return version_list
+
+
 @ioc.command()
 def attach(
     ctx: typer.Context,
@@ -86,8 +99,12 @@ def deploy_local(
 @ioc.command()
 def deploy(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC to deploy"),
-    version: str = typer.Argument(..., help="Version tag of the IOC to deploy"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC to deploy", autocompletion=avail_IOCs
+    ),
+    version: str = typer.Argument(
+        ..., help="Version tag of the IOC to deploy", autocompletion=avail_versions
+    ),
     args: str = typer.Option(
         "", help="Additional args for helm or docker, 'must be quoted'"
     ),
