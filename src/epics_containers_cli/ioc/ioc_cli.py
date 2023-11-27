@@ -3,7 +3,7 @@ from tempfile import mkdtemp
 
 import typer
 
-from epics_containers_cli.git import ioc_versions
+from epics_containers_cli.git import ioc_versions, ioc_instances
 from epics_containers_cli.globals import LOCAL_NAMESPACE
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands

@@ -142,3 +142,11 @@ def ioc_versions(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
             version_list.append(tags[0])
     
     return version_list
+
+
+def ioc_instances(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
+    """
+    determine the available IOC instances by discovering the children to the folders
+    in the beamline repo 
+    """
+    return []
