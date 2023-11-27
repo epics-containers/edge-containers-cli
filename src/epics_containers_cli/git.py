@@ -144,9 +144,13 @@ def ioc_versions(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
     return version_list
 
 
-def ioc_instances(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
+def ioc_instances(beamline_repo: str, folder: Path) -> list[str]:
     """
-    determine the available IOC instances by discovering the children to the folders
-    in the beamline repo 
+    determine the available IOC instances by discovering the children to the iocs
+    folder in the beamline repo
     """
-    return []
+    check_beamline_repo(beamline_repo)
+    run_command(f"git clone {beamline_repo} {folder}", interactive=False)
+    dir_list = os.listdir(os.path.join(folder, "iocs"))
+
+    return dir_list
