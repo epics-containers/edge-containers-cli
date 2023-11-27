@@ -109,15 +109,13 @@ def repo2registry(repo_name: str) -> str:
     return registry
 
 
-def versions(beamline_repo: str, ioc_name: str, folder: Path):
+def ioc_versions(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
     """
-    determine the versions of an IOC instance by discovering the tags in the
-    beamline repo at which changes to the instance were made since the last
+    return the available versions of an IOC instance by discovering the tags in 
+    the beamline repo at which changes to the instance were made since the last
     tag
     """
     check_beamline_repo(beamline_repo)
-    typer.echo(f"Available instance versions for {ioc_name}:")
-
     run_command(f"git clone {beamline_repo} {folder}", interactive=False)
 
     ioc_name = Path(ioc_name).name
@@ -125,21 +123,22 @@ def versions(beamline_repo: str, ioc_name: str, folder: Path):
     result = str(run_command("git tag", interactive=False))
     log.debug(f"checking these tags for changes in the instance: {result}")
 
-    count = 0
+    version_list = []
     tags = result.split("\n")
+
     for tag in tags:
         if tag == "":
             continue
         cmd = f"git diff --name-only {tag} {tag}^"
         result = str(run_command(cmd, interactive=False))
-
         if ioc_name in result:
-            typer.echo(f"  {tag}")
-            count += 1
+            version_list.append(tag)
 
-    if count == 0:
+    if not version_list:
         # also look to see if the first tag was when the instance was created
         cmd = f"git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)"
         result = str(run_command(cmd, interactive=False))
         if ioc_name in result:
-            typer.echo(f"  {tags[0]}")
+            version_list.append(tags[0])
+    
+    return version_list
