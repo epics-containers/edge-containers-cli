@@ -4,7 +4,7 @@ from tempfile import mkdtemp
 
 import typer
 
-from epics_containers_cli.git import ioc_versions, ioc_instances
+from epics_containers_cli.git import ioc_instances, ioc_versions
 from epics_containers_cli.globals import LOCAL_NAMESPACE
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
@@ -12,13 +12,15 @@ from epics_containers_cli.logging import log
 
 
 def avail_IOCs(ctx: typer.Context):
-    beamline_repo = os.environ.get("EC_DOMAIN_REPO", "")  # remove when ctx.obj.beamline_repo set upfront
+    # remove os.environment call when ctx.obj.beamline_repo set upfront
+    beamline_repo = os.environ.get("EC_DOMAIN_REPO", "")
     ioc_list = ioc_instances(beamline_repo, Path(mkdtemp()))
     return ioc_list
 
 
 def avail_versions(ctx: typer.Context):
-    beamline_repo = os.environ.get("EC_DOMAIN_REPO", "")  # remove when ctx.obj.beamline_repo set upfront
+    # remove os.environment call when ctx.obj.beamline_repo set upfront
+    beamline_repo = os.environ.get("EC_DOMAIN_REPO", "")
     ioc_name = ctx.params["ioc_name"]
     version_list = ioc_versions(beamline_repo, ioc_name, Path(mkdtemp()))
     return version_list

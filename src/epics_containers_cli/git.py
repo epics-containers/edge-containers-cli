@@ -111,7 +111,7 @@ def repo2registry(repo_name: str) -> str:
 
 def ioc_versions(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
     """
-    return the available versions of an IOC instance by discovering the tags in 
+    return the available versions of an IOC instance by discovering the tags in
     the beamline repo at which changes to the instance were made since the last
     tag
     """
@@ -140,7 +140,7 @@ def ioc_versions(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
         result = str(run_command(cmd, interactive=False))
         if ioc_name in result:
             version_list.append(tags[0])
-    
+
     return version_list
 
 
