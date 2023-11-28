@@ -70,7 +70,9 @@ def drop_ioc_path(raw_input: str):
     """
     Extracts the IOC name if is a path through ioc
     """
-    match = re.findall(r"iocs\/(.*?)(?:/|\s|$)", raw_input)  # https://regex101.com/r/L3GUvk/1
+    match = re.findall(
+        r"iocs\/(.*?)(?:/|\s|$)", raw_input
+    )  # https://regex101.com/r/L3GUvk/1
     if not match:
         return raw_input
 
