@@ -168,10 +168,8 @@ class IocLocalCommands:
             f'--format "{format}"',
             interactive=False,
         )
-        print(result)
         # this regex extracts just the version from the set of all labels
         result = re.sub(r"%.*?[,%]version=([^,%]*).*?%", r"%\1%", str(result))
-        print(result)
 
         lines = ["IOC NAME%VERSION%STATUS%IMAGE"]
         lines += str(result).splitlines()
