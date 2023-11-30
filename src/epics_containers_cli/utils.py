@@ -2,6 +2,8 @@
 utility functions
 """
 
+import contextlib
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -64,3 +66,17 @@ def generic_ioc_from_image(image_name: str) -> str:
         raise typer.Exit(1)
 
     return match[0]
+
+
+@contextlib.contextmanager
+def chdir(path):
+    """
+    A simple wrapper around chdir(), it changes the current working directory
+    upon entering and restores the old one on exit.
+    """
+    curdir = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(curdir)
