@@ -59,4 +59,9 @@ def avail_versions(ctx: typer.Context):
     ioc_name = ctx.params["ioc_name"]
     ioc_graph = fetch_ioc_graph(beamline_repo)
 
-    return ioc_graph[ioc_name]
+    try:
+        ioc_version = ioc_graph[ioc_name]
+    except KeyError:
+        ioc_version = ""
+
+    return ioc_version
