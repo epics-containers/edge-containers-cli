@@ -2,10 +2,11 @@
 Utility functions for working with git
 """
 
+import contextlib
 import os
 import re
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import typer
 
@@ -109,48 +110,46 @@ def repo2registry(repo_name: str) -> str:
     return registry
 
 
-def ioc_versions(beamline_repo: str, ioc_name: str, folder: Path) -> list[str]:
+def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
     """
-    return the available versions of an IOC instance by discovering the tags in
-    the beamline repo at which changes to the instance were made since the last
-    tag
+    return a dictionary of the available IOCs (by discovering the children
+    to the iocs/ folder in the beamline repo) as well as a list of the corresponing
+    available versions for each IOC (by discovering the tags in the beamline repo at
+    which changes to the instance were made since the last tag) and the respective
+    list of available versions
     """
+    ioc_graph = {}
+
     check_beamline_repo(beamline_repo)
     run_command(f"git clone {beamline_repo} {folder}", interactive=False)
+    ioc_list = os.listdir(os.path.join(folder, "iocs"))
 
-    ioc_name = Path(ioc_name).name
-    os.chdir(folder)
-    result = str(run_command("git tag", interactive=False))
-    log.debug(f"checking these tags for changes in the instance: {result}")
+    with contextlib.chdir(folder):
+        for ioc_name in ioc_list:
+            ioc_name = Path(ioc_name).name
+            result = str(run_command("git tag", interactive=False))
+            log.debug(f"checking these tags for changes in the instance: {result}")
 
-    version_list = []
-    tags = result.split("\n")
+            version_list = []
+            tags = result.split("\n")
 
-    for tag in tags:
-        if tag == "":
-            continue
-        cmd = f"git diff --name-only {tag} {tag}^"
-        result = str(run_command(cmd, interactive=False))
-        if ioc_name in result:
-            version_list.append(tag)
+            for tag in tags:
+                if tag == "":
+                    continue
+                cmd = f"git diff --name-only {tag} {tag}^"
+                result = str(run_command(cmd, interactive=False))
+                if ioc_name in result:
+                    version_list.append(tag)
 
-    if not version_list:
-        # also look to see if the first tag was when the instance was created
-        cmd = f"git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)"
-        result = str(run_command(cmd, interactive=False))
-        if ioc_name in result:
-            version_list.append(tags[0])
+            if not version_list:
+                # also look to see if the first tag was when the instance was created
+                cmd = f"""
+                git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)
+                """
+                result = str(run_command(cmd, interactive=False))
+                if ioc_name in result:
+                    version_list.append(tags[0])
 
-    return version_list
+            ioc_graph[ioc_name] = version_list
 
-
-def ioc_instances(beamline_repo: str, folder: Path) -> list[str]:
-    """
-    determine the available IOC instances by discovering the children to the iocs
-    folder in the beamline repo
-    """
-    check_beamline_repo(beamline_repo)
-    run_command(f"git clone {beamline_repo} {folder}", interactive=False)
-    dir_list = os.listdir(os.path.join(folder, "iocs"))
-
-    return dir_list
+    return ioc_graph
