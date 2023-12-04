@@ -1,12 +1,13 @@
 from pathlib import Path
+from tempfile import mkdtemp
 
 import typer
 
+from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.globals import LOCAL_NAMESPACE
 from epics_containers_cli.ioc.ioc_autocomplete import (
     avail_IOCs,
     avail_versions,
-    fetch_ioc_graph,
 )
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
@@ -111,12 +112,17 @@ def deploy(
 @ioc.command()
 def instances(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC to inspect", autocompletion=avail_IOCs
+    ),
 ):
     """List all versions of the IOC available in the helm registry"""
-    # this function works on git repos only so works for all deployment types
-    iocs_list = fetch_ioc_graph(ctx.obj.beamline_repo)[ioc_name]
     typer.echo(f"Available instance versions for {ioc_name}:")
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(mkdtemp()))
+    try:
+        iocs_list = ioc_graph[ioc_name]
+    except KeyError:
+        iocs_list = []
     typer.echo("  ".join(iocs_list))
 
 
