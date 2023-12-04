@@ -47,15 +47,15 @@ def fetch_ioc_graph(beamline_repo):
 
 
 def avail_IOCs(ctx: typer.Context):
-    # remove os.environment call when ctx.obj.beamline_repo set upfront
-    beamline_repo = os.environ.get("EC_DOMAIN_REPO", "")
+    beamline_repo = ctx.parent.parent.params["repo"] \
+        or os.environ.get("EC_DOMAIN_REPO", "")
     ioc_graph = fetch_ioc_graph(beamline_repo)
     return list(ioc_graph.keys())
 
 
 def avail_versions(ctx: typer.Context):
-    # remove os.environment call when ctx.obj.beamline_repo set upfront
-    beamline_repo = os.environ.get("EC_DOMAIN_REPO", "")
+    beamline_repo = ctx.parent.parent.params["repo"] \
+        or os.environ.get("EC_DOMAIN_REPO", "")
     ioc_name = ctx.params["ioc_name"]
     ioc_graph = fetch_ioc_graph(beamline_repo)
 
