@@ -1,4 +1,5 @@
 import json
+import urllib
 import os
 import time
 from pathlib import Path
@@ -9,22 +10,27 @@ import typer
 from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.globals import (
     CACHE_EXPIRY,
-    CACHE_FOLDER,
+    CACHE_ROOT,
     IOC_CACHE,
 )
 
 
-def cache_dict(cached_file: str, data_struc: dict):
-    if not os.path.exists(CACHE_FOLDER):
-        os.makedirs(CACHE_FOLDER)
+def url_encode(in_string: str):
+    return urllib.parse.quote(in_string, safe="")
 
-    cache_path = os.path.join(CACHE_FOLDER, cached_file)
+
+def cache_dict(cache_folder: str, cached_file: str, data_struc: dict):
+    cache_dir = os.path.join(CACHE_ROOT, cache_folder)
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+
+    cache_path = os.path.join(cache_dir, cached_file)
     with open(cache_path, "w") as f:
         f.write(json.dumps(data_struc, indent=4))
 
 
-def read_cached_dict(cached_file: str) -> dict:
-    cache_path = os.path.join(CACHE_FOLDER, cached_file)
+def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
+    cache_path = os.path.join(CACHE_ROOT, cache_folder, cached_file)
     read_dict = {}
 
     # Check cache if available
@@ -38,10 +44,10 @@ def read_cached_dict(cached_file: str) -> dict:
 
 
 def fetch_ioc_graph(beamline_repo):
-    ioc_graph = read_cached_dict(IOC_CACHE)
+    ioc_graph = read_cached_dict(url_encode(beamline_repo), IOC_CACHE)
     if not ioc_graph:
         ioc_graph = create_ioc_graph(beamline_repo, Path(mkdtemp()))
-        cache_dict(IOC_CACHE, ioc_graph)
+        cache_dict(url_encode(beamline_repo), IOC_CACHE, ioc_graph)
 
     return ioc_graph
 
