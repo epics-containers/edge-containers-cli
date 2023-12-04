@@ -38,7 +38,7 @@ CONFIG_FOLDER = "config"
 # location of IOC Instance configuration inside a Generic IOC container
 IOC_CONFIG_FOLDER = "/epics/ioc/config/"
 # file name of IOC Instance ibek configuration inside a Generic IOC container
-CONFIG_FILE = "ioc.yaml"
+CONFIG_FILE_GLOB = "*.yaml"
 # location of default IOC start script inside Generic IOC containers
 IOC_START = "/epics/ioc/start.sh"
 # default container name for local testing

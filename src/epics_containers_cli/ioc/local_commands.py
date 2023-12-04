@@ -21,7 +21,7 @@ import typer
 import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.docker import Docker
 from epics_containers_cli.globals import (
-    CONFIG_FILE,
+    CONFIG_FILE_GLOB,
     CONFIG_FOLDER,
     IOC_CONFIG_FOLDER,
     LOCAL_NAMESPACE,
@@ -29,7 +29,7 @@ from epics_containers_cli.globals import (
 )
 from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import check_beamline_repo, echo_command, run_command
+from epics_containers_cli.shell import check_beamline_repo, run_command
 from epics_containers_cli.utils import (
     check_ioc_instance_path,
     generic_ioc_from_image,
@@ -185,7 +185,9 @@ class IocLocalCommands:
 
         typer.echo(f"Validating {ioc_instance}")
 
-        ioc_config_file = ioc_instance / CONFIG_FOLDER / CONFIG_FILE
+        ioc_config_files = list(
+            ioc_instance.glob(str(Path(CONFIG_FOLDER) / CONFIG_FILE_GLOB))
+        )
         image = get_instance_image_name(ioc_instance)
         image_name, image_tag = image.split(":")
 
@@ -193,7 +195,10 @@ class IocLocalCommands:
         schema_file = tmp / "schema.json"
 
         # not all IOCs have a config file so no config validation for them
-        if ioc_config_file.exists():
+        if len(ioc_config_files) != 1:
+            log.warning(f"No ioc config file found in {ioc_instance}, skipping.")
+        else:
+            ioc_config_file = ioc_config_files[0]
             config = ioc_config_file.read_text()
             matches = re.findall(r"#.* \$schema=(.*)", config)
             if not matches:
@@ -201,7 +206,7 @@ class IocLocalCommands:
 
             schema_url = matches[0]
 
-            echo_command(f"Downloading schema file {schema_url} to {schema_file}")
+            log.info(f"Downloading schema file {schema_url} to {schema_file}")
             with requests.get(schema_url, allow_redirects=True) as r:
                 schema_file.write_text(r.content.decode())
 
