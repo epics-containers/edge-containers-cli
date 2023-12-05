@@ -71,3 +71,7 @@ def avail_versions(ctx: typer.Context):
         ioc_version = ""
 
     return ioc_version
+
+
+def force_plain_completion():
+    return []

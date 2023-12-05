@@ -8,6 +8,7 @@ from epics_containers_cli.globals import LOCAL_NAMESPACE
 from epics_containers_cli.ioc.ioc_autocomplete import (
     avail_IOCs,
     avail_versions,
+    force_plain_completion,
 )
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
@@ -53,6 +54,7 @@ def template(
         exists=True,
         file_okay=False,
         resolve_path=True,
+        autocompletion=force_plain_completion,
     ),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
@@ -74,6 +76,7 @@ def deploy_local(
         exists=True,
         file_okay=False,
         resolve_path=True,
+        autocompletion=force_plain_completion,
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
@@ -211,6 +214,7 @@ def validate(
         exists=True,
         file_okay=False,
         resolve_path=True,
+        autocompletion=force_plain_completion,
     ),
 ):
     """
