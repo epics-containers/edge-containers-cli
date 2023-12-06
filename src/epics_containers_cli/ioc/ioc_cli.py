@@ -165,7 +165,7 @@ def log_history(
 def logs(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
-        ..., help="Name of the IOC to inspect", autocompletion=all_iocs
+        ..., help="Name of the IOC to inspect", autocompletion=running_iocs
     ),
     prev: bool = typer.Option(
         False, "--previous", "-p", help="Show log from the previous instance of the IOC"
