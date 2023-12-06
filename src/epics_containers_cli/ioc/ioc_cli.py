@@ -9,6 +9,8 @@ from epics_containers_cli.ioc.ioc_autocomplete import (
     avail_IOCs,
     avail_versions,
     force_plain_completion,
+    running_iocs,
+    all_iocs,
 )
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
@@ -20,7 +22,9 @@ ioc = typer.Typer()
 @ioc.command()
 def attach(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC to attach to"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC to attach to", autocompletion=running_iocs
+    ),
 ):
     """
     Attach to the IOC shell of a live IOC
@@ -34,7 +38,9 @@ def attach(
 @ioc.command()
 def delete(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC to delete"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC to delete", autocompletion=all_iocs
+    ),
 ):
     """
     Remove an IOC helm deployment from the cluster
@@ -132,7 +138,9 @@ def instances(
 @ioc.command()
 def exec(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC container to run in"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC container to run in", autocompletion=running_iocs
+    ),
 ):
     """Execute a bash prompt in a live IOC's container"""
     if ctx.obj.namespace == LOCAL_NAMESPACE:
@@ -146,6 +154,7 @@ def log_history(
     ioc_name: str = typer.Argument(
         ...,
         help="Name of the IOC to inspect",
+        autocompletion=all_iocs,
     ),
 ):
     """Open historical logs for an IOC"""
@@ -155,7 +164,9 @@ def log_history(
 @ioc.command()
 def logs(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC to inspect"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC to inspect", autocompletion=all_iocs
+    ),
     prev: bool = typer.Option(
         False, "--previous", "-p", help="Show log from the previous instance of the IOC"
     ),
@@ -171,7 +182,9 @@ def logs(
 @ioc.command()
 def restart(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC container to restart"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC container to restart", autocompletion=running_iocs
+    ),
 ):
     """Restart an IOC"""
     if ctx.obj.namespace == LOCAL_NAMESPACE:
@@ -183,7 +196,9 @@ def restart(
 @ioc.command()
 def start(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC container to start"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC container to start", autocompletion=all_iocs
+    ),
 ):
     """Start an IOC"""
     log.debug("Starting IOC with LOCAL={ctx.obj.namespace == " "}")
@@ -196,7 +211,9 @@ def start(
 @ioc.command()
 def stop(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(..., help="Name of the IOC container to stop"),
+    ioc_name: str = typer.Argument(
+        ..., help="Name of the IOC container to stop", autocompletion=running_iocs
+    ),
 ):
     """Stop an IOC"""
     if ctx.obj.namespace == LOCAL_NAMESPACE:

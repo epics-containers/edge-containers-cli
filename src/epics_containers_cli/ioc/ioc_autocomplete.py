@@ -12,7 +12,9 @@ from epics_containers_cli.globals import (
     CACHE_EXPIRY,
     CACHE_ROOT,
     IOC_CACHE,
+    LOCAL_NAMESPACE,
 )
+from epics_containers_cli.shell import run_command
 
 
 def url_encode(in_string: str):
@@ -75,3 +77,33 @@ def avail_versions(ctx: typer.Context):
 
 def force_plain_completion():
     return []
+
+
+def running_iocs(ctx: typer.Context):
+    namespace = ctx.parent.parent.params["namespace"] \
+        or os.environ.get("EC_K8S_NAMESPACE", "")
+
+    if namespace == LOCAL_NAMESPACE:
+        # Not yet implemented
+        return []
+
+    else:
+        columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
+        command = f"kubectl -n {namespace} get pod -l is_ioc==True {columns}"
+        ioc_list = run_command(command, interactive=False).split()[1:]
+        return ioc_list
+
+
+def all_iocs(ctx: typer.Context):
+    namespace = ctx.parent.parent.params["namespace"] \
+        or os.environ.get("EC_K8S_NAMESPACE", "")
+
+    if namespace == LOCAL_NAMESPACE:
+        # Not yet implemented
+        return []
+
+    else:
+        columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
+        command = f"kubectl -n {namespace} get deploy -l is_ioc==True {columns}"
+        ioc_list = run_command(command, interactive=False).split()[1:]
+        return ioc_list
