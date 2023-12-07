@@ -123,8 +123,9 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
     check_beamline_repo(beamline_repo)
     run_command(f"git clone {beamline_repo} {folder}", interactive=False)
     path_list = os.listdir(os.path.join(folder, "iocs"))
-    ioc_list = [path for path in path_list
-                if os.path.isdir(os.path.join(folder, "iocs", path))]
+    ioc_list = [
+        path for path in path_list if os.path.isdir(os.path.join(folder, "iocs", path))
+    ]
 
     with contextlib.chdir(folder):
         for ioc_name in ioc_list:

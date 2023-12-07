@@ -57,8 +57,8 @@ def fetch_ioc_graph(beamline_repo: str) -> dict:
 
 
 def avail_IOCs(ctx: typer.Context) -> List[str]:
-    beamline_repo = ctx.parent.parent.params["repo"] \
-        or os.environ.get("EC_DOMAIN_REPO", "")
+    params = ctx.parent.parent.params  # type: ignore
+    beamline_repo = params["repo"] or os.environ.get("EC_DOMAIN_REPO", "")
 
     # This block prevents getting a stack trace during autocompletion
     try:
@@ -69,8 +69,8 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
 
 
 def avail_versions(ctx: typer.Context) -> List[str]:
-    beamline_repo = ctx.parent.parent.params["repo"] \
-        or os.environ.get("EC_DOMAIN_REPO", "")
+    params = ctx.parent.parent.params  # type: ignore
+    beamline_repo = params["repo"] or os.environ.get("EC_DOMAIN_REPO", "")
     ioc_name = ctx.params["ioc_name"]
 
     # This block prevents getting a stack trace during autocompletion
@@ -89,8 +89,8 @@ def force_plain_completion() -> List[str]:
 
 
 def running_iocs(ctx: typer.Context) -> List[str]:
-    namespace = ctx.parent.parent.params["namespace"] \
-        or os.environ.get("EC_K8S_NAMESPACE", "")
+    params = ctx.parent.parent.params  # type: ignore
+    namespace = params["namespace"] or os.environ.get("EC_K8S_NAMESPACE", "")
 
     # This block prevents getting a stack trace during autocompletion
     try:
@@ -102,7 +102,7 @@ def running_iocs(ctx: typer.Context) -> List[str]:
             check_namespace(namespace)
             columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
             command = f"kubectl -n {namespace} get pod -l is_ioc==True {columns}"
-            ioc_list = run_command(command, interactive=False).split()[1:]
+            ioc_list = str(run_command(command, interactive=False)).split()[1:]
             return ioc_list
 
     except Exception:
@@ -110,8 +110,10 @@ def running_iocs(ctx: typer.Context) -> List[str]:
 
 
 def all_iocs(ctx: typer.Context) -> List[str]:
-    namespace = ctx.parent.parent.params["namespace"] \
-        or os.environ.get("EC_K8S_NAMESPACE", "")
+    params = ctx.parent.parent.params  # type: ignore
+    namespace = params["namespace"] or os.environ.get(
+        "EC_K8S_NAMESPACE", ""
+    )
 
     # This block prevents getting a stack trace during autocompletion
     try:
@@ -123,7 +125,7 @@ def all_iocs(ctx: typer.Context) -> List[str]:
             check_namespace(namespace)
             columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
             command = f"kubectl -n {namespace} get deploy -l is_ioc==True {columns}"
-            ioc_list = run_command(command, interactive=False).split()[1:]
+            ioc_list = str(run_command(command, interactive=False)).split()[1:]
             return ioc_list
 
     except Exception:
