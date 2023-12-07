@@ -4,9 +4,11 @@ import os
 import time
 from pathlib import Path
 from tempfile import mkdtemp
+from typing import List
 
 import typer
 
+from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.globals import (
     CACHE_EXPIRY,
@@ -17,11 +19,11 @@ from epics_containers_cli.globals import (
 from epics_containers_cli.shell import run_command
 
 
-def url_encode(in_string: str):
+def url_encode(in_string: str) -> str:
     return urllib.parse.quote(in_string, safe="")
 
 
-def cache_dict(cache_folder: str, cached_file: str, data_struc: dict):
+def cache_dict(cache_folder: str, cached_file: str, data_struc: dict) -> None:
     cache_dir = os.path.join(CACHE_ROOT, cache_folder)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
@@ -45,7 +47,7 @@ def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
     return read_dict
 
 
-def fetch_ioc_graph(beamline_repo):
+def fetch_ioc_graph(beamline_repo: str) -> dict:
     ioc_graph = read_cached_dict(url_encode(beamline_repo), IOC_CACHE)
     if not ioc_graph:
         ioc_graph = create_ioc_graph(beamline_repo, Path(mkdtemp()))
@@ -54,56 +56,75 @@ def fetch_ioc_graph(beamline_repo):
     return ioc_graph
 
 
-def avail_IOCs(ctx: typer.Context):
+def avail_IOCs(ctx: typer.Context) -> List[str]:
     beamline_repo = ctx.parent.parent.params["repo"] \
         or os.environ.get("EC_DOMAIN_REPO", "")
-    ioc_graph = fetch_ioc_graph(beamline_repo)
-    return list(ioc_graph.keys())
+
+    # This block prevents getting a stack trace during autocompletion
+    try:
+        ioc_graph = fetch_ioc_graph(beamline_repo)
+        return list(ioc_graph.keys())
+    except Exception:
+        return []
 
 
-def avail_versions(ctx: typer.Context):
+def avail_versions(ctx: typer.Context) -> List[str]:
     beamline_repo = ctx.parent.parent.params["repo"] \
         or os.environ.get("EC_DOMAIN_REPO", "")
     ioc_name = ctx.params["ioc_name"]
-    ioc_graph = fetch_ioc_graph(beamline_repo)
 
+    # This block prevents getting a stack trace during autocompletion
     try:
-        ioc_version = ioc_graph[ioc_name]
+        ioc_graph = fetch_ioc_graph(beamline_repo)
+        ioc_versions = ioc_graph[ioc_name]
+        return ioc_versions
     except KeyError:
-        ioc_version = ""
+        return ["IOC not found"]
+    except Exception:
+        return []
 
-    return ioc_version
 
-
-def force_plain_completion():
+def force_plain_completion() -> List[str]:
     return []
 
 
-def running_iocs(ctx: typer.Context):
+def running_iocs(ctx: typer.Context) -> List[str]:
     namespace = ctx.parent.parent.params["namespace"] \
         or os.environ.get("EC_K8S_NAMESPACE", "")
 
-    if namespace == LOCAL_NAMESPACE:
-        # Not yet implemented
+    # This block prevents getting a stack trace during autocompletion
+    try:
+        if namespace == LOCAL_NAMESPACE:
+            # Not yet implemented
+            return []
+
+        else:
+            check_namespace(namespace)
+            columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
+            command = f"kubectl -n {namespace} get pod -l is_ioc==True {columns}"
+            ioc_list = run_command(command, interactive=False).split()[1:]
+            return ioc_list
+
+    except Exception:
         return []
 
-    else:
-        columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
-        command = f"kubectl -n {namespace} get pod -l is_ioc==True {columns}"
-        ioc_list = run_command(command, interactive=False).split()[1:]
-        return ioc_list
 
-
-def all_iocs(ctx: typer.Context):
+def all_iocs(ctx: typer.Context) -> List[str]:
     namespace = ctx.parent.parent.params["namespace"] \
         or os.environ.get("EC_K8S_NAMESPACE", "")
 
-    if namespace == LOCAL_NAMESPACE:
-        # Not yet implemented
-        return []
+    # This block prevents getting a stack trace during autocompletion
+    try:
+        if namespace == LOCAL_NAMESPACE:
+            # Not yet implemented
+            return []
 
-    else:
-        columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
-        command = f"kubectl -n {namespace} get deploy -l is_ioc==True {columns}"
-        ioc_list = run_command(command, interactive=False).split()[1:]
-        return ioc_list
+        else:
+            check_namespace(namespace)
+            columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
+            command = f"kubectl -n {namespace} get deploy -l is_ioc==True {columns}"
+            ioc_list = run_command(command, interactive=False).split()[1:]
+            return ioc_list
+
+    except Exception:
+        return []
