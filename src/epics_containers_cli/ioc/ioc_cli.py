@@ -6,11 +6,11 @@ import typer
 from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.globals import LOCAL_NAMESPACE
 from epics_containers_cli.ioc.ioc_autocomplete import (
+    all_iocs,
     avail_IOCs,
     avail_versions,
     force_plain_completion,
     running_iocs,
-    all_iocs,
 )
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands

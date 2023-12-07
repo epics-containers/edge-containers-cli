@@ -1,14 +1,13 @@
 import json
-import urllib
 import os
 import time
+import urllib
 from pathlib import Path
 from tempfile import mkdtemp
 from typing import List
 
 import typer
 
-from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.globals import (
     CACHE_EXPIRY,
@@ -16,6 +15,7 @@ from epics_containers_cli.globals import (
     IOC_CACHE,
     LOCAL_NAMESPACE,
 )
+from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.shell import run_command
 
 
@@ -111,9 +111,7 @@ def running_iocs(ctx: typer.Context) -> List[str]:
 
 def all_iocs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    namespace = params["namespace"] or os.environ.get(
-        "EC_K8S_NAMESPACE", ""
-    )
+    namespace = params["namespace"] or os.environ.get("EC_K8S_NAMESPACE", "")
 
     # This block prevents getting a stack trace during autocompletion
     try:
