@@ -45,6 +45,12 @@ IOC_START = "/epics/ioc/start.sh"
 IOC_NAME = "test-ioc"
 # namespace name for deploying IOC instances into the local podman/docker
 LOCAL_NAMESPACE = "local"
+# location for caching
+CACHE_ROOT = os.path.expanduser("~/.cache/ec-cli/")
+# available ioc cache
+IOC_CACHE = "ioc_cache.json"
+# cache expiry time in seconds
+CACHE_EXPIRY = 15
 
 # these should be set to 0 or 1 in the environment - blank is treated as false
 # Enable debug logging in all ec commands
