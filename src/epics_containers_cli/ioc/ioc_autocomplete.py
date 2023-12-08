@@ -16,6 +16,7 @@ from epics_containers_cli.globals import (
     LOCAL_NAMESPACE,
 )
 from epics_containers_cli.ioc.k8s_commands import check_namespace
+from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
 
 
@@ -79,7 +80,8 @@ def avail_versions(ctx: typer.Context) -> List[str]:
         ioc_versions = ioc_graph[ioc_name]
         return ioc_versions
     except KeyError:
-        return ["IOC not found"]
+        log.error("IOC not found")
+        return []
     except Exception:
         return []
 
