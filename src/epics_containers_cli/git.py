@@ -2,7 +2,6 @@
 Utility functions for working with git
 """
 
-import contextlib
 import os
 import re
 from pathlib import Path
@@ -17,6 +16,7 @@ from epics_containers_cli.shell import (
     check_beamline_repo,
     run_command,
 )
+from epics_containers_cli.utils import chdir
 
 
 def get_image_name(
@@ -127,7 +127,7 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
         path for path in path_list if os.path.isdir(os.path.join(folder, "iocs", path))
     ]
 
-    with contextlib.chdir(folder):
+    with chdir(folder):
         for ioc_name in ioc_list:
             ioc_name = Path(ioc_name).name
             result = str(run_command("git tag", interactive=False))
