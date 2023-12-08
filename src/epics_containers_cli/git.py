@@ -146,9 +146,7 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
 
             if not version_list:
                 # also look to see if the first tag was when the instance was created
-                cmd = f"""
-                git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)
-                """
+                cmd = f"git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)"
                 result = str(run_command(cmd, interactive=False))
                 if ioc_name in result:
                     version_list.append(tags[0])
