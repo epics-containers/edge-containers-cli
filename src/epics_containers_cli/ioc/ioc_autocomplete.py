@@ -65,8 +65,11 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
     try:
         ioc_graph = fetch_ioc_graph(beamline_repo)
         return list(ioc_graph.keys())
+    except typer.Exit:
+        return [" "]
     except Exception:
-        return []
+        log.error("Error")
+        return [" "]
 
 
 def avail_versions(ctx: typer.Context) -> List[str]:
@@ -81,9 +84,12 @@ def avail_versions(ctx: typer.Context) -> List[str]:
         return ioc_versions
     except KeyError:
         log.error("IOC not found")
-        return []
+        return [" "]
+    except typer.Exit:
+        return [" "]
     except Exception:
-        return []
+        log.error("Error")
+        return [" "]
 
 
 def force_plain_completion() -> List[str]:
@@ -99,16 +105,17 @@ def running_iocs(ctx: typer.Context) -> List[str]:
         if namespace == LOCAL_NAMESPACE:
             # Not yet implemented
             return []
-
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
             command = f"kubectl -n {namespace} get pod -l is_ioc==True {columns}"
             ioc_list = str(run_command(command, interactive=False)).split()[1:]
             return ioc_list
-
+    except typer.Exit:
+        return [" "]
     except Exception:
-        return []
+        log.error("Error")
+        return [" "]
 
 
 def all_iocs(ctx: typer.Context) -> List[str]:
@@ -120,13 +127,14 @@ def all_iocs(ctx: typer.Context) -> List[str]:
         if namespace == LOCAL_NAMESPACE:
             # Not yet implemented
             return []
-
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
             command = f"kubectl -n {namespace} get deploy -l is_ioc==True {columns}"
             ioc_list = str(run_command(command, interactive=False)).split()[1:]
             return ioc_list
-
+    except typer.Exit:
+        return [" "]
     except Exception:
-        return []
+        log.error("Error")
+        return [" "]
