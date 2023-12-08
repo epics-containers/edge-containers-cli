@@ -127,7 +127,7 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
         path for path in path_list if os.path.isdir(os.path.join(folder, "iocs", path))
     ]
 
-    with chdir(folder):
+    with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
         for ioc_name in ioc_list:
             ioc_name = Path(ioc_name).name
             result = str(run_command("git tag", interactive=False))
