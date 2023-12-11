@@ -28,6 +28,8 @@ jobs:
     permissions:
       # this permission is mandatory for trusted publishing To PyPI
       id-token: write
+    # Specify the GitHub Environment to publish to
+    environment: release
 
     steps:
       # download sdist and wheel from dist job
