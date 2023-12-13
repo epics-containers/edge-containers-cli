@@ -32,7 +32,7 @@ def test_deploy(mock_run, data: Path, ioc):
     shutil.copytree(data / "iocs", TMPDIR / "iocs")
     mock_run.run_cli("ioc deploy bl45p-ea-ioc-01 2.0")
 
-
+    
 def test_deploy_path(mock_run, data: Path, ioc):
     mock_run.set_seq(ioc.checks + ioc.deploy)
     # prep what deploy expects to find after it cloned bl45p repo
@@ -42,8 +42,11 @@ def test_deploy_path(mock_run, data: Path, ioc):
     mock_run.run_cli("ioc deploy bl45p/iocs/bl45p-ea-ioc-01 2.0")
 
 
-def test_instances(mock_run, ioc):
+def test_instances(mock_run, ioc, data: Path):
     mock_run.set_seq(ioc.instances)
+    # prep what instances expects to find after it cloned bl45p repo
+    TMPDIR.mkdir()
+    shutil.copytree(data / "iocs", TMPDIR / "iocs")
     mock_run.run_cli("ioc instances bl45p-ea-ioc-01")
 
 

@@ -2,6 +2,8 @@
 utility functions
 """
 
+import contextlib
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -80,3 +82,15 @@ def drop_ioc_path(raw_input: str):
     typer.echo(f"Extracted ioc name {extracted_ioc} from input: {raw_input}")
 
     return extracted_ioc
+  
+def chdir(path):
+    """
+    A simple wrapper around chdir(), it changes the current working directory
+    upon entering and restores the old one on exit.
+    """
+    curdir = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(curdir)
