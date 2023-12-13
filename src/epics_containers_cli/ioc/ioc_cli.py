@@ -15,6 +15,7 @@ from epics_containers_cli.ioc.ioc_autocomplete import (
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
 from epics_containers_cli.logging import log
+from epics_containers_cli.utils import drop_ioc_path
 
 ioc = typer.Typer()
 
@@ -112,6 +113,7 @@ def deploy(
     """
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
+    ioc_name = drop_ioc_path(ioc_name)
     if ctx.obj.namespace == LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
     else:
