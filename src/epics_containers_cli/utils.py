@@ -82,7 +82,9 @@ def drop_ioc_path(raw_input: str):
     typer.echo(f"Extracted ioc name {extracted_ioc} from input: {raw_input}")
 
     return extracted_ioc
-  
+
+
+@contextlib.contextmanager
 def chdir(path):
     """
     A simple wrapper around chdir(), it changes the current working directory
