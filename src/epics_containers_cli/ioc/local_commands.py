@@ -168,8 +168,13 @@ class IocLocalCommands:
             f'--format "{format}"',
             interactive=False,
         )
-        # this regex extracts just the version from the set of all labels
-        result = re.sub(r"%.*?[,%]version=([^,%]*).*?%", r"%\1%", str(result))
+
+        # this regex extracts just the version from the set of all labels,
+        # docker and podman have different output formats
+        if self.docker.is_docker:
+            result = re.sub(r"%.*?[,%]version=([^,%]*).*?%", r"%\1%", str(result))
+        else:
+            result = re.sub(r"%.*? version:([^\],%]*).*?%", r"%\1%", str(result))
 
         lines = ["IOC NAME%VERSION%STATUS%IMAGE"]
         lines += str(result).splitlines()
