@@ -96,3 +96,13 @@ def chdir(path):
         yield
     finally:
         os.chdir(curdir)
+
+
+def normalize_tag(tag: str) -> str:
+    """
+    normalize a tag to be lowercase and replace any '/'
+    this is needed in CI because dependabot tags
+    """
+    tag = tag.lower()
+    tag = tag.replace("/", "-")
+    return tag
