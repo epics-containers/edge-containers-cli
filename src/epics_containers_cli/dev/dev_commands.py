@@ -8,7 +8,11 @@ from epics_containers_cli.docker import Docker
 from epics_containers_cli.git import get_git_name, get_image_name
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import run_command
-from epics_containers_cli.utils import check_ioc_instance_path, get_instance_image_name
+from epics_containers_cli.utils import (
+    check_ioc_instance_path,
+    get_instance_image_name,
+    normalize_tag,
+)
 
 from ..globals import (
     CONFIG_FOLDER,
@@ -91,6 +95,7 @@ class DevCommands:
             execute = f"{IOC_START}; bash"
 
         repo, _ = get_git_name(generic_ioc)
+        tag = normalize_tag(tag)
         image = get_image_name(repo, target=target) + f":{tag}"
 
         self._do_launch(ioc_name, target, image, execute, args, mounts)
@@ -198,6 +203,7 @@ class DevCommands:
         """
         repo, _ = get_git_name(generic_ioc)
         args = f"--platform {platform} {'--no-cache' if not cache else ''}"
+        tag = normalize_tag(tag)
 
         if target is None:
             targets = [Targets.developer.value, Targets.runtime.value]
