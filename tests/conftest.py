@@ -8,6 +8,7 @@ from typing import Callable, Dict, List, Union
 from mock import patch
 from pytest import fixture
 from ruamel.yaml import YAML
+from typer import Context
 from typer.testing import CliRunner
 
 os.environ["EC_K8S_NAMESPACE"] = "bl45p"
@@ -148,6 +149,15 @@ def data() -> Path:
 
 
 @fixture()
+def ctx():
+    ctx = Context
+    ctx.parent = Context
+    ctx.parent.parent = Context
+    ctx.parent.parent.params = {}
+    return ctx
+
+
+@fixture()
 def ioc(data):
     file = Path(__file__).parent / "data" / "ioc.yaml"
     yaml = YAML(typ="safe").load(file)
@@ -165,5 +175,12 @@ def local(data):
 @fixture()
 def dev(data):
     file = Path(__file__).parent / "data" / "dev.yaml"
+    yaml = YAML(typ="safe").load(file)
+    return SimpleNamespace(**yaml)
+
+
+@fixture()
+def ioc_autocomplete(data):
+    file = Path(__file__).parent / "data" / "ioc_autocomplete.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)

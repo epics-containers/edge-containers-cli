@@ -1,0 +1,31 @@
+all_iocs:
+  - cmd: kubectl get namespace bl45p -o name
+    rsp: namespace/bl45p
+  - cmd: kubectl -n bl45p get deploy -l is_ioc==True
+    rsp: NAME, bl45p-ea-ioc-01
+
+avail_IOCs:
+  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
+    rsp: Cloning into /tmp/xxxx...
+  - cmd: git tag
+    rsp: |
+      2.0
+  - cmd: git diff --name-only 2.0 2.0\^
+    rsp: |
+      2.0 bl45p-ea-ioc-01
+
+avail_versions:
+  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
+    rsp: Cloning into /tmp/xxxx...
+  - cmd: git tag
+    rsp: |
+      2.0
+  - cmd: git diff --name-only 2.0 2.0\^
+    rsp: |
+      2.0 bl45p-ea-ioc-01
+
+running_iocs:
+  - cmd: kubectl get namespace bl45p -o name
+    rsp: namespace/bl45p
+  - cmd: kubectl -n bl45p get pod -l is_ioc==True -o custom-columns=IOC_NAME:metadata
+    rsp: NAME, bl45p-ea-ioc-01
