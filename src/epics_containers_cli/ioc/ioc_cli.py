@@ -2,6 +2,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 import typer
+from natsort import natsorted
 
 from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.globals import LOCAL_NAMESPACE
@@ -134,7 +135,9 @@ def instances(
         iocs_list = ioc_graph[ioc_name]
     except KeyError:
         iocs_list = []
-    typer.echo("  ".join(iocs_list))
+
+    sorted_list = natsorted(iocs_list)[::-1]
+    typer.echo("  ".join(sorted_list))
 
 
 @ioc.command()
