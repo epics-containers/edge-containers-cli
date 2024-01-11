@@ -124,13 +124,14 @@ class Helm:
         # complicated stderr filter to suppress helm symlink warnings
         cmd = (
             f"bash -c "
-            f'"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} '
+            f'"'
+            f"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} "
             f"--version {self.version} --namespace {self.namespace} -f {values} "
             f"--set ioc_name={self.ioc_name} --set ioc_version={self.version} "
-            f" 2> >(grep -v 'found symbolic link' >&2)\""
+            f" 2> >(grep -v 'found symbolic link' >&2) "
+            f"{self.args}"
+            f'"'
         )
-        if self.args:
-            cmd += f" {self.args}"
 
         output = run_command(cmd, interactive=False)
         typer.echo(output)

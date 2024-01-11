@@ -64,11 +64,13 @@ def template(
         resolve_path=True,
         autocompletion=force_plain_completion,
     ),
+    debug: bool = typer.Option(False, help="Enable verbose output for helm"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
     print out the helm template generated from a local ioc instance
     """
+    args = f"{args} --debug" if debug else args
     if ctx.obj.namespace == LOCAL_NAMESPACE:
         typer.echo("Not applicable to local deployments")
     else:
