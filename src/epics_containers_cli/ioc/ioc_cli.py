@@ -122,6 +122,20 @@ def deploy(
 
 
 @ioc.command()
+def list(
+    ctx: typer.Context,
+):
+    """List all IOCs available in the helm registry"""
+    typer.echo(typer.style(f"{'Available IOCs:':35}Latest instance:", bold=True))
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(mkdtemp()))
+    iocs_list = natsorted(ioc_graph.keys())
+
+    for ioc in iocs_list:
+        latest_instance = natsorted(ioc_graph[ioc])[-1]
+        typer.echo(f"{ioc:35}{latest_instance}")
+
+
+@ioc.command()
 def instances(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
