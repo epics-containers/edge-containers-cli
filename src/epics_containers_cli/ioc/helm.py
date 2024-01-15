@@ -128,8 +128,8 @@ class Helm:
             f"helm {helm_cmd} {self.ioc_name} {self.bl_chart_folder} "
             f"--version {self.version} --namespace {self.namespace} -f {values} "
             f"--set ioc_name={self.ioc_name} --set ioc_version={self.version} "
-            f" 2> >(grep -v 'found symbolic link' >&2) "
             f"{self.args}"
+            f" 2> >(grep -v 'found symbolic link' >&2) "
             f'"'
         )
 
