@@ -201,7 +201,11 @@ def wait_pv(
 def build(
     ctx: typer.Context,
     generic_ioc: Path = typer.Option(
-        Path("."), help="Generic IOC project folder", exists=True, file_okay=False
+        Path("."),
+        help="Generic IOC project folder",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
     ),
     tag: str = typer.Option(IMAGE_TAG, help="version tag for the image"),
     arch: Architecture = typer.Option(

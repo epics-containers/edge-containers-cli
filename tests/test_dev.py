@@ -65,4 +65,4 @@ def test_wait_pv(mock_run, dev, data):
 
 def test_build(mock_run, dev, data):
     mock_run.set_seq(dev.checks + dev.get_git_name + dev.build)
-    mock_run.run_cli("dev build")
+    mock_run.run_cli(f"dev build --generic-ioc {data / 'ioc-template'}")

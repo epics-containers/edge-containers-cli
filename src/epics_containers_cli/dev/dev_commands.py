@@ -204,6 +204,7 @@ class DevCommands:
         repo, _ = get_git_name(generic_ioc)
         args = f"--platform {platform} {'--no-cache' if not cache else ''}"
         tag = normalize_tag(tag)
+        args += f" --build-arg PROJECT_NAME={generic_ioc.name}"
 
         if target is None:
             targets = [Targets.developer.value, Targets.runtime.value]

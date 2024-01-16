@@ -91,7 +91,7 @@ wait_pv:
     rsp: "BL45P-EA-IOC-01:UPTIME 00:00:07"
 
 build:
-  - cmd: podman build --target developer --build-arg TARGET_ARCHITECTURE=linux --platform linux/amd64  -t ghcr.io/epics-containers/bl45p-linux-developer:local .
+  - cmd: podman build --target developer --build-arg TARGET_ARCHITECTURE=linux --platform linux/amd64  --build-arg PROJECT_NAME=ioc-template -t ghcr.io/epics-containers/bl45p-linux-developer:local .
     rsp: True
-  - cmd: podman build --target runtime --build-arg TARGET_ARCHITECTURE=linux --platform linux/amd64  -t ghcr.io/epics-containers/bl45p-linux-runtime:local .
+  - cmd: podman build --target runtime --build-arg TARGET_ARCHITECTURE=linux --platform linux/amd64  --build-arg PROJECT_NAME=ioc-template -t ghcr.io/epics-containers/bl45p-linux-runtime:local .
     rsp: True
