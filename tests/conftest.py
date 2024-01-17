@@ -56,7 +56,11 @@ class MockRun:
         self.log += f"\n\nFNC: ec {' '.join(self.params)}"
         self.log += f"\nCMD: {command}"
 
-        cmd_rsp = self.cmd_rsp.pop(0)
+        try:
+            cmd_rsp = self.cmd_rsp.pop(0)
+        except IndexError:
+            raise IndexError("No test command response to return")
+
         cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]
 
