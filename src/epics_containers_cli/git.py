@@ -10,18 +10,15 @@ from typing import Dict, Optional, Tuple
 import typer
 
 import epics_containers_cli.globals as glob_vars
-from epics_containers_cli.globals import Architecture
+import epics_containers_cli.shell as shell
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import (
-    check_beamline_repo,
-    run_command,
-)
+from epics_containers_cli.shell import check_beamline_repo
 from epics_containers_cli.utils import chdir
 
 
 def get_image_name(
     repo: str,
-    arch: Architecture = Architecture.linux,
+    arch: glob_vars.Architecture = glob_vars.Architecture.linux,
     target: str = "developer",
     suffix: Optional[str] = None,
 ) -> str:
@@ -40,10 +37,10 @@ def get_git_name(folder: Path = Path(".")) -> Tuple[str, Path]:
     work out the git repo name and top level folder for a local clone
     """
     os.chdir(folder)
-    path = str(run_command("git rev-parse --show-toplevel", interactive=False))
+    path = str(shell.run_command("git rev-parse --show-toplevel", interactive=False))
     git_root = Path(path.strip())
 
-    remotes = str(run_command("git remote -v", interactive=False))
+    remotes = str(shell.run_command("git remote -v", interactive=False))
     log.debug(f"remotes = {remotes}")
 
     matches = re.findall(r"((?:(?:git@)|(?:http[s]+:\/\/)).*) (?:.fetch.)", remotes)
@@ -121,7 +118,7 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
     ioc_graph = {}
 
     check_beamline_repo(beamline_repo)
-    run_command(f"git clone {beamline_repo} {folder}", interactive=False)
+    shell.run_command(f"git clone {beamline_repo} {folder}", interactive=False)
     path_list = os.listdir(os.path.join(folder, "iocs"))
     ioc_list = [
         path for path in path_list if os.path.isdir(os.path.join(folder, "iocs", path))
@@ -130,7 +127,7 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
     with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
         for ioc_name in ioc_list:
             ioc_name = Path(ioc_name).name
-            result = str(run_command("git tag", interactive=False))
+            result = str(shell.run_command("git tag", interactive=False))
             log.debug(f"checking these tags for changes in the instance: {result}")
 
             version_list = []
@@ -140,14 +137,14 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
                 if tag == "":
                     continue
                 cmd = f"git diff --name-only {tag} {tag}^"
-                result = str(run_command(cmd, interactive=False))
+                result = str(shell.run_command(cmd, interactive=False))
                 if ioc_name in result:
                     version_list.append(tag)
 
             if not version_list:
                 # also look to see if the first tag was when the instance was created
                 cmd = f"git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)"
-                result = str(run_command(cmd, interactive=False))
+                result = str(shell.run_command(cmd, interactive=False))
                 if ioc_name in result:
                     version_list.append(tags[0])
 

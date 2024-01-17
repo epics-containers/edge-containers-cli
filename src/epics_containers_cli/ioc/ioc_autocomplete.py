@@ -1,23 +1,18 @@
 import json
 import os
+import tempfile
 import time
 import urllib
 from pathlib import Path
-from tempfile import mkdtemp
 from typing import List
 
 import typer
 
+import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.shell as shell
 from epics_containers_cli.git import create_ioc_graph
-from epics_containers_cli.globals import (
-    CACHE_EXPIRY,
-    CACHE_ROOT,
-    IOC_CACHE,
-    LOCAL_NAMESPACE,
-)
 from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import run_command
 
 
 def url_encode(in_string: str) -> str:
@@ -25,7 +20,7 @@ def url_encode(in_string: str) -> str:
 
 
 def cache_dict(cache_folder: str, cached_file: str, data_struc: dict) -> None:
-    cache_dir = os.path.join(CACHE_ROOT, cache_folder)
+    cache_dir = os.path.join(glob_vars.CACHE_ROOT, cache_folder)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir)
 
@@ -35,13 +30,13 @@ def cache_dict(cache_folder: str, cached_file: str, data_struc: dict) -> None:
 
 
 def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
-    cache_path = os.path.join(CACHE_ROOT, cache_folder, cached_file)
+    cache_path = os.path.join(glob_vars.CACHE_ROOT, cache_folder, cached_file)
     read_dict = {}
 
     # Check cache if available
     if os.path.exists(cache_path):
         # Read from cache if not stale
-        if (time.time() - os.path.getmtime(cache_path)) < CACHE_EXPIRY:
+        if (time.time() - os.path.getmtime(cache_path)) < glob_vars.CACHE_EXPIRY:
             with open(cache_path) as f:
                 read_dict = json.load(f)
 
@@ -49,17 +44,17 @@ def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
 
 
 def fetch_ioc_graph(beamline_repo: str) -> dict:
-    ioc_graph = read_cached_dict(url_encode(beamline_repo), IOC_CACHE)
+    ioc_graph = read_cached_dict(url_encode(beamline_repo), glob_vars.IOC_CACHE)
     if not ioc_graph:
-        ioc_graph = create_ioc_graph(beamline_repo, Path(mkdtemp()))
-        cache_dict(url_encode(beamline_repo), IOC_CACHE, ioc_graph)
+        ioc_graph = create_ioc_graph(beamline_repo, Path(tempfile.mkdtemp()))
+        cache_dict(url_encode(beamline_repo), glob_vars.IOC_CACHE, ioc_graph)
 
     return ioc_graph
 
 
 def avail_IOCs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    beamline_repo = params["repo"] or os.environ.get("EC_DOMAIN_REPO", "")
+    beamline_repo = params["repo"] or glob_vars.EC_DOMAIN_REPO
 
     # This block prevents getting a stack trace during autocompletion
     try:
@@ -74,7 +69,7 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
 
 def avail_versions(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    beamline_repo = params["repo"] or os.environ.get("EC_DOMAIN_REPO", "")
+    beamline_repo = params["repo"] or glob_vars.EC_DOMAIN_REPO
     ioc_name = ctx.params["ioc_name"]
 
     # This block prevents getting a stack trace during autocompletion
@@ -98,18 +93,18 @@ def force_plain_completion() -> List[str]:
 
 def running_iocs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    namespace = params["namespace"] or os.environ.get("EC_K8S_NAMESPACE", "")
+    namespace = params["namespace"] or glob_vars.EC_K8S_NAMESPACE
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        if namespace == LOCAL_NAMESPACE:
+        if namespace == glob_vars.LOCAL_NAMESPACE:
             # Not yet implemented
             return []
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
             command = f"kubectl -n {namespace} get pod -l is_ioc==True {columns}"
-            ioc_list = str(run_command(command, interactive=False)).split()[1:]
+            ioc_list = str(shell.run_command(command, interactive=False)).split()[1:]
             return ioc_list
     except typer.Exit:
         return [" "]
@@ -120,18 +115,18 @@ def running_iocs(ctx: typer.Context) -> List[str]:
 
 def all_iocs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    namespace = params["namespace"] or os.environ.get("EC_K8S_NAMESPACE", "")
+    namespace = params["namespace"] or glob_vars.EC_K8S_NAMESPACE
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        if namespace == LOCAL_NAMESPACE:
+        if namespace == glob_vars.LOCAL_NAMESPACE:
             # Not yet implemented
             return []
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
             command = f"kubectl -n {namespace} get deploy -l is_ioc==True {columns}"
-            ioc_list = str(run_command(command, interactive=False)).split()[1:]
+            ioc_list = str(shell.run_command(command, interactive=False)).split()[1:]
             return ioc_list
     except typer.Exit:
         return [" "]

@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 
 import typer
@@ -76,8 +75,8 @@ def main(
     init_logging(log_level.upper())
 
     # create a context dictionary to pass to all sub commands
-    repo = repo or os.environ.get("EC_DOMAIN_REPO", "")
-    namespace = namespace or os.environ.get("EC_K8S_NAMESPACE", "")
+    repo = repo or glob_vars.EC_DOMAIN_REPO
+    namespace = namespace or glob_vars.EC_K8S_NAMESPACE
     ctx.ensure_object(glob_vars.Context)
     context = glob_vars.Context(namespace, repo)
     ctx.obj = context

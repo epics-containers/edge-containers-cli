@@ -1,11 +1,11 @@
+import tempfile
 from pathlib import Path
-from tempfile import mkdtemp
 
 import typer
 from natsort import natsorted
 
+import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.git import create_ioc_graph
-from epics_containers_cli.globals import LOCAL_NAMESPACE
 from epics_containers_cli.ioc.ioc_autocomplete import (
     all_iocs,
     avail_IOCs,
@@ -31,7 +31,7 @@ def attach(
     """
     Attach to the IOC shell of a live IOC
     """
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).attach()
     else:
         IocK8sCommands(ctx.obj, ioc_name).attach()
@@ -47,7 +47,7 @@ def delete(
     """
     Remove an IOC helm deployment from the cluster
     """
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).delete()
     else:
         IocK8sCommands(ctx.obj, ioc_name).delete()
@@ -69,7 +69,7 @@ def template(
     """
     print out the helm template generated from a local ioc instance
     """
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         typer.echo("Not applicable to local deployments")
     else:
         IocK8sCommands(ctx.obj).template(ioc_instance, args)
@@ -92,7 +92,7 @@ def deploy_local(
     """
     Deploy a local IOC helm chart directly to the cluster with dated beta version
     """
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
     else:
         IocK8sCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
@@ -115,7 +115,7 @@ def deploy(
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
     ioc_name = drop_ioc_path(ioc_name)
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
     else:
         IocK8sCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
@@ -127,7 +127,7 @@ def list(
 ):
     """List all IOCs available in the helm registry"""
     typer.echo(typer.style(f"{'Available IOCs:':35}Latest instance:", bold=True))
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(mkdtemp()))
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(tempfile.mkdtemp()))
     iocs_list = natsorted(ioc_graph.keys())
 
     for ioc in iocs_list:
@@ -144,7 +144,7 @@ def instances(
 ):
     """List all versions of the IOC available in the helm registry"""
     typer.echo(f"Available instance versions for {ioc_name}:")
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(mkdtemp()))
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(tempfile.mkdtemp()))
     try:
         iocs_list = ioc_graph[ioc_name]
     except KeyError:
@@ -162,7 +162,7 @@ def exec(
     ),
 ):
     """Execute a bash prompt in a live IOC's container"""
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).exec()
     else:
         IocK8sCommands(ctx.obj, ioc_name).exec()
@@ -192,7 +192,7 @@ def logs(
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow the log stream"),
 ):
     """Show logs for current and previous instances of an IOC"""
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).logs(prev, follow)
     else:
         IocK8sCommands(ctx.obj, ioc_name).logs(prev, follow)
@@ -206,7 +206,7 @@ def restart(
     ),
 ):
     """Restart an IOC"""
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).restart()
     else:
         IocK8sCommands(ctx.obj, ioc_name).restart()
@@ -221,7 +221,7 @@ def start(
 ):
     """Start an IOC"""
     log.debug("Starting IOC with LOCAL={ctx.obj.namespace == " "}")
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).start()
     else:
         IocK8sCommands(ctx.obj, ioc_name).start()
@@ -235,7 +235,7 @@ def stop(
     ),
 ):
     """Stop an IOC"""
-    if ctx.obj.namespace == LOCAL_NAMESPACE:
+    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, ioc_name).stop()
     else:
         IocK8sCommands(ctx.obj, ioc_name).stop()

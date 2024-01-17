@@ -10,26 +10,20 @@ tool like Portainer is a decent workflow.
 """
 import re
 import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from tempfile import mkdtemp
 from typing import Optional
 
 import requests
 import typer
 
 import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.shell as shell
 from epics_containers_cli.docker import Docker
-from epics_containers_cli.globals import (
-    CONFIG_FILE_GLOB,
-    CONFIG_FOLDER,
-    IOC_CONFIG_FOLDER,
-    LOCAL_NAMESPACE,
-    Context,
-)
 from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import check_beamline_repo, run_command
+from epics_containers_cli.shell import check_beamline_repo
 from epics_containers_cli.utils import (
     check_ioc_instance_path,
     generic_ioc_from_image,
@@ -43,7 +37,10 @@ class IocLocalCommands:
     """
 
     def __init__(
-        self, ctx: Optional[Context], ioc_name: str = "", with_docker: bool = True
+        self,
+        ctx: Optional[glob_vars.Context],
+        ioc_name: str = "",
+        with_docker: bool = True,
     ):
         self.namespace = ""
         self.beamline_repo: str = ""
@@ -53,7 +50,7 @@ class IocLocalCommands:
 
         self.ioc_name: str = ioc_name
 
-        self.tmp = Path(mkdtemp())
+        self.tmp = Path(tempfile.mkdtemp())
         self.ioc_folder = self.tmp / "iocs" / ioc_name
         self.docker = Docker(check=with_docker)
 
@@ -79,32 +76,38 @@ class IocLocalCommands:
 
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
-        config = ioc_instance / CONFIG_FOLDER
+        config = ioc_instance / glob_vars.CONFIG_FOLDER
         ioc_name = ioc_instance.name
         volume = f"{ioc_name}_config"
 
         self.docker.remove(ioc_name)
-        run_command(f"{self.docker.docker} volume rm -f {volume}", interactive=False)
-        run_command(f"{self.docker.docker} volume create {volume}", interactive=False)
+        shell.run_command(
+            f"{self.docker.docker} volume rm -f {volume}", interactive=False
+        )
+        shell.run_command(
+            f"{self.docker.docker} volume create {volume}", interactive=False
+        )
 
-        vol = f"-v {volume}:{IOC_CONFIG_FOLDER}"
+        vol = f"-v {volume}:{glob_vars.IOC_CONFIG_FOLDER}"
         label = f"-l is_IOC=true -l version={version}"
         cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args}"
         dest = "busybox:copyto"
 
         # get the config into the volume before launching the IOC container
-        run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
-        run_command(
+        shell.run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
+        shell.run_command(
             f"{self.docker.docker} container create --name busybox "
             f"-v {volume}:/copyto busybox",
             interactive=False,
         )
         for file in config.glob("*"):
-            run_command(f"{self.docker.docker} cp {file} {dest}", interactive=False)
-        run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
+            shell.run_command(
+                f"{self.docker.docker} cp {file} {dest}", interactive=False
+            )
+        shell.run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
 
         # launch the ioc container with mounted config volume
-        run_command(f"{self.docker.docker} {cmd} --name {ioc_name} {image}")
+        shell.run_command(f"{self.docker.docker} {cmd} --name {ioc_name} {image}")
         if not self.docker.is_running(ioc_name, retry=5):
             typer.echo(
                 f"Failed to start {ioc_name} please try 'ec ioc logs {ioc_name}'"
@@ -133,7 +136,7 @@ class IocLocalCommands:
 
         check_beamline_repo(self.beamline_repo)
 
-        run_command(
+        shell.run_command(
             f"git clone {self.beamline_repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={version}",
             interactive=False,
@@ -148,13 +151,13 @@ class IocLocalCommands:
         self.docker.logs(self.ioc_name, prev, follow)
 
     def restart(self):
-        run_command(f"{self.docker.docker} restart {self.ioc_name}")
+        shell.run_command(f"{self.docker.docker} restart {self.ioc_name}")
 
     def start(self):
-        run_command(f"{self.docker.docker} start {self.ioc_name}")
+        shell.run_command(f"{self.docker.docker} start {self.ioc_name}")
 
     def stop(self):
-        run_command(f"{self.docker.docker} stop {self.ioc_name}")
+        shell.run_command(f"{self.docker.docker} stop {self.ioc_name}")
 
     def ps(self, all: bool, wide: bool):
         all_arg = " --all" if all else ""
@@ -163,7 +166,7 @@ class IocLocalCommands:
         # format a table with labels.
         format = "{{.Names}}%{{.Labels}}%{{.Status}}%{{.Image}}"
 
-        result = run_command(
+        result = shell.run_command(
             f"{self.docker.docker} ps{all_arg} --filter label=is_IOC=true "
             f'--format "{format}"',
             interactive=False,
@@ -191,12 +194,14 @@ class IocLocalCommands:
         typer.echo(f"Validating {ioc_instance}")
 
         ioc_config_files = list(
-            ioc_instance.glob(str(Path(CONFIG_FOLDER) / CONFIG_FILE_GLOB))
+            ioc_instance.glob(
+                str(Path(glob_vars.CONFIG_FOLDER) / glob_vars.CONFIG_FILE_GLOB)
+            )
         )
         image = get_instance_image_name(ioc_instance)
         image_name, image_tag = image.split(":")
 
-        tmp = Path(mkdtemp())
+        tmp = Path(tempfile.mkdtemp())
         schema_file = tmp / "schema.json"
 
         # not all IOCs have a config file so no config validation for them
@@ -234,7 +239,9 @@ class IocLocalCommands:
                 raise typer.Exit(1)
 
         # verify that the values.yaml file points to a container image that exists
-        run_command(f"{self.docker.docker} manifest inspect {image}", interactive=False)
+        shell.run_command(
+            f"{self.docker.docker} manifest inspect {image}", interactive=False
+        )
 
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -246,11 +253,11 @@ class IocLocalCommands:
         """
         ns = self.namespace
 
-        if ns == LOCAL_NAMESPACE:
+        if ns == glob_vars.LOCAL_NAMESPACE:
             typer.echo("ioc commands deploy to the local docker/podman instance")
         else:
             check_namespace(ns)
             typer.echo(f"ioc commands deploy to the {ns} namespace the K8S cluster")
 
         typer.echo("\nEC environment variables:")
-        run_command("env | grep '^EC_'", interactive=False, show=True)
+        shell.run_command("env | grep '^EC_'", interactive=False, show=True)

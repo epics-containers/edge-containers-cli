@@ -3,14 +3,8 @@ from typing import Optional
 
 import typer
 
+import epics_containers_cli.globals as glob_vars
 from epics_containers_cli.dev.dev_commands import DevCommands
-
-from ..globals import (
-    IOC_NAME,
-    IOC_START,
-    Architecture,
-    Targets,
-)
 
 dev = typer.Typer()
 
@@ -40,15 +34,16 @@ def launch_local(
         None,
         help="command to execute in the container. Defaults to executing the IOC",
     ),
-    target: Targets = typer.Option(
-        Targets.developer, help="choose runtime or developer target"
+    target: glob_vars.Targets = typer.Option(
+        glob_vars.Targets.developer, help="choose runtime or developer target"
     ),
     tag: str = typer.Option(IMAGE_TAG, help="override image tag to use."),
     args: str = typer.Option(
         "", help="Additional args for podman/docker, 'must be quoted'"
     ),
     ioc_name: str = typer.Option(
-        IOC_NAME, help="container name override. Use to run multiple instances"
+        glob_vars.IOC_NAME,
+        help="container name override. Use to run multiple instances",
     ),
 ):
     """
@@ -78,11 +73,11 @@ def launch(
         resolve_path=True,
     ),
     execute: str = typer.Option(
-        f"{IOC_START}; bash",
+        f"{glob_vars.IOC_START}; bash",
         help="command to execute in the container. Defaults to executing the IOC",
     ),
-    target: Targets = typer.Option(
-        Targets.developer, help="choose runtime or developer target"
+    target: glob_vars.Targets = typer.Option(
+        glob_vars.Targets.developer, help="choose runtime or developer target"
     ),
     image: str = typer.Option("", help="override container image to use"),
     tag: Optional[str] = typer.Option(None, help="override image tag to use."),
@@ -90,7 +85,8 @@ def launch(
         "", help="Additional args for podman/docker, 'must be quoted'"
     ),
     ioc_name: str = typer.Option(
-        IOC_NAME, help="container name override. Use to run multiple instances"
+        glob_vars.IOC_NAME,
+        help="container name override. Use to run multiple instances",
     ),
 ):
     """
@@ -133,8 +129,8 @@ def versions(
     generic_ioc: Path = typer.Argument(
         Path("."), help="Generic IOC project folder", exists=True, file_okay=False
     ),
-    arch: Architecture = typer.Option(
-        Architecture.linux, help="choose target architecture"
+    arch: glob_vars.Architecture = typer.Option(
+        glob_vars.Architecture.linux, help="choose target architecture"
     ),
     image: str = typer.Option("", help="override container image to use"),
 ):
@@ -154,7 +150,8 @@ def versions(
 def stop(
     ctx: typer.Context,
     ioc_name: str = typer.Option(
-        IOC_NAME, help="container name override. Use to run multiple instances"
+        glob_vars.IOC_NAME,
+        help="container name override. Use to run multiple instances",
     ),
 ):
     """
@@ -170,7 +167,8 @@ def exec(
         "bash", help="command to execute inside the container must be 'single quoted'"
     ),
     ioc_name: str = typer.Option(
-        IOC_NAME, help="container name override. Use to run multiple instances"
+        glob_vars.IOC_NAME,
+        help="container name override. Use to run multiple instances",
     ),
     args: str = typer.Option("", help="Additional args for exec, 'must be quoted'"),
 ):
@@ -187,7 +185,8 @@ def wait_pv(
         ..., help="A PV to check in order to confirm the IOC is running"
     ),
     ioc_name: str = typer.Option(
-        IOC_NAME, help="container name override. Use to run multiple instances"
+        glob_vars.IOC_NAME,
+        help="container name override. Use to run multiple instances",
     ),
     attempts: int = typer.Option(5, help="no. retries checking for PV"),
 ):
@@ -204,8 +203,8 @@ def build(
         Path("."), help="Generic IOC project folder", exists=True, file_okay=False
     ),
     tag: str = typer.Option(IMAGE_TAG, help="version tag for the image"),
-    arch: Architecture = typer.Option(
-        Architecture.linux, help="choose target architecture"
+    arch: glob_vars.Architecture = typer.Option(
+        glob_vars.Architecture.linux, help="choose target architecture"
     ),
     platform: str = typer.Option("linux/amd64", help="target platform"),
     cache: bool = typer.Option(True, help="use --no-cache to do a clean build"),
