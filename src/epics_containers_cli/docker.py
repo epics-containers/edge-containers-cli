@@ -9,10 +9,9 @@ from typing import List, Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
-from epics_containers_cli.globals import Architecture
+import epics_containers_cli.globals as globals
+import epics_containers_cli.shell as shell
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import run_command
 
 IMAGE_TAG = "local"
 MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
@@ -46,11 +45,13 @@ class Docker:
         Returns:
             Tuple[str, bool]: docker command, is_docker, is_buildx
         """
-        if glob_vars.EC_CONTAINER_CLI:
-            self.docker = glob_vars.EC_CONTAINER_CLI
+        if globals.EC_CONTAINER_CLI:
+            self.docker = globals.EC_CONTAINER_CLI
         else:
             # default to podman if we do not find a docker>=20.0.0
-            result = run_command("docker --version", interactive=False, error_OK=True)
+            result = shell.run_command(
+                "docker --version", interactive=False, error_OK=True
+            )
             match = re.match(r"[^\d]*(\d+)", str(result))
             if match is not None:
                 version = int(match.group(1))
@@ -58,7 +59,7 @@ class Docker:
                     self.docker, self.is_docker = "docker", True
                     log.debug(f"using docker {result}")
 
-        result = run_command(
+        result = shell.run_command(
             f"{self.docker} buildx version", interactive=False, error_OK=True
         )
         self.is_buildx = "docker/buildx" in result
@@ -102,7 +103,9 @@ class Docker:
         run a command in a local container
         """
         params = self._all_params(args, mounts=mounts)
-        run_command(f"{self.docker} run --rm --name {name} {params}", interactive=True)
+        shell.run_command(
+            f"{self.docker} run --rm --name {name} {params}", interactive=True
+        )
 
     def build(
         self,
@@ -113,14 +116,14 @@ class Docker:
         cache_from: str = "",
         cache_to: str = "",
         push: bool = False,
-        arch: Architecture = Architecture.linux,
+        arch: globals.Architecture = globals.Architecture.linux,
     ):
         """
         build a container
         """
         if self.is_buildx:
             cmd = f"{self.docker} buildx"
-            run_command(
+            shell.run_command(
                 f"{cmd} create --driver docker-container --use", interactive=False
             )
             args += f" --cache-from={cache_from}" if cache_from else ""
@@ -131,7 +134,9 @@ class Docker:
 
         t_arch = f" --build-arg TARGET_ARCHITECTURE={arch}" if self.devcontainer else ""
 
-        run_command(f"{cmd} build --target {target}{t_arch} {args} -t {name} {context}")
+        shell.run_command(
+            f"{cmd} build --target {target}{t_arch} {args} -t {name} {context}"
+        )
 
     def exec(
         self,
@@ -146,7 +151,7 @@ class Docker:
         """
         self.is_running(container, error=True)
         args = f"{args} " if args else ""
-        result = run_command(
+        result = shell.run_command(
             f'{self.docker} exec {args}{container} bash -c "{command}"',
             interactive=interactive,
             error_OK=errorOK,
@@ -158,7 +163,7 @@ class Docker:
         Stop and delete a container. Don't fail if it does not exist
         """
         self.stop(container)
-        run_command(
+        shell.run_command(
             f"{self.docker} rm -f {container}", error_OK=True, interactive=False
         )
 
@@ -166,7 +171,7 @@ class Docker:
         """
         Stop a container
         """
-        run_command(
+        shell.run_command(
             f"{self.docker} stop -t0 {container}", error_OK=True, interactive=False
         )
 
@@ -176,7 +181,7 @@ class Docker:
         """
         self.is_running(container, error=True)
         # quitting the attach returns an error code so we have to ignore it
-        run_command(f"{self.docker} attach {container}", error_OK=True)
+        shell.run_command(f"{self.docker} attach {container}", error_OK=True)
 
     def logs(self, container: str, previous: bool = False, follow: bool = False):
         """
@@ -186,14 +191,14 @@ class Docker:
         prev = " -p" if previous else ""
         fol = " -f" if follow else ""
 
-        run_command(f"{self.docker} logs{prev}{fol} {container}")
+        shell.run_command(f"{self.docker} logs{prev}{fol} {container}")
 
     def is_running(self, container: str, retry=1, error=False):
         """
         verify that a given container is up and running
         """
         for i in range(retry):
-            result = run_command(
+            result = shell.run_command(
                 f"{self.docker} ps -f name={container} --format '{{{{.Names}}}}'",
                 interactive=False,
             )
@@ -217,7 +222,7 @@ class Docker:
             entrypoint = f" --entrypoint {entrypoint}"
         cwd = Path.cwd().resolve()
         mount = f"-w {cwd} -v {cwd}:{cwd} -v /tmp:/tmp"
-        run_command(
+        shell.run_command(
             f"{self.docker} run{entrypoint} --rm {mount} {image} {args}",
             interactive=True,
         )

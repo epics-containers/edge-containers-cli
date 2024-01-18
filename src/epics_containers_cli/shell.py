@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.style import Style
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 
 from .logging import log
 
@@ -53,7 +53,7 @@ def run_command(
         error_OK: if True then do not raise an exception on failure
         show: print the command output to the console
     """
-    if glob_vars.EC_VERBOSE:
+    if globals.EC_VERBOSE:
         echo_command(command)
 
     p_result = subprocess.run(command, capture_output=not interactive, shell=True)
@@ -71,7 +71,7 @@ def run_command(
 
     if p_result.returncode != 0 and not error_OK:
         echo_error("\nCommand Failed:")
-        if not glob_vars.EC_VERBOSE:
+        if not globals.EC_VERBOSE:
             echo_command(command)
         echo_output(output)
         echo_error(error_out)

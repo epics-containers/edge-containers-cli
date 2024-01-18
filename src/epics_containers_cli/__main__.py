@@ -1,9 +1,8 @@
-import os
 from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
 
@@ -63,23 +62,23 @@ def main(
         "WARN", help="Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
     ),
     verbose: bool = typer.Option(
-        glob_vars.EC_VERBOSE, "-v", "--verbose", help="print the commands we run"
+        globals.EC_VERBOSE, "-v", "--verbose", help="print the commands we run"
     ),
     debug: bool = typer.Option(
-        glob_vars.EC_DEBUG, "-d", "--debug", help="Enable debug logging to console"
+        globals.EC_DEBUG, "-d", "--debug", help="Enable debug logging to console"
     ),
 ):
     """EPICS Containers assistant CLI"""
 
-    glob_vars.EC_VERBOSE, glob_vars.EC_DEBUG = bool(verbose), bool(debug)
+    globals.EC_VERBOSE, globals.EC_DEBUG = bool(verbose), bool(debug)
 
     init_logging(log_level.upper())
 
     # create a context dictionary to pass to all sub commands
-    repo = repo or os.environ.get("EC_DOMAIN_REPO", "")
-    namespace = namespace or os.environ.get("EC_K8S_NAMESPACE", "")
-    ctx.ensure_object(glob_vars.Context)
-    context = glob_vars.Context(namespace, repo)
+    repo = repo or globals.EC_DOMAIN_REPO
+    namespace = namespace or globals.EC_K8S_NAMESPACE
+    ctx.ensure_object(globals.Context)
+    context = globals.Context(namespace, repo)
     ctx.obj = context
 
 
@@ -94,7 +93,7 @@ def ps(
     ),
 ):
     """List the IOCs running in the current namespace"""
-    if ctx.obj.namespace == glob_vars.LOCAL_NAMESPACE:
+    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj).ps(all, wide)
     else:
         IocK8sCommands(ctx.obj).ps(all, wide)

@@ -4,22 +4,15 @@ from typing import Optional
 
 import typer
 
+import epics_containers_cli.globals as globals
+import epics_containers_cli.shell as shell
 from epics_containers_cli.docker import Docker
 from epics_containers_cli.git import get_git_name, get_image_name
 from epics_containers_cli.logging import log
-from epics_containers_cli.shell import run_command
 from epics_containers_cli.utils import (
     check_ioc_instance_path,
     get_instance_image_name,
     normalize_tag,
-)
-
-from ..globals import (
-    CONFIG_FOLDER,
-    IOC_CONFIG_FOLDER,
-    IOC_START,
-    Architecture,
-    Targets,
 )
 
 dev = typer.Typer()
@@ -36,7 +29,7 @@ class DevCommands:
     def _do_launch(
         self,
         ioc_name: str,
-        target: Targets,
+        target: globals.Targets,
         image: str,
         execute: str,
         args: str,
@@ -55,8 +48,8 @@ class DevCommands:
 
         start_script = f"-c '{execute}'"
 
-        if target == Targets.developer:
-            image = image.replace(Targets.runtime, Targets.developer)
+        if target == globals.Targets.developer:
+            image = image.replace(globals.Targets.runtime, globals.Targets.developer)
 
         args = " " + args.strip("'") if args else ""
         self.docker.run(
@@ -70,7 +63,7 @@ class DevCommands:
         ioc_instance: Optional[Path],
         generic_ioc: Path,
         execute: Optional[str],
-        target: Targets,
+        target: globals.Targets,
         tag: str,
         args: str,
         ioc_name: str,
@@ -88,11 +81,11 @@ class DevCommands:
             execute = execute or "bash"
         else:
             ioc_instance = ioc_instance.resolve()
-            if (ioc_instance / CONFIG_FOLDER).exists():
-                ioc_instance = ioc_instance / CONFIG_FOLDER
-            mounts.append(f"{ioc_instance}:{IOC_CONFIG_FOLDER}")
+            if (ioc_instance / globals.CONFIG_FOLDER).exists():
+                ioc_instance = ioc_instance / globals.CONFIG_FOLDER
+            mounts.append(f"{ioc_instance}:{globals.IOC_CONFIG_FOLDER}")
             log.debug(f"mounts: {mounts}")
-            execute = f"{IOC_START}; bash"
+            execute = f"{globals.IOC_START}; bash"
 
         repo, _ = get_git_name(generic_ioc)
         tag = normalize_tag(tag)
@@ -104,7 +97,7 @@ class DevCommands:
         self,
         ioc_instance: Path,
         execute: str,
-        target: Targets,
+        target: globals.Targets,
         image: str,
         tag: Optional[str],
         args: str,
@@ -121,7 +114,7 @@ class DevCommands:
         ioc_name_std, ioc_path = check_ioc_instance_path(ioc_instance)
         ioc_name = ioc_name or ioc_name_std
 
-        mounts = [f"{ioc_path}/{CONFIG_FOLDER}:{IOC_CONFIG_FOLDER}"]
+        mounts = [f"{ioc_path}/{globals.CONFIG_FOLDER}:{globals.IOC_CONFIG_FOLDER}"]
 
         image_name = image or get_instance_image_name(ioc_path, tag)
 
@@ -131,7 +124,7 @@ class DevCommands:
         """
         Launch the most recently partially built container image
         """
-        last_image = run_command(
+        last_image = shell.run_command(
             self.docker.docker + " images | awk '{print $3}' | awk 'NR==2'",
             interactive=False,
         )
@@ -145,7 +138,7 @@ class DevCommands:
             name="debug_build", mounts=mounts, args=f"--entrypoint bash {last_image}"
         )
 
-    def versions(self, generic_ioc: Path, arch: Architecture, image: str):
+    def versions(self, generic_ioc: Path, arch: globals.Architecture, image: str):
         """
         get the versions of a container image available in the registry
         """
@@ -188,7 +181,7 @@ class DevCommands:
         self,
         generic_ioc: Path,
         tag: str,
-        arch: Architecture,
+        arch: globals.Architecture,
         platform: str,
         cache: bool,
         cache_from: Optional[str],
@@ -206,7 +199,10 @@ class DevCommands:
         tag = normalize_tag(tag)
 
         if target is None:
-            targets = [Targets.developer.value, Targets.runtime.value]
+            targets = [
+                globals.Targets.developer.value,
+                globals.Targets.runtime.value,
+            ]
         else:
             targets = [target]
         for target in targets:
@@ -214,7 +210,7 @@ class DevCommands:
             image_name = f"{image}:{tag}"
 
             if not rebuild:
-                result = run_command(
+                result = shell.run_command(
                     "{self.docker.docker} images -q {image_name}", interactive=False
                 )
                 if result:

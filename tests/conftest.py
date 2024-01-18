@@ -1,23 +1,16 @@
-import os
 import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable, Dict, List, Union
 
-from mock import patch
 from pytest import fixture
 from ruamel.yaml import YAML
 from typer import Context
 from typer.testing import CliRunner
 
-os.environ["EC_K8S_NAMESPACE"] = "bl45p"
-os.environ["EC_DOMAIN_REPO"] = "https://github.com/epics-containers/bl45p"
-os.environ["EC_LOG_URL"] = (
-    "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message%2C"
-    "source&width=1489&highlightMessage=&relative=172800&q=pod_name%3A{ioc_name}*"
-)
-os.environ["EC_DEBUG"] = "1"
+from epics_containers_cli.__main__ import cli
+from epics_containers_cli.logging import log
 
 TMPDIR = Path("/tmp/ec_tests")
 DATA_PATH = Path(__file__).parent / "data"
@@ -56,7 +49,11 @@ class MockRun:
         self.log += f"\n\nFNC: ec {' '.join(self.params)}"
         self.log += f"\nCMD: {command}"
 
-        cmd_rsp = self.cmd_rsp.pop(0)
+        try:
+            cmd_rsp = self.cmd_rsp.pop(0)
+        except IndexError:
+            raise IndexError("No test command response to return")
+
         cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]
 
@@ -107,6 +104,7 @@ class MockRun:
         Call a typer CLI function and report the sequence of commands /
         repsponses when an error occurs.
         """
+
         self.params = [str(x) for x in args.split(" ")]
 
         result = self._runner.invoke(cli, self.params)
@@ -127,19 +125,33 @@ def mktempdir(_1=None, _2=None, _3=None):
     return str(TMPDIR)
 
 
-patch("epics_containers_cli.shell.run_command", MOCKRUN._str_command).start()
-patch("typer.confirm", return_value=True).start()
-patch("tempfile.mkdtemp", mktempdir).start()
-patch("webbrowser.open", MOCKRUN._str_command).start()
-
-
-# import project code last so that the patches above are applied
-from epics_containers_cli.__main__ import cli  # noqa: E402
-from epics_containers_cli.logging import log  # noqa: E402
-
-
 @fixture
-def mock_run():
+def mock_run(mocker):
+    # Patch globals
+    mocker.patch(
+        "epics_containers_cli.globals.EC_K8S_NAMESPACE",
+        "bl45p",
+    )
+    mocker.patch(
+        "epics_containers_cli.globals.EC_DOMAIN_REPO",
+        "https://github.com/epics-containers/bl45p",
+    )
+    mocker.patch(
+        "epics_containers_cli.globals.EC_LOG_URL",
+        "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields="
+        "message%2Csource&width=1489&highlightMessage=&relative=172800&q="
+        "pod_name%3A{ioc_name}*",
+    )
+    mocker.patch(
+        "epics_containers_cli.globals.EC_DEBUG",
+        "1",
+    )
+
+    # Patch functions
+    mocker.patch("webbrowser.open", MOCKRUN._str_command)
+    mocker.patch("typer.confirm", return_value=True)
+    mocker.patch("tempfile.mkdtemp", mktempdir)
+    mocker.patch("epics_containers_cli.shell.run_command", MOCKRUN._str_command)
     return MOCKRUN
 
 
@@ -165,9 +177,12 @@ def ioc(data):
 
 
 @fixture()
-def local(data):
+def local(data, mocker):
     file = Path(__file__).parent / "data" / "local.yaml"
-    os.environ["EC_K8S_NAMESPACE"] = "local"
+    mocker.patch(
+        "epics_containers_cli.globals.EC_K8S_NAMESPACE",
+        "local",
+    )
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
 

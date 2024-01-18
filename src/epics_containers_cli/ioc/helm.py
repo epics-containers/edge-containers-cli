@@ -1,14 +1,13 @@
 import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from tempfile import mkdtemp
 from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
-from epics_containers_cli.globals import BEAMLINE_CHART_FOLDER, CONFIG_FOLDER
-from epics_containers_cli.shell import run_command
+import epics_containers_cli.globals as globals
+import epics_containers_cli.shell as shell
 from epics_containers_cli.utils import check_ioc_instance_path, log
 
 
@@ -38,17 +37,19 @@ class Helm:
         )
         self.template = template
 
-        self.tmp = Path(mkdtemp())
+        self.tmp = Path(tempfile.mkdtemp())
 
-        self.bl_chart_folder = self.tmp / BEAMLINE_CHART_FOLDER
+        self.bl_chart_folder = self.tmp / globals.BEAMLINE_CHART_FOLDER
         self.bl_chart_path = self.bl_chart_folder / "Chart.yaml"
-        self.bl_config_folder = self.bl_chart_folder / CONFIG_FOLDER
+        self.bl_config_folder = self.bl_chart_folder / globals.CONFIG_FOLDER
 
-        self.ioc_config_folder = self.tmp / "iocs" / str(self.ioc_name) / CONFIG_FOLDER
+        self.ioc_config_folder = (
+            self.tmp / "iocs" / str(self.ioc_name) / globals.CONFIG_FOLDER
+        )
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection
-        if not glob_vars.EC_DEBUG:
+        if not globals.EC_DEBUG:
             if hasattr(self, "tmp"):
                 shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -67,11 +68,11 @@ class Helm:
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
 
-        bl_chart_folder = ioc_path.parent.parent / BEAMLINE_CHART_FOLDER
+        bl_chart_folder = ioc_path.parent.parent / globals.BEAMLINE_CHART_FOLDER
         # temporary copy of the beamline chart for destructive modification
-        shutil.copytree(bl_chart_folder, self.tmp / BEAMLINE_CHART_FOLDER)
+        shutil.copytree(bl_chart_folder, self.tmp / globals.BEAMLINE_CHART_FOLDER)
 
-        config_folder = ioc_path / CONFIG_FOLDER
+        config_folder = ioc_path / globals.CONFIG_FOLDER
         self._do_deploy(config_folder)
 
     def deploy(self):
@@ -81,7 +82,7 @@ class Helm:
         if not self.version:
             raise typer.Exit("ERROR: version is required")
 
-        run_command(
+        shell.run_command(
             f"git clone {self.beamline_repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
             interactive=False,
@@ -106,7 +107,9 @@ class Helm:
         self.bl_config_folder.symlink_to(config_folder)
 
         # get library charts
-        run_command(f"helm dependency update {self.bl_chart_folder}", interactive=False)
+        shell.run_command(
+            f"helm dependency update {self.bl_chart_folder}", interactive=False
+        )
         # use helm to install the chart
         self._install(
             values=values_path,
@@ -133,5 +136,5 @@ class Helm:
             f'"'
         )
 
-        output = run_command(cmd, interactive=False)
+        output = shell.run_command(cmd, interactive=False)
         typer.echo(output)
