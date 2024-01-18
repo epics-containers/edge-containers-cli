@@ -4,7 +4,7 @@ from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.docker import Docker
 from epics_containers_cli.git import get_git_name, get_image_name
@@ -29,7 +29,7 @@ class DevCommands:
     def _do_launch(
         self,
         ioc_name: str,
-        target: glob_vars.Targets,
+        target: globals.Targets,
         image: str,
         execute: str,
         args: str,
@@ -48,10 +48,8 @@ class DevCommands:
 
         start_script = f"-c '{execute}'"
 
-        if target == glob_vars.Targets.developer:
-            image = image.replace(
-                glob_vars.Targets.runtime, glob_vars.Targets.developer
-            )
+        if target == globals.Targets.developer:
+            image = image.replace(globals.Targets.runtime, globals.Targets.developer)
 
         args = " " + args.strip("'") if args else ""
         self.docker.run(
@@ -65,7 +63,7 @@ class DevCommands:
         ioc_instance: Optional[Path],
         generic_ioc: Path,
         execute: Optional[str],
-        target: glob_vars.Targets,
+        target: globals.Targets,
         tag: str,
         args: str,
         ioc_name: str,
@@ -83,11 +81,11 @@ class DevCommands:
             execute = execute or "bash"
         else:
             ioc_instance = ioc_instance.resolve()
-            if (ioc_instance / glob_vars.CONFIG_FOLDER).exists():
-                ioc_instance = ioc_instance / glob_vars.CONFIG_FOLDER
-            mounts.append(f"{ioc_instance}:{glob_vars.IOC_CONFIG_FOLDER}")
+            if (ioc_instance / globals.CONFIG_FOLDER).exists():
+                ioc_instance = ioc_instance / globals.CONFIG_FOLDER
+            mounts.append(f"{ioc_instance}:{globals.IOC_CONFIG_FOLDER}")
             log.debug(f"mounts: {mounts}")
-            execute = f"{glob_vars.IOC_START}; bash"
+            execute = f"{globals.IOC_START}; bash"
 
         repo, _ = get_git_name(generic_ioc)
         tag = normalize_tag(tag)
@@ -99,7 +97,7 @@ class DevCommands:
         self,
         ioc_instance: Path,
         execute: str,
-        target: glob_vars.Targets,
+        target: globals.Targets,
         image: str,
         tag: Optional[str],
         args: str,
@@ -116,7 +114,7 @@ class DevCommands:
         ioc_name_std, ioc_path = check_ioc_instance_path(ioc_instance)
         ioc_name = ioc_name or ioc_name_std
 
-        mounts = [f"{ioc_path}/{glob_vars.CONFIG_FOLDER}:{glob_vars.IOC_CONFIG_FOLDER}"]
+        mounts = [f"{ioc_path}/{globals.CONFIG_FOLDER}:{globals.IOC_CONFIG_FOLDER}"]
 
         image_name = image or get_instance_image_name(ioc_path, tag)
 
@@ -140,7 +138,7 @@ class DevCommands:
             name="debug_build", mounts=mounts, args=f"--entrypoint bash {last_image}"
         )
 
-    def versions(self, generic_ioc: Path, arch: glob_vars.Architecture, image: str):
+    def versions(self, generic_ioc: Path, arch: globals.Architecture, image: str):
         """
         get the versions of a container image available in the registry
         """
@@ -183,7 +181,7 @@ class DevCommands:
         self,
         generic_ioc: Path,
         tag: str,
-        arch: glob_vars.Architecture,
+        arch: globals.Architecture,
         platform: str,
         cache: bool,
         cache_from: Optional[str],
@@ -202,8 +200,8 @@ class DevCommands:
 
         if target is None:
             targets = [
-                glob_vars.Targets.developer.value,
-                glob_vars.Targets.runtime.value,
+                globals.Targets.developer.value,
+                globals.Targets.runtime.value,
             ]
         else:
             targets = [target]

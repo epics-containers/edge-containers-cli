@@ -1,6 +1,6 @@
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.k8s.kubectl import fmt_deploys, fmt_pods
 
@@ -8,7 +8,7 @@ cluster = typer.Typer()
 
 
 class K8sCommands:
-    def __init__(self, ctx: glob_vars.Context):
+    def __init__(self, ctx: globals.Context):
         self.namespace = ctx.namespace
 
     def resources(self):

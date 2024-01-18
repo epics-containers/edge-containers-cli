@@ -10,7 +10,7 @@ from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.ioc.helm import Helm
 from epics_containers_cli.k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
@@ -49,7 +49,7 @@ class IocK8sCommands:
     A class for implementing the ioc command namespace
     """
 
-    def __init__(self, ctx: Optional[glob_vars.Context], ioc_name: str = ""):
+    def __init__(self, ctx: Optional[globals.Context], ioc_name: str = ""):
         self.namespace: str = ""
         self.beamline_repo: str = ""
         if ctx is not None:
@@ -106,11 +106,11 @@ class IocK8sCommands:
         )
 
     def log_history(self):
-        if not glob_vars.EC_LOG_URL:
+        if not globals.EC_LOG_URL:
             log.error("EC_LOG_URL environment not set")
             raise typer.Exit(1)
 
-        url = glob_vars.EC_LOG_URL.format(ioc_name=self.ioc_name)
+        url = globals.EC_LOG_URL.format(ioc_name=self.ioc_name)
         webbrowser.open(url)
 
     def logs(self, prev: bool, follow: bool):

@@ -18,7 +18,7 @@ from typing import Optional
 import requests
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.docker import Docker
 from epics_containers_cli.ioc.k8s_commands import check_namespace
@@ -38,7 +38,7 @@ class IocLocalCommands:
 
     def __init__(
         self,
-        ctx: Optional[glob_vars.Context],
+        ctx: Optional[globals.Context],
         ioc_name: str = "",
         with_docker: bool = True,
     ):
@@ -56,7 +56,7 @@ class IocLocalCommands:
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection_del
-        if not glob_vars.EC_DEBUG:
+        if not globals.EC_DEBUG:
             if hasattr(self, "tmp"):
                 shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -76,7 +76,7 @@ class IocLocalCommands:
 
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
-        config = ioc_instance / glob_vars.CONFIG_FOLDER
+        config = ioc_instance / globals.CONFIG_FOLDER
         ioc_name = ioc_instance.name
         volume = f"{ioc_name}_config"
 
@@ -88,7 +88,7 @@ class IocLocalCommands:
             f"{self.docker.docker} volume create {volume}", interactive=False
         )
 
-        vol = f"-v {volume}:{glob_vars.IOC_CONFIG_FOLDER}"
+        vol = f"-v {volume}:{globals.IOC_CONFIG_FOLDER}"
         label = f"-l is_IOC=true -l version={version}"
         cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args}"
         dest = "busybox:copyto"
@@ -195,7 +195,7 @@ class IocLocalCommands:
 
         ioc_config_files = list(
             ioc_instance.glob(
-                str(Path(glob_vars.CONFIG_FOLDER) / glob_vars.CONFIG_FILE_GLOB)
+                str(Path(globals.CONFIG_FOLDER) / globals.CONFIG_FILE_GLOB)
             )
         )
         image = get_instance_image_name(ioc_instance)
@@ -253,7 +253,7 @@ class IocLocalCommands:
         """
         ns = self.namespace
 
-        if ns == glob_vars.LOCAL_NAMESPACE:
+        if ns == globals.LOCAL_NAMESPACE:
             typer.echo("ioc commands deploy to the local docker/podman instance")
         else:
             check_namespace(ns)

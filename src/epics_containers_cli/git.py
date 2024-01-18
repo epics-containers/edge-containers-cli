@@ -9,7 +9,7 @@ from typing import Dict, Optional, Tuple
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo
@@ -18,7 +18,7 @@ from epics_containers_cli.utils import chdir
 
 def get_image_name(
     repo: str,
-    arch: glob_vars.Architecture = glob_vars.Architecture.linux,
+    arch: globals.Architecture = globals.Architecture.linux,
     target: str = "developer",
     suffix: Optional[str] = None,
 ) -> str:
@@ -65,7 +65,7 @@ def repo2registry(repo_name: str) -> str:
     # not all git remotes have it for some reason
     repo_name = repo_name.removesuffix(".git")
 
-    for mapping in glob_vars.EC_REGISTRY_MAPPING_REGEX.split("\n"):
+    for mapping in globals.EC_REGISTRY_MAPPING_REGEX.split("\n"):
         if mapping == "":
             continue
         regex, replacement = mapping.split(" ")
@@ -94,7 +94,7 @@ def repo2registry(repo_name: str) -> str:
 
     log.debug("source_reg = %s org = %s repo = %s", source_reg, org, repo)
 
-    for mapping in glob_vars.EC_REGISTRY_MAPPING.split():
+    for mapping in globals.EC_REGISTRY_MAPPING.split():
         if mapping.split("=")[0] == source_reg:
             registry = mapping.split("=")[1]
             registry = f"{registry}/{org}/{repo}"

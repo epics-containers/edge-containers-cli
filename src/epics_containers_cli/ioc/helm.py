@@ -6,7 +6,7 @@ from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.utils import check_ioc_instance_path, log
 
@@ -39,17 +39,17 @@ class Helm:
 
         self.tmp = Path(tempfile.mkdtemp())
 
-        self.bl_chart_folder = self.tmp / glob_vars.BEAMLINE_CHART_FOLDER
+        self.bl_chart_folder = self.tmp / globals.BEAMLINE_CHART_FOLDER
         self.bl_chart_path = self.bl_chart_folder / "Chart.yaml"
-        self.bl_config_folder = self.bl_chart_folder / glob_vars.CONFIG_FOLDER
+        self.bl_config_folder = self.bl_chart_folder / globals.CONFIG_FOLDER
 
         self.ioc_config_folder = (
-            self.tmp / "iocs" / str(self.ioc_name) / glob_vars.CONFIG_FOLDER
+            self.tmp / "iocs" / str(self.ioc_name) / globals.CONFIG_FOLDER
         )
 
     def __del__(self):
         # keep the tmp folder if debug is enabled for inspection
-        if not glob_vars.EC_DEBUG:
+        if not globals.EC_DEBUG:
             if hasattr(self, "tmp"):
                 shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -68,11 +68,11 @@ class Helm:
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
 
-        bl_chart_folder = ioc_path.parent.parent / glob_vars.BEAMLINE_CHART_FOLDER
+        bl_chart_folder = ioc_path.parent.parent / globals.BEAMLINE_CHART_FOLDER
         # temporary copy of the beamline chart for destructive modification
-        shutil.copytree(bl_chart_folder, self.tmp / glob_vars.BEAMLINE_CHART_FOLDER)
+        shutil.copytree(bl_chart_folder, self.tmp / globals.BEAMLINE_CHART_FOLDER)
 
-        config_folder = ioc_path / glob_vars.CONFIG_FOLDER
+        config_folder = ioc_path / globals.CONFIG_FOLDER
         self._do_deploy(config_folder)
 
     def deploy(self):

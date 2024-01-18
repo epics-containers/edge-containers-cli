@@ -10,7 +10,7 @@ from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 from epics_containers_cli.logging import log
 
 
@@ -44,7 +44,7 @@ def check_ioc_instance_path(ioc_path: Path):
     if ioc_path.is_dir():
         if (
             not (ioc_path / "values.yaml").exists()
-            or not (ioc_path / glob_vars.CONFIG_FOLDER).is_dir()
+            or not (ioc_path / globals.CONFIG_FOLDER).is_dir()
         ):
             log.error("IOC instance requires values.yaml and config")
             raise typer.Exit(1)

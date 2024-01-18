@@ -9,7 +9,7 @@ from typing import List, Optional
 
 import typer
 
-import epics_containers_cli.globals as glob_vars
+import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.logging import log
 
@@ -45,8 +45,8 @@ class Docker:
         Returns:
             Tuple[str, bool]: docker command, is_docker, is_buildx
         """
-        if glob_vars.EC_CONTAINER_CLI:
-            self.docker = glob_vars.EC_CONTAINER_CLI
+        if globals.EC_CONTAINER_CLI:
+            self.docker = globals.EC_CONTAINER_CLI
         else:
             # default to podman if we do not find a docker>=20.0.0
             result = shell.run_command(
@@ -116,7 +116,7 @@ class Docker:
         cache_from: str = "",
         cache_to: str = "",
         push: bool = False,
-        arch: glob_vars.Architecture = glob_vars.Architecture.linux,
+        arch: globals.Architecture = globals.Architecture.linux,
     ):
         """
         build a container
