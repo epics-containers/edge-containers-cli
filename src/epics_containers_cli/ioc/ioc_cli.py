@@ -69,6 +69,7 @@ def template(
     """
     print out the helm template generated from a local ioc instance
     """
+    args = f"{args} --debug"
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
         typer.echo("Not applicable to local deployments")
     else:
