@@ -65,7 +65,10 @@ def main(
         globals.EC_VERBOSE, "-v", "--verbose", help="print the commands we run"
     ),
     debug: bool = typer.Option(
-        globals.EC_DEBUG, "-d", "--debug", help="Enable debug logging to console"
+        globals.EC_DEBUG,
+        "-d",
+        "--debug",
+        help="Enable debug logging to console and retain temporary files",
     ),
 ):
     """EPICS Containers assistant CLI"""

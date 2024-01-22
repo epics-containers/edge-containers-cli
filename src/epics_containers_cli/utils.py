@@ -5,6 +5,7 @@ utility functions
 import contextlib
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -95,6 +96,14 @@ def chdir(path):
         yield
     finally:
         os.chdir(curdir)
+
+
+def cleanup_temp(folder_path: Path) -> None:
+    # keep the tmp folder if debug is enabled for inspection
+    if not globals.EC_DEBUG:
+        shutil.rmtree(folder_path, ignore_errors=True)
+    else:
+        log.debug(f"Temporary directory {folder_path} retained")
 
 
 def normalize_tag(tag: str) -> str:

@@ -8,7 +8,7 @@ import typer
 
 import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
-from epics_containers_cli.utils import check_ioc_instance_path, log
+from epics_containers_cli.utils import check_ioc_instance_path, cleanup_temp, log
 
 
 class Helm:
@@ -48,10 +48,8 @@ class Helm:
         )
 
     def __del__(self):
-        # keep the tmp folder if debug is enabled for inspection
-        if not globals.EC_DEBUG:
-            if hasattr(self, "tmp"):
-                shutil.rmtree(self.tmp, ignore_errors=True)
+        if hasattr(self, "tmp"):
+            cleanup_temp(self.tmp)
 
     def deploy_local(self, ioc_path: Path, yes: bool = False):
         """
