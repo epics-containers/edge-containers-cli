@@ -13,6 +13,7 @@ import epics_containers_cli.shell as shell
 from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.logging import log
+from epics_containers_cli.utils import cleanup_temp
 
 
 def url_encode(in_string: str) -> str:
@@ -46,8 +47,10 @@ def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
 def fetch_ioc_graph(beamline_repo: str) -> dict:
     ioc_graph = read_cached_dict(url_encode(beamline_repo), globals.IOC_CACHE)
     if not ioc_graph:
-        ioc_graph = create_ioc_graph(beamline_repo, Path(tempfile.mkdtemp()))
+        tmp_dir = Path(tempfile.mkdtemp())
+        ioc_graph = create_ioc_graph(beamline_repo, tmp_dir)
         cache_dict(url_encode(beamline_repo), globals.IOC_CACHE, ioc_graph)
+        cleanup_temp(tmp_dir)
 
     return ioc_graph
 

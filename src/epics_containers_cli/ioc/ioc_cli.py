@@ -16,7 +16,7 @@ from epics_containers_cli.ioc.ioc_autocomplete import (
 from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
 from epics_containers_cli.logging import log
-from epics_containers_cli.utils import drop_ioc_path
+from epics_containers_cli.utils import cleanup_temp, drop_ioc_path
 
 ioc = typer.Typer()
 
@@ -128,12 +128,15 @@ def list(
 ):
     """List all IOCs available in the helm registry"""
     typer.echo(typer.style(f"{'Available IOCs:':35}Latest instance:", bold=True))
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(tempfile.mkdtemp()))
+    tmp_dir = Path(tempfile.mkdtemp())
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir)
     iocs_list = natsorted(ioc_graph.keys())
 
     for ioc in iocs_list:
         latest_instance = natsorted(ioc_graph[ioc])[-1]
         typer.echo(f"{ioc:35}{latest_instance}")
+
+    cleanup_temp(tmp_dir)
 
 
 @ioc.command()
@@ -145,7 +148,8 @@ def instances(
 ):
     """List all versions of the IOC available in the helm registry"""
     typer.echo(f"Available instance versions for {ioc_name}:")
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, Path(tempfile.mkdtemp()))
+    tmp_dir = Path(tempfile.mkdtemp())
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir)
     try:
         iocs_list = ioc_graph[ioc_name]
     except KeyError:
@@ -153,6 +157,8 @@ def instances(
 
     sorted_list = natsorted(iocs_list)[::-1]
     typer.echo("  ".join(sorted_list))
+
+    cleanup_temp(tmp_dir)
 
 
 @ioc.command()

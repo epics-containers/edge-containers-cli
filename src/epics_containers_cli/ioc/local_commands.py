@@ -9,7 +9,6 @@ However, for the moment, Using this by connecting to each server and running
 tool like Portainer is a decent workflow.
 """
 import re
-import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +25,7 @@ from epics_containers_cli.logging import log
 from epics_containers_cli.shell import check_beamline_repo
 from epics_containers_cli.utils import (
     check_ioc_instance_path,
+    cleanup_temp,
     generic_ioc_from_image,
     get_instance_image_name,
 )
@@ -55,10 +55,8 @@ class IocLocalCommands:
         self.docker = Docker(check=with_docker)
 
     def __del__(self):
-        # keep the tmp folder if debug is enabled for inspection_del
-        if not globals.EC_DEBUG:
-            if hasattr(self, "tmp"):
-                shutil.rmtree(self.tmp, ignore_errors=True)
+        if hasattr(self, "tmp"):
+            cleanup_temp(self.tmp)
 
     def attach(self):
         self.docker.attach(self.ioc_name)
@@ -243,7 +241,7 @@ class IocLocalCommands:
             f"{self.docker.docker} manifest inspect {image}", interactive=False
         )
 
-        shutil.rmtree(tmp, ignore_errors=True)
+        cleanup_temp(tmp)
 
         typer.echo(f"{ioc_instance} validated successfully")
 
