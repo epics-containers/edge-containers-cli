@@ -18,7 +18,7 @@ from epics_containers_cli.logging import log
 
 
 def check_ioc(ioc_name: str, domain: str):
-    cmd = f"kubectl get -n {domain} deploy/{ioc_name}"
+    cmd = f"kubectl get -n {domain} statefulset/{ioc_name}"
     if not shell.run_command(cmd, interactive=False, error_OK=True):
         log.error(f"ioc {ioc_name} does not exist in domain {domain}")
         raise typer.Exit(1)
@@ -63,7 +63,7 @@ class IocK8sCommands:
 
     def attach(self):
         shell.run_command(
-            f"kubectl -it -n {self.namespace} attach deploy/{self.ioc_name}",
+            f"kubectl -it -n {self.namespace} attach statefulset/{self.ioc_name}",
             interactive=True,
         )
 
@@ -102,7 +102,7 @@ class IocK8sCommands:
 
     def exec(self):
         shell.run_command(
-            f"kubectl -it -n {self.namespace} exec deploy/{self.ioc_name} -- bash"
+            f"kubectl -it -n {self.namespace} exec statefulset/{self.ioc_name} -- bash"
         )
 
     def log_history(self):
@@ -118,7 +118,7 @@ class IocK8sCommands:
         fol = "-f" if follow else ""
 
         shell.run_command(
-            f"kubectl -n {self.namespace} logs deploy/{self.ioc_name} {previous} {fol}"
+            f"kubectl -n {self.namespace} logs statefulset/{self.ioc_name} {previous} {fol}"
         )
 
     def restart(self):
@@ -130,13 +130,13 @@ class IocK8sCommands:
 
     def start(self):
         shell.run_command(
-            f"kubectl scale -n {self.namespace} deploy/{self.ioc_name} --replicas=1"
+            f"kubectl scale -n {self.namespace} statefulset/{self.ioc_name} --replicas=1"
         )
 
     def stop(self):
         """Stop an IOC"""
         shell.run_command(
-            f"kubectl scale -n {self.namespace} deploy/{self.ioc_name} --replicas=0 "
+            f"kubectl scale -n {self.namespace} statefulset/{self.ioc_name} --replicas=0 "
         )
 
     def ps(self, all: bool, wide: bool):

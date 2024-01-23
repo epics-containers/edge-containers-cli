@@ -1,11 +1,11 @@
 checks:
   - cmd: kubectl get namespace bl45p -o name
     rsp: namespace/bl45p
-  - cmd: kubectl get -n bl45p deploy/bl45p-ea-ioc-01
+  - cmd: kubectl get -n bl45p statefulset/bl45p-ea-ioc-01
     rsp: bl45p-ea-ioc-01   1/1     1            1           5d5h
 
 attach:
-  - cmd: kubectl -it -n bl45p attach deploy/bl45p-ea-ioc-01
+  - cmd: kubectl -it -n bl45p attach statefulset/bl45p-ea-ioc-01
     rsp: True
 
 delete:
@@ -49,11 +49,11 @@ instances:
       2.0 bl45p-ea-ioc-01
 
 exec:
-  - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
+  - cmd: kubectl -it -n bl45p exec statefulset/bl45p-ea-ioc-01 -- bash
     rsp: True
 
 exec2:
-  - cmd: kubectl -it -n bl45p exec deploy/bl45p-ea-ioc-01 -- bash
+  - cmd: kubectl -it -n bl45p exec statefulset/bl45p-ea-ioc-01 -- bash
     rsp: True
 
 log_history:
@@ -63,7 +63,7 @@ log_history:
     rsp: True
 
 logs:
-  - cmd: kubectl -n bl45p logs deploy/bl45p-ea-ioc-01
+  - cmd: kubectl -n bl45p logs statefulset/bl45p-ea-ioc-01
     rsp: True
 
 restart:
@@ -73,11 +73,11 @@ restart:
     rsp: True
 
 start:
-  - cmd: kubectl scale -n bl45p deploy/bl45p-ea-ioc-01 --replicas=1
+  - cmd: kubectl scale -n bl45p statefulset/bl45p-ea-ioc-01 --replicas=1
     rsp: True
 
 stop:
-  - cmd: kubectl scale -n bl45p deploy/bl45p-ea-ioc-01 --replicas=0
+  - cmd: kubectl scale -n bl45p statefulset/bl45p-ea-ioc-01 --replicas=0
     rsp: True
 
 ps:
