@@ -1,7 +1,7 @@
 all_iocs:
   - cmd: kubectl get namespace bl45p -o name
     rsp: namespace/bl45p
-  - cmd: kubectl -n bl45p get deploy -l is_ioc==True
+  - cmd: kubectl -n bl45p get statefulset -l is_ioc==True
     rsp: NAME, bl45p-ea-ioc-01
 
 avail_IOCs:

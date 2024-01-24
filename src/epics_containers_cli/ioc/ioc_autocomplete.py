@@ -128,7 +128,9 @@ def all_iocs(ctx: typer.Context) -> List[str]:
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
-            command = f"kubectl -n {namespace} get deploy -l is_ioc==True {columns}"
+            command = (
+                f"kubectl -n {namespace} get statefulset -l is_ioc==True {columns}"
+            )
             ioc_list = str(shell.run_command(command, interactive=False)).split()[1:]
             return ioc_list
     except typer.Exit:
