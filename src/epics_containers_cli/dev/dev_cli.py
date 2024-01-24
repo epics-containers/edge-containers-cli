@@ -4,6 +4,7 @@ from typing import Optional
 import typer
 
 import epics_containers_cli.globals as globals
+from epics_containers_cli.autocomplete import force_plain_completion
 from epics_containers_cli.dev.dev_commands import DevCommands
 
 dev = typer.Typer()
@@ -26,9 +27,14 @@ def launch_local(
         dir_okay=True,
         file_okay=False,
         exists=True,
+        autocompletion=force_plain_completion,
     ),
     generic_ioc: Path = typer.Option(
-        ".", help="folder for generic IOC project", dir_okay=True, file_okay=False
+        ".",
+        help="folder for generic IOC project",
+        dir_okay=True,
+        file_okay=False,
+        autocompletion=force_plain_completion,
     ),
     execute: Optional[str] = typer.Option(
         None,
@@ -71,6 +77,7 @@ def launch(
         file_okay=False,
         exists=True,
         resolve_path=True,
+        autocompletion=force_plain_completion,
     ),
     execute: str = typer.Option(
         f"{globals.IOC_START}; bash",
@@ -109,7 +116,11 @@ def launch(
 @dev.command()
 def debug_last(
     generic_ioc: Path = typer.Argument(
-        Path("."), help="Container project folder", exists=True, file_okay=False
+        Path("."),
+        help="Container project folder",
+        exists=True,
+        file_okay=False,
+        autocompletion=force_plain_completion,
     ),
     mount_repos: bool = typer.Option(
         True, help="Mount generic IOC repo folder into the container"
@@ -127,7 +138,11 @@ def debug_last(
 def versions(
     ctx: typer.Context,
     generic_ioc: Path = typer.Argument(
-        Path("."), help="Generic IOC project folder", exists=True, file_okay=False
+        Path("."),
+        help="Generic IOC project folder",
+        exists=True,
+        file_okay=False,
+        autocompletion=force_plain_completion,
     ),
     arch: globals.Architecture = typer.Option(
         globals.Architecture.linux, help="choose target architecture"
@@ -200,7 +215,11 @@ def wait_pv(
 def build(
     ctx: typer.Context,
     generic_ioc: Path = typer.Option(
-        Path("."), help="Generic IOC project folder", exists=True, file_okay=False
+        Path("."),
+        help="Generic IOC project folder",
+        exists=True,
+        file_okay=False,
+        autocompletion=force_plain_completion,
     ),
     tag: str = typer.Option(IMAGE_TAG, help="version tag for the image"),
     arch: globals.Architecture = typer.Option(

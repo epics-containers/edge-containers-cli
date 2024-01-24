@@ -195,7 +195,7 @@ def dev(data):
 
 
 @fixture()
-def ioc_autocomplete(data):
-    file = Path(__file__).parent / "data" / "ioc_autocomplete.yaml"
+def autocomplete(data):
+    file = Path(__file__).parent / "data" / "autocomplete.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)

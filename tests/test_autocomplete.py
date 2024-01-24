@@ -6,7 +6,7 @@ of the tested function must be surpressed
 
 import shutil
 
-from epics_containers_cli.ioc.ioc_autocomplete import (
+from epics_containers_cli.autocomplete import (
     all_iocs,
     avail_IOCs,
     avail_versions,
@@ -15,16 +15,16 @@ from epics_containers_cli.ioc.ioc_autocomplete import (
 from tests.conftest import TMPDIR
 
 
-def test_all_iocs(mock_run, ioc_autocomplete, ctx):
-    mock_run.set_seq(ioc_autocomplete.all_iocs)
+def test_all_iocs(mock_run, autocomplete, ctx):
+    mock_run.set_seq(autocomplete.all_iocs)
 
     ctx.parent.parent.params["namespace"] = ""  # use env variable
     result = mock_run.call(all_iocs, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
 
-def test_avail_IOCs(mock_run, data, ioc_autocomplete, ctx):
-    mock_run.set_seq(ioc_autocomplete.avail_IOCs)
+def test_avail_IOCs(mock_run, data, autocomplete, ctx):
+    mock_run.set_seq(autocomplete.avail_IOCs)
     shutil.copytree(data / "iocs", TMPDIR / "iocs")
 
     ctx.parent.parent.params["repo"] = ""  # use env variable
@@ -32,8 +32,8 @@ def test_avail_IOCs(mock_run, data, ioc_autocomplete, ctx):
     assert result == ["bl45p-ea-ioc-01"]
 
 
-def test_avail_versions(mock_run, data, ioc_autocomplete, ctx):
-    mock_run.set_seq(ioc_autocomplete.avail_versions)
+def test_avail_versions(mock_run, data, autocomplete, ctx):
+    mock_run.set_seq(autocomplete.avail_versions)
     # shutil.copytree(data / "iocs", TMPDIR / "iocs") already exists
 
     ctx.parent.parent.params["repo"] = ""  # use env variable
@@ -42,8 +42,8 @@ def test_avail_versions(mock_run, data, ioc_autocomplete, ctx):
     assert result == ["2.0"]
 
 
-def test_running_iocs(mock_run, ioc_autocomplete, ctx):
-    mock_run.set_seq(ioc_autocomplete.running_iocs)
+def test_running_iocs(mock_run, autocomplete, ctx):
+    mock_run.set_seq(autocomplete.running_iocs)
 
     ctx.parent.parent.params["namespace"] = ""  # use env variable
     result = mock_run.call(running_iocs, ctx)
