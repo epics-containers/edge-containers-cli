@@ -86,7 +86,7 @@ class MockRun:
 
     def call(self, func: Callable, *args, **kwargs):
         """
-        Call a function and report the sequence of commands / repsponses when
+        Call a function and report the sequence of commands / responses when
         an error occurs.
         """
         self.params = [func.__name__]
@@ -102,7 +102,7 @@ class MockRun:
     def run_cli(self, args: str):
         """
         Call a typer CLI function and report the sequence of commands /
-        repsponses when an error occurs.
+        responses when an error occurs.
         """
 
         self.params = [str(x) for x in args.split(" ")]

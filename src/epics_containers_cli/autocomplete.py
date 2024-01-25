@@ -4,12 +4,14 @@ import tempfile
 import time
 import urllib
 from pathlib import Path
+from subprocess import CalledProcessError
 from typing import List
 
 import typer
 
 import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
+from epics_containers_cli.docker import Docker
 from epics_containers_cli.git import create_ioc_graph
 from epics_containers_cli.ioc.k8s_commands import check_namespace
 from epics_containers_cli.logging import log
@@ -65,8 +67,7 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
         return list(ioc_graph.keys())
     except typer.Exit:
         return [" "]
-    except Exception:
-        log.error("Error")
+    except CalledProcessError:
         return [" "]
 
 
@@ -85,8 +86,7 @@ def avail_versions(ctx: typer.Context) -> List[str]:
         return [" "]
     except typer.Exit:
         return [" "]
-    except Exception:
-        log.error("Error")
+    except CalledProcessError:
         return [" "]
 
 
@@ -101,8 +101,11 @@ def running_iocs(ctx: typer.Context) -> List[str]:
     # This block prevents getting a stack trace during autocompletion
     try:
         if namespace == globals.LOCAL_NAMESPACE:
-            # Not yet implemented
-            return []
+            docker = Docker().docker
+            format = "{{.Names}}"
+            command = f"{docker} ps --filter label=is_IOC=true --format {format}"
+            ioc_list = str(shell.run_command(command, interactive=False)).split()
+            return ioc_list
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
@@ -111,8 +114,7 @@ def running_iocs(ctx: typer.Context) -> List[str]:
             return ioc_list
     except typer.Exit:
         return [" "]
-    except Exception:
-        log.error("Error")
+    except CalledProcessError:
         return [" "]
 
 
@@ -123,8 +125,11 @@ def all_iocs(ctx: typer.Context) -> List[str]:
     # This block prevents getting a stack trace during autocompletion
     try:
         if namespace == globals.LOCAL_NAMESPACE:
-            # Not yet implemented
-            return []
+            docker = Docker().docker
+            format = "{{.Names}}"
+            command = f"{docker} ps -a --filter label=is_IOC=true --format {format}"
+            ioc_list = str(shell.run_command(command, interactive=False)).split()
+            return ioc_list
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
@@ -135,6 +140,5 @@ def all_iocs(ctx: typer.Context) -> List[str]:
             return ioc_list
     except typer.Exit:
         return [" "]
-    except Exception:
-        log.error("Error")
+    except CalledProcessError:
         return [" "]
