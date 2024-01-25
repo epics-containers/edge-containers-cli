@@ -4,6 +4,14 @@ all_iocs:
   - cmd: kubectl -n bl45p get statefulset -l is_ioc==True
     rsp: NAME, bl45p-ea-ioc-01
 
+all_iocs_local:
+  - cmd: docker --version
+    rsp: podman version 4.6.1
+  - cmd: podman buildx version
+    rsp: buildah 1.31.3
+  - cmd: podman ps -a --filter label=is_IOC=true --format .*
+    rsp: bl45p-ea-ioc-01
+
 avail_IOCs:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
     rsp: Cloning into /tmp/xxxx...
@@ -29,3 +37,11 @@ running_iocs:
     rsp: namespace/bl45p
   - cmd: kubectl -n bl45p get pod -l is_ioc==True -o custom-columns=IOC_NAME:metadata
     rsp: NAME, bl45p-ea-ioc-01
+
+running_iocs_local:
+  - cmd: docker --version
+    rsp: podman version 4.6.1
+  - cmd: podman buildx version
+    rsp: buildah 1.31.3
+  - cmd: podman ps --filter label=is_IOC=true --format .*
+    rsp: bl45p-ea-ioc-01

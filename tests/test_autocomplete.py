@@ -23,6 +23,22 @@ def test_all_iocs(mock_run, autocomplete, ctx):
     assert result == ["bl45p-ea-ioc-01"]
 
 
+def test_all_iocs_local(mock_run, mocker, autocomplete, ctx):
+    mocker.patch(
+        "epics_containers_cli.globals.EC_K8S_NAMESPACE",
+        "local",
+    )
+    mocker.patch(
+        "epics_containers_cli.globals.EC_DOMAIN_REPO",
+        "https://github.com/epics-containers/bl01t",
+    )
+    mock_run.set_seq(autocomplete.all_iocs_local)
+
+    ctx.parent.parent.params["namespace"] = ""  # use env variable
+    result = mock_run.call(all_iocs, ctx)
+    assert result == ["bl45p-ea-ioc-01"]
+
+
 def test_avail_IOCs(mock_run, data, autocomplete, ctx):
     mock_run.set_seq(autocomplete.avail_IOCs)
     shutil.copytree(data / "iocs", TMPDIR / "iocs")
@@ -44,6 +60,22 @@ def test_avail_versions(mock_run, data, autocomplete, ctx):
 
 def test_running_iocs(mock_run, autocomplete, ctx):
     mock_run.set_seq(autocomplete.running_iocs)
+
+    ctx.parent.parent.params["namespace"] = ""  # use env variable
+    result = mock_run.call(running_iocs, ctx)
+    assert result == ["bl45p-ea-ioc-01"]
+
+
+def test_running_iocs_local(mock_run, mocker, autocomplete, ctx):
+    mocker.patch(
+        "epics_containers_cli.globals.EC_K8S_NAMESPACE",
+        "local",
+    )
+    mocker.patch(
+        "epics_containers_cli.globals.EC_DOMAIN_REPO",
+        "https://github.com/epics-containers/bl01t",
+    )
+    mock_run.set_seq(autocomplete.running_iocs_local)
 
     ctx.parent.parent.params["namespace"] = ""  # use env variable
     result = mock_run.call(running_iocs, ctx)
