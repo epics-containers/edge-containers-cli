@@ -1,6 +1,7 @@
 """
 Utility functions for working interacting with docker / podman CLI
 """
+
 import re
 import sys
 from pathlib import Path
