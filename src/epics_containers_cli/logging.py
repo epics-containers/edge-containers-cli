@@ -1,6 +1,7 @@
 """
 Setup logging for the project
 """
+
 import logging
 
 import epics_containers_cli.globals as globals

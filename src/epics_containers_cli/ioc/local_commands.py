@@ -8,6 +8,7 @@ However, for the moment, Using this by connecting to each server and running
 'ec deploy <ioc_name> <ioc_version> and then managing the network with a
 tool like Portainer is a decent workflow.
 """
+
 import re
 import tempfile
 from datetime import datetime
@@ -220,7 +221,7 @@ class IocLocalCommands:
 
             self.docker.run_tool(
                 image="ghcr.io/epics-containers/yajsv",
-                args=f"-s {schema_file} {ioc_config_file}",
+                args=f"-v {ioc_config_file}:{ioc_config_file} -s {schema_file} {ioc_config_file}",
             )
 
             # check that the image name and the schema are from the same generic IOC
