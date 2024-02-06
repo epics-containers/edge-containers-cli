@@ -17,7 +17,7 @@ echo "Loading IOC environment for BL45P ..."
 export EC_REGISTRY_MAPPING='github.com=ghcr.io gitlab.diamond.ac.uk=gcr.io/diamond-privreg/controls/ioc'
 
 # the git rempos used for the current beamline
-export EC_DOMAIN_REPO=git@github.com:epics-containers/bl45p.git
+export EC_SERVICES_REPO=git@github.com:epics-containers/bl45p.git
 
 # to use kubernetes specify the namespace - otherwise docker local deployments are used
 # export EC_K8S_NAMESPACE=bl45p

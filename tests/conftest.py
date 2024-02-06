@@ -133,7 +133,7 @@ def mock_run(mocker):
         "bl45p",
     )
     mocker.patch(
-        "epics_containers_cli.globals.EC_DOMAIN_REPO",
+        "epics_containers_cli.globals.EC_SERVICES_REPO",
         "https://github.com/epics-containers/bl45p",
     )
     mocker.patch(

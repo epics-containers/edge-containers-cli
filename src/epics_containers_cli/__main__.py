@@ -78,7 +78,7 @@ def main(
     init_logging(log_level.upper())
 
     # create a context dictionary to pass to all sub commands
-    repo = repo or globals.EC_DOMAIN_REPO
+    repo = repo or globals.EC_SERVICES_REPO
     namespace = namespace or globals.EC_K8S_NAMESPACE
     ctx.ensure_object(globals.Context)
     context = globals.Context(namespace, repo)

@@ -111,7 +111,7 @@ class IocK8sCommands:
             log.error("EC_LOG_URL environment not set")
             raise typer.Exit(1)
 
-        url = globals.EC_LOG_URL.format(ioc_name=self.ioc_name)
+        url = globals.EC_LOG_URL.format(service_name=self.ioc_name)
         webbrowser.open(url)
 
     def logs(self, prev: bool, follow: bool):

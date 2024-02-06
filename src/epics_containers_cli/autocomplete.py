@@ -59,7 +59,7 @@ def fetch_ioc_graph(beamline_repo: str) -> dict:
 
 def avail_IOCs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    beamline_repo = params["repo"] or globals.EC_DOMAIN_REPO
+    beamline_repo = params["repo"] or globals.EC_SERVICES_REPO
 
     # This block prevents getting a stack trace during autocompletion
     try:
@@ -73,7 +73,7 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
 
 def avail_versions(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    beamline_repo = params["repo"] or globals.EC_DOMAIN_REPO
+    beamline_repo = params["repo"] or globals.EC_SERVICES_REPO
     ioc_name = ctx.params["ioc_name"]
 
     # This block prevents getting a stack trace during autocompletion

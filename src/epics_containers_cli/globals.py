@@ -85,6 +85,6 @@ EC_REGISTRY_MAPPING_REGEX = os.environ.get(
 )
 
 EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
-EC_DOMAIN_REPO = os.environ.get("EC_DOMAIN_REPO", "")
+EC_SERVICES_REPO = os.environ.get("EC_SERVICES_REPO", "")
 EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", "")
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)

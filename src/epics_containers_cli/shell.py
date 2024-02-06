@@ -88,5 +88,5 @@ def run_command(
 
 def check_beamline_repo(repo: str):
     if repo == "":
-        log.error("Please set EC_DOMAIN_REPO or pass --repo")
+        log.error("Please set EC_SERVICES_REPO or pass --repo")
         raise typer.Exit(1)
