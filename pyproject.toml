@@ -25,16 +25,12 @@ requires-python = ">=3.7"
 [project.optional-dependencies]
 dev = [
     "black",
-    "mypy",
+    "pyright",
     "pipdeptree",
     "pre-commit",
-    "pydata-sphinx-theme>=0.12",
     "pytest",
     "pytest-cov",
     "ruff",
-    "sphinx-autobuild",
-    "sphinx-copybutton",
-    "sphinx-design",
     "tox-direct",
     "types-mock",
     "copier",
@@ -54,8 +50,8 @@ name = "Giles Knap"
 [tool.setuptools_scm]
 write_to = "src/epics_containers_cli/_version.py"
 
-[tool.mypy]
-ignore_missing_imports = true # Ignore missing stubs in imported modules
+[tool.pyright]
+reportMissingImports = false # Ignore missing stubs in imported modules
 
 [tool.pytest.ini_options]
 # Run pytest with all our checkers, and don't spam us with massive tracebacks on error
@@ -65,7 +61,7 @@ addopts = """
 # https://iscinumpy.gitlab.io/post/bound-version-constraints/#watch-for-warnings
 filterwarnings = "error"
 # Doctest python code in docs, python code in src docstrings, test functions in tests
-testpaths = "docs src tests"
+testpaths = "src tests"
 
 [tool.coverage.run]
 data_file = "/tmp/epics_containers_cli.coverage"
@@ -81,27 +77,28 @@ legacy_tox_ini = """
 [tox]
 skipsdist=True
 
-[testenv:{pre-commit,mypy,pytest,docs}]
+[testenv:{pre-commit,pyright,pytest}]
 # Don't create a virtualenv for the command, requires tox-direct plugin
 direct = True
 passenv = *
 allowlist_externals =
     pytest
     pre-commit
-    mypy
-    sphinx-build
-    sphinx-autobuild
+    pyright
 commands =
     pytest: pytest --cov=epics_containers_cli --cov-report term --cov-report xml:cov.xml {posargs}
-    mypy: mypy src tests {posargs}
+    pyright: pyright src tests {posargs}
     pre-commit: pre-commit run --all-files {posargs}
-    docs: sphinx-{posargs:build -EW --keep-going} -T docs build/html
 """
 
 
 [tool.ruff]
 src = ["src", "tests"]
 line-length = 88
+ignore = [
+    "C408", # Unnecessary collection call - e.g. list(...) instead of [...]
+    "E501", # Line too long, should be fixed by black.
+]
 select = [
     "C4",   # flake8-comprehensions - https://beta.ruff.rs/docs/rules/#flake8-comprehensions-c4
     "E",    # pycodestyle errors - https://beta.ruff.rs/docs/rules/#error-e
