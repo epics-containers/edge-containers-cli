@@ -1,47 +1,9 @@
 {
-    // This is an example of how to create a vscode launcher to debug
-    // an ec command line invocation. Note that cwd needs to be a valid
-    // generic IOC folder for this to work.
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "ec dev build ",
-            "type": "python",
-            "request": "launch",
-            "module": "epics_containers_cli.__main__",
-            "justMyCode": false,
-            "args": [
-                "dev",
-                "build"
-            ],
-            "cwd": "/scratch/hgv27681/work/ioc-pmac"
-        },
-        {
-            "name": "ec dev ioc-launch ",
-            "type": "python",
-            "request": "launch",
-            "module": "epics_containers_cli.__main__",
-            "justMyCode": false,
-            "args": [
-                "dev",
-                "ioc-launch",
-                "../bl45p/iocs/bl45p-ea-ioc-01",
-                "."
-            ],
-            "cwd": "/scratch/hgv27681/work/ioc-adaravis"
-        },
-        {
-            "name": "ec dev launch ",
-            "type": "python",
-            "request": "launch",
-            "module": "epics_containers_cli.__main__",
-            "justMyCode": false,
-            "args": [
-                "dev",
-                "launch"
-            ],
-            "cwd": "/scratch/hgv27681/work/ioc-adaravis"
-        },
         {
             "name": "Debug Unit Test",
             "type": "python",

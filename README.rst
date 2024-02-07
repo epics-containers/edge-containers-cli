@@ -1,35 +1,31 @@
-epics-containers-cli
-===========================
+epics_containers_cli
+=============================================================================
 
 |code_ci| |docs_ci| |coverage| |pypi_version| |license|
 
-A simple CLI with shortcuts for common operations when developing epics-containers
-projects.
+This is where you should write a short paragraph that describes what your module does,
+how it does it, and why people should use it.
 
 ============== ==============================================================
 PyPI           ``pip install epics-containers-cli``
 Source code    https://github.com/epics-containers/epics-containers-cli
-Documentation  https://epics-containers.github.io/epics-containers-cli
+
 Releases       https://github.com/epics-containers/epics-containers-cli/releases
 ============== ==============================================================
 
-See the
-`epics-containers tutorials <https://epics-containers.github.io/main/user/tutorials/intro.html>`_
-for more information. In particular the notes
-`here <https://epics-containers.github.io/main/user/reference/cli.html>`_
+This is where you should put some images or code snippets that illustrate
+some relevant examples. If it is a library then you might put some
+introductory code here:
 
-To learn more try the help
+.. code-block:: python
 
-.. code-block:: bash
+    from epics_containers_cli import __version__
 
-    # get global help
-    ec --help
+    print(f"Hello epics_containers_cli {__version__}")
 
-    # get help on the ioc namespace
-    ec ioc --help
+Or if it is a commandline tool then you might put some example commands here::
 
-    # use -v to show the underlying commands being executed
-    ec -v ps
+    $ python -m epics_containers_cli --version
 
 .. |code_ci| image:: https://github.com/epics-containers/epics-containers-cli/actions/workflows/code.yml/badge.svg?branch=main
     :target: https://github.com/epics-containers/epics-containers-cli/actions/workflows/code.yml
@@ -51,8 +47,3 @@ To learn more try the help
     :target: https://opensource.org/licenses/Apache-2.0
     :alt: Apache License
 
-..
-    Anything below this line is used when viewing README.rst and will be replaced
-    when included in index.rst
-
-See https://epics-containers.github.io/epics-containers-cli for more detailed documentation.
