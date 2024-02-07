@@ -17,7 +17,6 @@ def test_validate():
     result = runner.invoke(
         cli,
         [
-            "ioc",
             "validate",
             f"{THIS_DIR}/data/iocs/bl45p-ea-ioc-01",
         ],
@@ -34,7 +33,6 @@ def test_validate_chdir():
         result = runner.invoke(
             cli,
             [
-                "ioc",
                 "validate",
                 f"{THIS_DIR}/data/iocs/bl45p-ea-ioc-01",
             ],

@@ -145,10 +145,10 @@ class IocK8sCommands:
 
         if all:
             shell.run_command(
-                f"kubectl -n {self.namespace} get statefulset -l is_ioc==True -o {fmt_deploys}"
+                f"kubectl -n {self.namespace} get statefulset -l is_ioc==true -o {fmt_deploys}"
             )
         else:
             format = fmt_pods_wide if wide else fmt_pods
             shell.run_command(
-                f"kubectl -n {self.namespace} get pod -l is_ioc==True -o {format}"
+                f"kubectl -n {self.namespace} get pod -l is_ioc==true -o {format}"
             )

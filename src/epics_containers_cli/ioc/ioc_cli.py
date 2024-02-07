@@ -18,10 +18,38 @@ from epics_containers_cli.ioc.local_commands import IocLocalCommands
 from epics_containers_cli.logging import log
 from epics_containers_cli.utils import cleanup_temp, drop_ioc_path
 
-ioc = typer.Typer()
+cli = typer.Typer(pretty_exceptions_show_locals=False)
 
 
-@ioc.command()
+@cli.command()
+def ps(
+    ctx: typer.Context,
+    all: bool = typer.Option(
+        False, "-a", "--all", help="list stopped IOCs as well as running IOCs"
+    ),
+    wide: bool = typer.Option(
+        False, "--wide", "-w", help="use a wide format with additional fields"
+    ),
+):
+    """List the IOCs running in the current namespace"""
+    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
+        IocLocalCommands(ctx.obj).ps(all, wide)
+    else:
+        IocK8sCommands(ctx.obj).ps(all, wide)
+
+
+@cli.command()
+def env(
+    ctx: typer.Context,
+    verbose: bool = typer.Option(
+        False, "-v", "--verbose", help="show all relevant environment variables"
+    ),
+):
+    """List all relevant environment variables"""
+    IocLocalCommands(ctx.obj).environment(verbose == verbose)
+
+
+@cli.command()
 def attach(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -37,7 +65,7 @@ def attach(
         IocK8sCommands(ctx.obj, ioc_name).attach()
 
 
-@ioc.command()
+@cli.command()
 def delete(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -53,7 +81,7 @@ def delete(
         IocK8sCommands(ctx.obj, ioc_name).delete()
 
 
-@ioc.command()
+@cli.command()
 def template(
     ctx: typer.Context,
     ioc_instance: Path = typer.Argument(
@@ -76,7 +104,7 @@ def template(
         IocK8sCommands(ctx.obj).template(ioc_instance, args)
 
 
-@ioc.command()
+@cli.command()
 def deploy_local(
     ctx: typer.Context,
     ioc_instance: Path = typer.Argument(
@@ -99,7 +127,7 @@ def deploy_local(
         IocK8sCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
 
 
-@ioc.command()
+@cli.command()
 def deploy(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -122,7 +150,7 @@ def deploy(
         IocK8sCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
 
 
-@ioc.command()
+@cli.command()
 def list(
     ctx: typer.Context,
 ):
@@ -139,7 +167,7 @@ def list(
     cleanup_temp(tmp_dir)
 
 
-@ioc.command()
+@cli.command()
 def instances(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -161,7 +189,7 @@ def instances(
     cleanup_temp(tmp_dir)
 
 
-@ioc.command()
+@cli.command()
 def exec(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -175,7 +203,7 @@ def exec(
         IocK8sCommands(ctx.obj, ioc_name).exec()
 
 
-@ioc.command()
+@cli.command()
 def log_history(
     ioc_name: str = typer.Argument(
         ...,
@@ -187,7 +215,7 @@ def log_history(
     IocK8sCommands(None, ioc_name).log_history()
 
 
-@ioc.command()
+@cli.command()
 def logs(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -205,7 +233,7 @@ def logs(
         IocK8sCommands(ctx.obj, ioc_name).logs(prev, follow)
 
 
-@ioc.command()
+@cli.command()
 def restart(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -219,7 +247,7 @@ def restart(
         IocK8sCommands(ctx.obj, ioc_name).restart()
 
 
-@ioc.command()
+@cli.command()
 def start(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -234,7 +262,7 @@ def start(
         IocK8sCommands(ctx.obj, ioc_name).start()
 
 
-@ioc.command()
+@cli.command()
 def stop(
     ctx: typer.Context,
     ioc_name: str = typer.Argument(
@@ -248,7 +276,7 @@ def stop(
         IocK8sCommands(ctx.obj, ioc_name).stop()
 
 
-@ioc.command()
+@cli.command()
 def validate(
     ctx: typer.Context,
     ioc_instance: Path = typer.Argument(
