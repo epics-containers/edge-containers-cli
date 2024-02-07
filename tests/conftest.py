@@ -140,7 +140,7 @@ def mock_run(mocker):
         "epics_containers_cli.globals.EC_LOG_URL",
         "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields="
         "message%2Csource&width=1489&highlightMessage=&relative=172800&q="
-        "pod_name%3A{ioc_name}*",
+        "pod_name%3A{service_name}*",
     )
     mocker.patch(
         "epics_containers_cli.globals.EC_DEBUG",

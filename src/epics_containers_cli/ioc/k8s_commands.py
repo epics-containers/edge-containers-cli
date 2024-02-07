@@ -14,7 +14,7 @@ import typer
 import epics_containers_cli.globals as globals
 import epics_containers_cli.shell as shell
 from epics_containers_cli.ioc.helm import Helm
-from epics_containers_cli.k8s.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
+from epics_containers_cli.ioc.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
 from epics_containers_cli.logging import log
 
 

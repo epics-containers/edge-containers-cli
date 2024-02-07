@@ -7,9 +7,7 @@ from epics_containers_cli.ioc.k8s_commands import IocK8sCommands
 from epics_containers_cli.ioc.local_commands import IocLocalCommands
 
 from . import __version__
-from .dev.dev_cli import dev
 from .ioc.ioc_cli import ioc
-from .k8s.k8s_cli import cluster
 from .logging import init_logging
 
 __all__ = ["main"]
@@ -17,19 +15,9 @@ __all__ = ["main"]
 
 cli = typer.Typer(pretty_exceptions_show_locals=False)
 cli.add_typer(
-    dev,
-    name="dev",
-    help="Commands for building, debugging containers. See 'ec dev --help'",
-)
-cli.add_typer(
     ioc,
     name="ioc",
     help="Commands for managing IOCs in the cluster. See 'ec ioc --help'",
-)
-cli.add_typer(
-    cluster,
-    name="k8s",
-    help="Commands for communicating with the k8s cluster. See 'ec k8s --help'",
 )
 
 
