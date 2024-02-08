@@ -31,7 +31,13 @@ def main(
         "",
         "-r",
         "--repo",
-        help="beamline or accelerator domain repository of ioc instances",
+        help="service/ioc instances repository",
+    ),
+    branch: str = typer.Option(
+        "main",
+        "-b",
+        "--branch",
+        help="branch to use for the instances repository",
     ),
     namespace: str = typer.Option(
         "", "-n", "--namespace", help="kubernetes namespace to use"
@@ -59,7 +65,7 @@ def main(
     repo = repo or globals.EC_SERVICES_REPO
     namespace = namespace or globals.EC_K8S_NAMESPACE
     ctx.ensure_object(globals.Context)
-    context = globals.Context(namespace, repo)
+    context = globals.Context(namespace=namespace, beamline_repo=repo, branch=branch)
     ctx.obj = context
 
 

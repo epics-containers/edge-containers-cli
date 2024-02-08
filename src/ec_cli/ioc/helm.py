@@ -39,10 +39,6 @@ class Helm:
 
         self.tmp = Path(tempfile.mkdtemp())
 
-        self.bl_chart_folder = self.tmp / globals.BEAMLINE_CHART_FOLDER
-        self.bl_chart_path = self.bl_chart_folder / "Chart.yaml"
-        self.bl_config_folder = self.bl_chart_folder / globals.CONFIG_FOLDER
-
         self.ioc_config_folder = (
             self.tmp / "iocs" / str(self.ioc_name) / globals.CONFIG_FOLDER
         )
@@ -86,6 +82,9 @@ class Helm:
             f"--single-branch --branch={self.version}",
             interactive=False,
         )
+        chart_paths = self.tmp.glob(f"*/{globals.SHARED_CHARTS_FOLDER}/*")
+        log.warning(f"chart_paths: {list(chart_paths)}")
+
         if not self.ioc_config_folder.exists():
             log.error(
                 f"{self.ioc_name} does not exist in {self.beamline_repo} version {self.version}"
@@ -101,9 +100,6 @@ class Helm:
         """
         # values.yaml is a peer to the config folder
         values_path = config_folder.parent / "values.yaml"
-
-        # add the config folder to the helm chart
-        self.bl_config_folder.symlink_to(config_folder)
 
         # get library charts
         shell.run_command(

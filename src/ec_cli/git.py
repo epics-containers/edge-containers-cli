@@ -107,10 +107,10 @@ def repo2registry(repo_name: str) -> str:
     return registry
 
 
-def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
+def create_ioc_graph(beamline_repo: str, folder: Path, branch="main") -> Dict:
     """
     return a dictionary of the available IOCs (by discovering the children
-    to the iocs/ folder in the beamline repo) as well as a list of the corresponing
+    to the iocs/ folder in the beamline repo) as well as a list of the corresponding
     available versions for each IOC (by discovering the tags in the beamline repo at
     which changes to the instance were made since the last tag) and the respective
     list of available versions
@@ -118,11 +118,16 @@ def create_ioc_graph(beamline_repo: str, folder: Path) -> Dict:
     ioc_graph = {}
 
     check_beamline_repo(beamline_repo)
-    shell.run_command(f"git clone {beamline_repo} {folder}", interactive=False)
-    path_list = os.listdir(os.path.join(folder, "iocs"))
+    shell.run_command(
+        f"git clone {beamline_repo} {folder} -b {branch}", interactive=False
+    )
+    path_list = os.listdir(os.path.join(folder, "services"))
     ioc_list = [
-        path for path in path_list if os.path.isdir(os.path.join(folder, "iocs", path))
+        path
+        for path in path_list
+        if os.path.isdir(os.path.join(folder, "services", path))
     ]
+    log.debug(f"ioc_list = {ioc_list}")
 
     with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
         for ioc_name in ioc_list:

@@ -157,11 +157,15 @@ def list(
     """List all IOCs available in the helm registry"""
     typer.echo(typer.style(f"{'Available IOCs:':35}Latest instance:", bold=True))
     tmp_dir = Path(tempfile.mkdtemp())
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir)
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir, ctx.obj.branch)
     iocs_list = natsorted(ioc_graph.keys())
+    log.debug(f"ioc_graph = {ioc_graph}")
 
     for ioc in iocs_list:
-        latest_instance = natsorted(ioc_graph[ioc])[-1]
+        if len(ioc_graph[ioc]) == 0:
+            latest_instance = "None found."
+        else:
+            latest_instance = natsorted(ioc_graph[ioc])[-1]
         typer.echo(f"{ioc:35}{latest_instance}")
 
     cleanup_temp(tmp_dir)
@@ -177,7 +181,7 @@ def instances(
     """List all versions of the IOC available in the helm registry"""
     typer.echo(f"Available instance versions for {ioc_name}:")
     tmp_dir = Path(tempfile.mkdtemp())
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir)
+    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir, ctx.obj.branch)
     try:
         iocs_list = ioc_graph[ioc_name]
     except KeyError:

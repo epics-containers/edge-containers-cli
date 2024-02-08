@@ -139,13 +139,13 @@ class IocK8sCommands:
         )
 
     def ps(self, all: bool, wide: bool):
-        """List all IOCs in the current namespace"""
+        """List all IOCs and Services in the current namespace"""
 
-        pods_csv = shell.run_command(
+        services_csv = shell.run_command(
             f"kubectl get pods -n {self.namespace} {json_service_info}",
             interactive=False,
         )
-        pods_df = pd.read_csv(StringIO(pods_csv), names=json_service_headers)
+        pods_df = pd.read_csv(StringIO(services_csv), names=json_service_headers)
 
         helm_json = shell.run_command(
             f"helm list -n {self.namespace} -o json", interactive=False

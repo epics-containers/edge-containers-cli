@@ -9,6 +9,7 @@ class Context:
 
     namespace: str = ""
     beamline_repo: str = ""
+    branch: str = ""
     verbose: bool = False
     debug: bool = False
 
@@ -32,7 +33,7 @@ class Targets(str, Enum):
 
 # common stings used in paths
 # folder containing the beamline IOC Instance Helm Chart
-BEAMLINE_CHART_FOLDER = "beamline-chart"
+SHARED_CHARTS_FOLDER = "beamline-chart"
 # location of IOC Instance configuration in a beamline ioc Instance folder
 CONFIG_FOLDER = "config"
 # location of IOC Instance configuration inside a Generic IOC container
