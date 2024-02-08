@@ -9,13 +9,13 @@ from typing import List
 
 import typer
 
-import epics_containers_cli.globals as globals
-import epics_containers_cli.shell as shell
-from epics_containers_cli.docker import Docker
-from epics_containers_cli.git import create_ioc_graph
-from epics_containers_cli.ioc.k8s_commands import check_namespace
-from epics_containers_cli.logging import log
-from epics_containers_cli.utils import cleanup_temp
+import ec_cli.globals as globals
+import ec_cli.shell as shell
+from ec_cli.docker import Docker
+from ec_cli.git import create_ioc_graph
+from ec_cli.ioc.k8s_commands import check_namespace
+from ec_cli.logging import log
+from ec_cli.utils import cleanup_temp
 
 
 def url_encode(in_string: str) -> str:

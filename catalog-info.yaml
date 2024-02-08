@@ -1,8 +1,8 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: epics-containers-cli
-  title: epics-containers-cli
+  name: ec-cli
+  title: ec-cli
   description: CLI for deploying and managing epics containers IOCs and services
 spec:
   type: documentation

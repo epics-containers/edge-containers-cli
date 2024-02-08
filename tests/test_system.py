@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from epics_containers_cli.__main__ import cli
-from epics_containers_cli.utils import chdir
+from ec_cli.__main__ import cli
+from ec_cli.utils import chdir
 
 THIS_DIR = Path(__file__).parent
 

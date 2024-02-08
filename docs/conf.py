@@ -10,15 +10,15 @@ from subprocess import check_output
 
 import requests
 
-import epics_containers_cli
+import ec_cli
 
 # -- General configuration ------------------------------------------------
 
 # General information about the project.
-project = "epics-containers-cli"
+project = "ec-cli"
 
 # The full version, including alpha/beta/rc tags.
-release = epics_containers_cli.__version__
+release = ec_cli.__version__
 
 # The short X.Y version.
 if "+" in release:

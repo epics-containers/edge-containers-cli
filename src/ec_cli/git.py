@@ -9,11 +9,11 @@ from typing import Dict, Optional, Tuple
 
 import typer
 
-import epics_containers_cli.globals as globals
-import epics_containers_cli.shell as shell
-from epics_containers_cli.logging import log
-from epics_containers_cli.shell import check_beamline_repo
-from epics_containers_cli.utils import chdir
+import ec_cli.globals as globals
+import ec_cli.shell as shell
+from ec_cli.logging import log
+from ec_cli.shell import check_beamline_repo
+from ec_cli.utils import chdir
 
 
 def get_image_name(

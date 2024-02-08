@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm[toml]>=6.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "epics-containers-cli"
+name = "ec-cli"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
@@ -37,10 +37,10 @@ dev = [
 ]
 
 [project.scripts]
-epics-containers-cli = "epics_containers_cli.__main__:main"
+ec-cli = "ec_cli.__main__:main"
 
 [project.urls]
-GitHub = "https://github.com/epics-containers/epics-containers-cli"
+GitHub = "https://github.com/epics-containers/ec-cli"
 
 [[project.authors]] # Further authors may be added by duplicating this section
 email = "giles.knap@gmail.com"
@@ -48,7 +48,7 @@ name = "Giles Knap"
 
 
 [tool.setuptools_scm]
-write_to = "src/epics_containers_cli/_version.py"
+write_to = "src/ec_cli/_version.py"
 
 [tool.pyright]
 reportMissingImports = false # Ignore missing stubs in imported modules
@@ -68,7 +68,7 @@ filterwarnings = [
 testpaths = "src tests"
 
 [tool.coverage.run]
-data_file = "/tmp/epics_containers_cli.coverage"
+data_file = "/tmp/ec_cli.coverage"
 
 [tool.coverage.paths]
 # Tests are run from installed location, map back to the src directory
@@ -90,7 +90,7 @@ allowlist_externals =
     pre-commit
     pyright
 commands =
-    pytest: pytest --cov=epics_containers_cli --cov-report term --cov-report xml:cov.xml {posargs}
+    pytest: pytest --cov=ec_cli --cov-report term --cov-report xml:cov.xml {posargs}
     pyright: pyright src tests {posargs}
     pre-commit: pre-commit run --all-files {posargs}
 """

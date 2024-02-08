@@ -18,13 +18,13 @@ from typing import Optional
 import requests
 import typer
 
-import epics_containers_cli.globals as globals
-import epics_containers_cli.shell as shell
-from epics_containers_cli.docker import Docker
-from epics_containers_cli.ioc.k8s_commands import check_namespace
-from epics_containers_cli.logging import log
-from epics_containers_cli.shell import check_beamline_repo
-from epics_containers_cli.utils import (
+import ec_cli.globals as globals
+import ec_cli.shell as shell
+from ec_cli.docker import Docker
+from ec_cli.ioc.k8s_commands import check_namespace
+from ec_cli.logging import log
+from ec_cli.shell import check_beamline_repo
+from ec_cli.utils import (
     check_ioc_instance_path,
     cleanup_temp,
     generic_ioc_from_image,

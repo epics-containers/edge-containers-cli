@@ -3,7 +3,7 @@
     "python.linting.flake8Enabled": false,
     "python.linting.enabled": true,
     "python.testing.pytestArgs": [
-        "--cov=epics_containers_cli",
+        "--cov=ec_cli",
         "--cov-report",
         "xml:cov.xml"
     ],

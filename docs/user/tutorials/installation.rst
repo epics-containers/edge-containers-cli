@@ -25,14 +25,14 @@ Installing the library
 
 You can now use ``pip`` to install the library and its dependencies::
 
-    $ python3 -m pip install epics-containers-cli
+    $ python3 -m pip install ec-cli
 
 If you require a feature that is not currently released you can also install
 from github::
 
-    $ python3 -m pip install git+https://github.com/epics-containers/epics-containers-cli.git
+    $ python3 -m pip install git+https://github.com/epics-containers/ec-cli.git
 
 The library should now be installed and the commandline interface on your path.
 You can check the version that has been installed by typing::
 
-    $ epics-containers-cli --version
+    $ ec-cli --version

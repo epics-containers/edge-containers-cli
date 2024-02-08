@@ -11,11 +11,11 @@ from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as globals
-import epics_containers_cli.shell as shell
-from epics_containers_cli.ioc.helm import Helm
-from epics_containers_cli.ioc.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
-from epics_containers_cli.logging import log
+import ec_cli.globals as globals
+import ec_cli.shell as shell
+from ec_cli.ioc.helm import Helm
+from ec_cli.ioc.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
+from ec_cli.logging import log
 
 
 def check_ioc(ioc_name: str, domain: str):

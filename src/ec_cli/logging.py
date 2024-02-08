@@ -4,9 +4,9 @@ Setup logging for the project
 
 import logging
 
-import epics_containers_cli.globals as globals
+import ec_cli.globals as globals
 
-log = logging.getLogger("epics-containers-cli")
+log = logging.getLogger("ec-cli")
 handler = logging.StreamHandler()
 
 

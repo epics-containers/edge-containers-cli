@@ -6,9 +6,9 @@ from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as globals
-import epics_containers_cli.shell as shell
-from epics_containers_cli.utils import check_ioc_instance_path, cleanup_temp, log
+import ec_cli.globals as globals
+import ec_cli.shell as shell
+from ec_cli.utils import check_ioc_instance_path, cleanup_temp, log
 
 
 class Helm:

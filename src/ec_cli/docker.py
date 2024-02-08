@@ -10,9 +10,9 @@ from typing import List, Optional
 
 import typer
 
-import epics_containers_cli.globals as globals
-import epics_containers_cli.shell as shell
-from epics_containers_cli.logging import log
+import ec_cli.globals as globals
+import ec_cli.shell as shell
+from ec_cli.logging import log
 
 IMAGE_TAG = "local"
 MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]

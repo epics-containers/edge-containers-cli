@@ -11,8 +11,8 @@ from typing import Optional
 
 import typer
 
-import epics_containers_cli.globals as globals
-from epics_containers_cli.logging import log
+import ec_cli.globals as globals
+from ec_cli.logging import log
 
 
 def get_instance_image_name(ioc_instance: Path, tag: Optional[str] = None) -> str:
