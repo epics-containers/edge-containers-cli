@@ -178,15 +178,6 @@ class IocLocalCommands:
         else:
             result = re.sub(r"%.*? version:([^\],%]*).*?%", r"%\1%", str(result))
 
-        lines = ["IOC NAME%VERSION%STATUS%IMAGE"]
-        lines += str(result).splitlines()
-        rows = []
-        for line in lines:
-            rows.append(line.split("%"))
-
-        for row in rows:
-            print("{0: <20.20} {1: <20.20} {2: <23.23} {3}".format(*row))
-
     def validate_instance(self, ioc_instance: Path):
         check_ioc_instance_path(ioc_instance)
 

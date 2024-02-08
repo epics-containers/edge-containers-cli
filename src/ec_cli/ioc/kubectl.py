@@ -30,3 +30,10 @@ fmt_services = (
     "EXTERNAL-IP:status.loadBalancer.ingress[0].ip,"
     "PORT:spec.ports[*].targetPort"
 )
+json_service_info = (
+    "-o jsonpath='"
+    r'{range .items[*]}{..labels.app}{", "}{..containerStatuses[0].ready}'
+    r'{", "}{..containerStatuses[0].restartCount}{", "}{.status.startTime}'
+    r'{"\n"}{end}'
+    "'"
+)

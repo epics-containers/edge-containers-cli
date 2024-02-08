@@ -4,6 +4,7 @@ implements commands for deploying and managing ioc instances in the k8s cluster.
 Relies on the Helm class for deployment aspects.
 """
 
+import json
 import webbrowser
 from datetime import datetime
 from pathlib import Path
@@ -14,8 +15,9 @@ import typer
 import ec_cli.globals as globals
 import ec_cli.shell as shell
 from ec_cli.ioc.helm import Helm
-from ec_cli.ioc.kubectl import fmt_deploys, fmt_pods, fmt_pods_wide
+from ec_cli.ioc.kubectl import json_service_info
 from ec_cli.logging import log
+from ec_cli.utils import make_table_str
 
 
 def check_ioc(ioc_name: str, domain: str):
@@ -139,12 +141,27 @@ class IocK8sCommands:
     def ps(self, all: bool, wide: bool):
         """List all IOCs in the current namespace"""
 
-        if all:
-            shell.run_command(
-                f"kubectl -n {self.namespace} get statefulset -l is_ioc==true -o {fmt_deploys}"
-            )
-        else:
-            format = fmt_pods_wide if wide else fmt_pods
-            shell.run_command(
-                f"kubectl -n {self.namespace} get pod -l is_ioc==true -o {format}"
-            )
+        pods_csv = shell.run_command(
+            f"kubectl get pods -n {self.namespace} {json_service_info}",
+            interactive=False,
+        )
+        helm_json = shell.run_command(
+            f"helm list -n {self.namespace} -o json", interactive=False
+        )
+        helm_obj = json.loads(helm_json)
+
+        print(helm_obj)
+
+        # data = json.loads(json_txt)
+        # table = make_table(data)
+        # print(table)
+
+        # if all:
+        #     shell.run_command(
+        #         f"kubectl -n {self.namespace} get statefulset -l is_ioc==true -o {fmt_deploys}"
+        #     )
+        # else:
+        #     format = fmt_pods_wide if wide else fmt_pods
+        #     shell.run_command(
+        #         f"kubectl -n {self.namespace} get pod -l is_ioc==true -o {format}"
+        #     )
