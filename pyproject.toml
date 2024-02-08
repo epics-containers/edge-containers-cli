@@ -14,9 +14,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 description = "CLI for deploying and managing epics containers IOCs and services"
-dependencies = [
-    "typing-extensions;python_version<'3.8'",
-] # Add project dependencies here, e.g. ["click", "numpy"]
+
+dependencies = ["natsort", "typer[all]", "requests", "ruamel.yaml", "jinja2"]
+
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.rst"
@@ -25,11 +25,13 @@ requires-python = ">=3.7"
 [project.optional-dependencies]
 dev = [
     "black",
+    "mock",
     "pyright",
     "pipdeptree",
     "pre-commit",
     "pytest",
     "pytest-cov",
+    "pytest-mock",
     "ruff",
     "tox-direct",
     "types-mock",
@@ -37,7 +39,7 @@ dev = [
 ]
 
 [project.scripts]
-ec-cli = "ec_cli.__main__:main"
+ec = "ec_cli.__main__:cli"
 
 [project.urls]
 GitHub = "https://github.com/epics-containers/ec-cli"
