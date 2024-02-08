@@ -97,10 +97,6 @@ class IocK8sCommands:
         chart = Helm(self.namespace, ioc_name, args, version, repo=self.beamline_repo)
         chart.deploy()
 
-    def instances(self):
-        chart = Helm(self.namespace, self.ioc_name, repo=self.beamline_repo)
-        chart.versions()
-
     def exec(self):
         shell.run_command(
             f"kubectl -it -n {self.namespace} exec statefulset/{self.ioc_name} -- bash"

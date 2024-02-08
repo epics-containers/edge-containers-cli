@@ -9,7 +9,7 @@ from ruamel.yaml import YAML
 from typer import Context
 from typer.testing import CliRunner
 
-from epics_containers_cli.__main__ import cli
+from epics_containers_cli.ioc.ioc_cli import cli
 from epics_containers_cli.logging import log
 
 TMPDIR = Path("/tmp/ec_tests")
@@ -163,9 +163,10 @@ def data() -> Path:
 @fixture()
 def ctx():
     ctx = Context
-    ctx.parent = Context
-    ctx.parent.parent = Context
-    ctx.parent.parent.params = {}
+    # TODO - are these required now the namespace is flat ?
+    ctx.parent = Context  # type: ignore
+    ctx.parent.parent = Context  # type: ignore
+    ctx.parent.parent.params = {}  # type: ignore
     return ctx
 
 

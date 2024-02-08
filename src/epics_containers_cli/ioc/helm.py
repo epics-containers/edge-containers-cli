@@ -78,7 +78,8 @@ class Helm:
         Generate an IOC helm chart and deploy it to the cluster
         """
         if not self.version:
-            raise typer.Exit("ERROR: version is required")
+            log.error("Version not found")
+            raise typer.Exit(1)
 
         shell.run_command(
             f"git clone {self.beamline_repo} {self.tmp} --depth=1 "

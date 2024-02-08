@@ -19,7 +19,7 @@ from epics_containers_cli.utils import cleanup_temp
 
 
 def url_encode(in_string: str) -> str:
-    return urllib.parse.quote(in_string, safe="")
+    return urllib.parse.quote(in_string, safe="")  # type: ignore
 
 
 def cache_dict(cache_folder: str, cached_file: str, data_struc: dict) -> None:
