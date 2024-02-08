@@ -32,8 +32,9 @@ fmt_services = (
 )
 json_service_info = (
     "-o jsonpath='"
-    r'{range .items[*]}{..labels.app}{", "}{..containerStatuses[0].ready}'
-    r'{", "}{..containerStatuses[0].restartCount}{", "}{.status.startTime}'
+    r'{range .items[*]}{..labels.app}{","}{..containerStatuses[0].ready}'
+    r'{","}{..containerStatuses[0].restartCount}{","}{.status.startTime}'
     r'{"\n"}{end}'
     "'"
 )
+json_service_headers = ["name", "ready", "restarts", "started"]

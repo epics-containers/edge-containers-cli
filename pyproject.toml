@@ -15,7 +15,15 @@ classifiers = [
 ]
 description = "CLI for deploying and managing epics containers IOCs and services"
 
-dependencies = ["natsort", "typer[all]", "requests", "ruamel.yaml", "jinja2"]
+dependencies = [
+    "natsort",
+    "typer[all]",
+    "requests",
+    "ruamel.yaml",
+    "jinja2",
+    "pandas",
+    "pyarrow",
+]
 
 dynamic = ["version"]
 license.file = "LICENSE"

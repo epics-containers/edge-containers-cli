@@ -4,20 +4,20 @@ implements commands for deploying and managing ioc instances in the k8s cluster.
 Relies on the Helm class for deployment aspects.
 """
 
-import json
 import webbrowser
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Optional
 
+import pandas as pd
 import typer
 
 import ec_cli.globals as globals
 import ec_cli.shell as shell
 from ec_cli.ioc.helm import Helm
-from ec_cli.ioc.kubectl import json_service_info
+from ec_cli.ioc.kubectl import json_service_headers, json_service_info
 from ec_cli.logging import log
-from ec_cli.utils import make_table_str
 
 
 def check_ioc(ioc_name: str, domain: str):
@@ -145,16 +145,17 @@ class IocK8sCommands:
             f"kubectl get pods -n {self.namespace} {json_service_info}",
             interactive=False,
         )
+        pods_df = pd.read_csv(StringIO(pods_csv), names=json_service_headers)
+
         helm_json = shell.run_command(
             f"helm list -n {self.namespace} -o json", interactive=False
         )
-        helm_obj = json.loads(helm_json)
+        helm_df = pd.read_json(StringIO(helm_json))
 
-        print(helm_obj)
+        both = pd.merge(pods_df, helm_df, left_on="name", right_on="name")
+        both.drop(columns=["revision", "updated", "status", "chart"], inplace=True)
 
-        # data = json.loads(json_txt)
-        # table = make_table(data)
-        # print(table)
+        print(both.to_string(index=False))
 
         # if all:
         #     shell.run_command(
