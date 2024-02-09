@@ -43,11 +43,8 @@ def check_instance_path(ioc_path: Path):
 
     log.info(f"checking IOC instance {ioc_name} at {ioc_path}")
     if ioc_path.is_dir():
-        if (
-            not (ioc_path / "values.yaml").exists()
-            or not (ioc_path / globals.CONFIG_FOLDER).is_dir()
-        ):
-            log.error("IOC instance requires values.yaml and config")
+        if not (ioc_path / "values.yaml").exists():
+            log.error("IOC instance requires values.yaml")
             raise typer.Exit(1)
     else:
         log.error(f"IOC instance path {ioc_path} does not exist")

@@ -3,7 +3,7 @@ from typing import Optional
 import typer
 
 import ec_cli.globals as globals
-from ec_cli.ioc.ioc_cli import cli
+from ec_cli.cmds.ioc_cli import cli
 
 from . import __version__
 from .logging import init_logging

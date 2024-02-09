@@ -15,8 +15,8 @@ import typer
 
 import ec_cli.globals as globals
 import ec_cli.shell as shell
-from ec_cli.ioc.helm import Helm
-from ec_cli.ioc.kubectl import json_service_info, json_service_types
+from ec_cli.cmds.helm import Helm
+from ec_cli.cmds.kubectl import json_service_info, json_service_types
 from ec_cli.logging import log
 
 

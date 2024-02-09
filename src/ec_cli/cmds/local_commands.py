@@ -20,8 +20,8 @@ import typer
 
 import ec_cli.globals as globals
 import ec_cli.shell as shell
+from ec_cli.cmds.k8s_commands import check_namespace
 from ec_cli.docker import Docker
-from ec_cli.ioc.k8s_commands import check_namespace
 from ec_cli.logging import log
 from ec_cli.shell import check_services_repo
 from ec_cli.utils import (

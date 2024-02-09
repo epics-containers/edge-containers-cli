@@ -9,7 +9,7 @@ from ruamel.yaml import YAML
 from typer import Context
 from typer.testing import CliRunner
 
-from ec_cli.ioc.ioc_cli import cli
+from ec_cli.__main__ import cli
 from ec_cli.logging import log
 
 TMPDIR = Path("/tmp/ec_tests")

@@ -12,9 +12,9 @@ from ec_cli.autocomplete import (
     force_plain_completion,
     running_iocs,
 )
+from ec_cli.cmds.k8s_commands import IocK8sCommands
+from ec_cli.cmds.local_commands import IocLocalCommands
 from ec_cli.git import create_ioc_graph
-from ec_cli.ioc.k8s_commands import IocK8sCommands
-from ec_cli.ioc.local_commands import IocLocalCommands
 from ec_cli.logging import log
 from ec_cli.utils import cleanup_temp, drop_ioc_path
 
