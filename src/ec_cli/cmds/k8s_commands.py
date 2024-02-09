@@ -68,7 +68,6 @@ class IocK8sCommands:
                 check_service(service_name, namespace)
             self.namespace = namespace
             self.beamline_repo = ctx.beamline_repo
-            self.branch = ctx.branch
         self.ioc_name: str = service_name
 
     def attach(self):
@@ -99,7 +98,7 @@ class IocK8sCommands:
     def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
         service_name = ioc_instance.name.lower()
 
-        chart = Helm(self.namespace, service_name, args=args, branch=self.branch)
+        chart = Helm(self.namespace, service_name, args=args)
         chart.deploy_local(ioc_instance, yes)
 
     def deploy(self, service_name: str, version: str, args: str):
@@ -109,7 +108,6 @@ class IocK8sCommands:
             args,
             version,
             repo=self.beamline_repo,
-            branch=self.branch,
         )
         chart.deploy()
 

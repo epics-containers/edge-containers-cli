@@ -23,7 +23,6 @@ class Helm:
         version: Optional[str] = None,
         template: bool = False,
         repo: Optional[str] = None,
-        branch: Optional[str] = None,
     ):
         """
         Create a helm chart from a local or a remote repo
@@ -36,7 +35,6 @@ class Helm:
             datetime.now(), "%Y.%-m.%-d-b%-H.%-M"
         )
         self.template = template
-        self.branch = branch
 
         self.tmp = Path(tempfile.mkdtemp())
 
@@ -71,7 +69,7 @@ class Helm:
 
         shell.run_command(
             f"git clone {self.beamline_repo} {self.tmp} --depth=1 "
-            f"--single-branch --branch={self.branch}",
+            f"--single-branch --branch={self.version}",
             interactive=False,
         )
 

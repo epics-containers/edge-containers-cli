@@ -9,7 +9,6 @@ class Context:
 
     namespace: str = ""
     beamline_repo: str = ""
-    branch: str = ""
     verbose: bool = False
     debug: bool = False
 
