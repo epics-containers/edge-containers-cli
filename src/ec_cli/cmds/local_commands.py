@@ -1,11 +1,11 @@
 """
-Implements functions for deploying and managing local ioc instances using
+Implements functions for deploying and managing local service instances using
 local docker standalone. This is an initial experimental implementation.
 In future we could support remote deployment and possibly creating
 portainer manifests.
 
 However, for the moment, Using this by connecting to each server and running
-'ec deploy <service_name> <ioc_version> and then managing the network with a
+'ec deploy <service_name> <version> and then managing the network with a
 tool like Portainer is a decent workflow.
 """
 

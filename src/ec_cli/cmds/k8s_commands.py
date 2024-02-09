@@ -1,5 +1,5 @@
 """
-implements commands for deploying and managing ioc instances in the k8s cluster.
+implements commands for deploying and managing service instances in the k8s cluster.
 
 Relies on the Helm class for deployment aspects.
 """
@@ -49,7 +49,7 @@ def check_namespace(namespace: Optional[str]):
 
 class IocK8sCommands:
     """
-    A class for implementing the ioc command namespace
+    A class for implementing the Kubernetes based commands
     """
 
     def __init__(
@@ -85,10 +85,10 @@ class IocK8sCommands:
 
         shell.run_command(f"helm delete -n {self.namespace} {self.service_name}")
 
-    def template(self, ioc_instance: Path, args: str):
+    def template(self, svc_instance: Path, args: str):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
 
-        service_name = ioc_instance.name.lower()
+        service_name = svc_instance.name.lower()
 
         chart = Helm(
             self.namespace,
@@ -97,13 +97,13 @@ class IocK8sCommands:
             template=True,
             repo=self.beamline_repo,
         )
-        chart.deploy_local(ioc_instance)
+        chart.deploy_local(svc_instance)
 
-    def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
-        service_name = ioc_instance.name.lower()
+    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
+        service_name = svc_instance.name.lower()
 
         chart = Helm(self.namespace, service_name, args=args)
-        chart.deploy_local(ioc_instance, yes)
+        chart.deploy_local(svc_instance, yes)
 
     def deploy(self, service_name: str, version: str, args: str):
         chart = Helm(
@@ -180,13 +180,3 @@ class IocK8sCommands:
         df.drop(columns=["revision", "updated", "status", "chart"], inplace=True)
 
         print(df.to_string(index=False))
-
-        # if all:
-        #     shell.run_command(
-        #         f"kubectl -n {self.namespace} get statefulset -l ==true -o {fmt_deploys}"
-        #     )
-        # else:
-        #     format = fmt_pods_wide if wide else fmt_pods
-        #     shell.run_command(
-        #         f"kubectl -n {self.namespace} get pod -l is_ioc==true -o {format}"
-        #     )

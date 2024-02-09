@@ -7,10 +7,10 @@ of the tested function must be surpressed
 import shutil
 
 from ec_cli.autocomplete import (
-    all_iocs,
+    all_svc,
     avail_IOCs,
     avail_versions,
-    running_iocs,
+    running_svc,
 )
 from tests.conftest import TMPDIR
 
@@ -19,7 +19,7 @@ def test_all_iocs(mock_run, autocomplete, ctx):
     mock_run.set_seq(autocomplete.all_iocs)
 
     ctx.parent.parent.params["namespace"] = ""  # use env variable
-    result = mock_run.call(all_iocs, ctx)
+    result = mock_run.call(all_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
 
@@ -35,7 +35,7 @@ def test_all_iocs_local(mock_run, mocker, autocomplete, ctx):
     mock_run.set_seq(autocomplete.all_iocs_local)
 
     ctx.parent.parent.params["namespace"] = ""  # use env variable
-    result = mock_run.call(all_iocs, ctx)
+    result = mock_run.call(all_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
 
@@ -62,7 +62,7 @@ def test_running_iocs(mock_run, autocomplete, ctx):
     mock_run.set_seq(autocomplete.running_iocs)
 
     ctx.parent.parent.params["namespace"] = ""  # use env variable
-    result = mock_run.call(running_iocs, ctx)
+    result = mock_run.call(running_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
 
@@ -78,5 +78,5 @@ def test_running_iocs_local(mock_run, mocker, autocomplete, ctx):
     mock_run.set_seq(autocomplete.running_iocs_local)
 
     ctx.parent.parent.params["namespace"] = ""  # use env variable
-    result = mock_run.call(running_iocs, ctx)
+    result = mock_run.call(running_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]

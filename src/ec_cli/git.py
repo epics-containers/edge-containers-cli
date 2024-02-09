@@ -107,7 +107,7 @@ def repo2registry(repo_name: str) -> str:
     return registry
 
 
-def create_ioc_graph(repo: str, folder: Path) -> Dict:
+def create_svc_graph(repo: str, folder: Path) -> Dict:
     """
     return a dictionary of the available IOCs (by discovering the children
     to the services/ folder in the beamline repo) as well as a list of the corresponding
@@ -115,7 +115,7 @@ def create_ioc_graph(repo: str, folder: Path) -> Dict:
     which changes to the instance were made since the last tag) and the respective
     list of available versions
     """
-    ioc_graph = {}
+    svc_graph = {}
 
     check_services_repo(repo)
     shell.run_command(f"git clone {repo} {folder}", interactive=False)
@@ -147,6 +147,6 @@ def create_ioc_graph(repo: str, folder: Path) -> Dict:
                 # give the latest tag if there are no changes
                 version_list.append(tags[-1])
 
-            ioc_graph[service_name] = version_list
+            svc_graph[service_name] = version_list
 
-    return ioc_graph
+    return svc_graph

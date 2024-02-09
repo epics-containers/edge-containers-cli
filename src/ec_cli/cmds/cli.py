@@ -6,15 +6,15 @@ from natsort import natsorted
 
 import ec_cli.globals as globals
 from ec_cli.autocomplete import (
-    all_iocs,
+    all_svc,
     avail_IOCs,
     avail_versions,
     force_plain_completion,
-    running_iocs,
+    running_svc,
 )
 from ec_cli.cmds.k8s_commands import IocK8sCommands
 from ec_cli.cmds.local_commands import IocLocalCommands
-from ec_cli.git import create_ioc_graph
+from ec_cli.git import create_svc_graph
 from ec_cli.logging import log
 from ec_cli.utils import cleanup_temp, drop_path
 
@@ -53,7 +53,7 @@ def env(
 def attach(
     ctx: typer.Context,
     service_name: str = typer.Argument(
-        ..., help="Name of the IOC to attach to", autocompletion=running_iocs
+        ..., help="Name of the IOC to attach to", autocompletion=running_svc
     ),
 ):
     """
@@ -69,7 +69,7 @@ def attach(
 def delete(
     ctx: typer.Context,
     service_name: str = typer.Argument(
-        ..., help="Name of the IOC to delete", autocompletion=all_iocs
+        ..., help="Name of the IOC to delete", autocompletion=all_svc
     ),
 ):
     """
@@ -84,9 +84,9 @@ def delete(
 @cli.command()
 def template(
     ctx: typer.Context,
-    ioc_instance: Path = typer.Argument(
+    svc_instance: Path = typer.Argument(
         ...,
-        help="folder of local ioc definition",
+        help="folder of local service definition",
         exists=True,
         file_okay=False,
         resolve_path=True,
@@ -95,21 +95,21 @@ def template(
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
-    print out the helm template generated from a local ioc instance
+    print out the helm template generated from a local service instance
     """
     args = f"{args} --debug"
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
         typer.echo("Not applicable to local deployments")
     else:
-        IocK8sCommands(ctx.obj).template(ioc_instance, args)
+        IocK8sCommands(ctx.obj).template(svc_instance, args)
 
 
 @cli.command()
 def deploy_local(
     ctx: typer.Context,
-    ioc_instance: Path = typer.Argument(
+    svc_instance: Path = typer.Argument(
         ...,
-        help="folder of local ioc definition",
+        help="folder of local service definition",
         exists=True,
         file_okay=False,
         resolve_path=True,
@@ -122,9 +122,9 @@ def deploy_local(
     Deploy a local IOC helm chart directly to the cluster with dated beta version
     """
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
+        IocLocalCommands(ctx.obj).deploy_local(svc_instance, yes, args)
     else:
-        IocK8sCommands(ctx.obj).deploy_local(ioc_instance, yes, args)
+        IocK8sCommands(ctx.obj).deploy_local(svc_instance, yes, args)
 
 
 @cli.command()
@@ -159,16 +159,16 @@ def list(
     """List all IOCs available in the helm registry"""
     typer.echo(typer.style(f"{'Available IOCs:':35}Latest instance:", bold=True))
     tmp_dir = Path(tempfile.mkdtemp())
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir)
-    iocs_list = natsorted(ioc_graph.keys())
-    log.debug(f"ioc_graph = {ioc_graph}")
+    svc_graph = create_svc_graph(ctx.obj.beamline_repo, tmp_dir)
+    svc_list = natsorted(svc_graph.keys())
+    log.debug(f"svc_graph = {svc_graph}")
 
-    for ioc in iocs_list:
-        if len(ioc_graph[ioc]) == 0:
+    for svc in svc_list:
+        if len(svc_graph[svc]) == 0:
             latest_instance = "None found."
         else:
-            latest_instance = natsorted(ioc_graph[ioc])[-1]
-        typer.echo(f"{ioc:35}{latest_instance}")
+            latest_instance = natsorted(svc_graph[svc])[-1]
+        typer.echo(f"{svc:35}{latest_instance}")
 
     cleanup_temp(tmp_dir)
 
@@ -183,13 +183,13 @@ def instances(
     """List all versions of the IOC available in the helm registry"""
     typer.echo(f"Available instance versions for {service_name}:")
     tmp_dir = Path(tempfile.mkdtemp())
-    ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir)
+    svc_graph = create_svc_graph(ctx.obj.beamline_repo, tmp_dir)
     try:
-        iocs_list = ioc_graph[service_name]
+        svc_list = svc_graph[service_name]
     except KeyError:
-        iocs_list = []
+        svc_list = []
 
-    sorted_list = natsorted(iocs_list)[::-1]
+    sorted_list = natsorted(svc_list)[::-1]
     typer.echo("  ".join(sorted_list))
 
     cleanup_temp(tmp_dir)
@@ -199,7 +199,7 @@ def instances(
 def exec(
     ctx: typer.Context,
     service_name: str = typer.Argument(
-        ..., help="Name of the IOC container to run in", autocompletion=running_iocs
+        ..., help="Name of the IOC container to run in", autocompletion=running_svc
     ),
 ):
     """Execute a bash prompt in a live IOC's container"""
@@ -214,7 +214,7 @@ def log_history(
     service_name: str = typer.Argument(
         ...,
         help="Name of the IOC to inspect",
-        autocompletion=all_iocs,
+        autocompletion=all_svc,
     ),
 ):
     """Open historical logs for an IOC"""
@@ -225,7 +225,7 @@ def log_history(
 def logs(
     ctx: typer.Context,
     service_name: str = typer.Argument(
-        ..., help="Name of the IOC to inspect", autocompletion=running_iocs
+        ..., help="Name of the IOC to inspect", autocompletion=running_svc
     ),
     prev: bool = typer.Option(
         False, "--previous", "-p", help="Show log from the previous instance of the IOC"
@@ -243,7 +243,7 @@ def logs(
 def restart(
     ctx: typer.Context,
     service_name: str = typer.Argument(
-        ..., help="Name of the IOC container to restart", autocompletion=running_iocs
+        ..., help="Name of the IOC container to restart", autocompletion=running_svc
     ),
 ):
     """Restart an IOC"""
@@ -257,7 +257,7 @@ def restart(
 def start(
     ctx: typer.Context,
     service_name: str = typer.Argument(
-        ..., help="Name of the IOC container to start", autocompletion=all_iocs
+        ..., help="Name of the IOC container to start", autocompletion=all_svc
     ),
 ):
     """Start an IOC"""
@@ -272,7 +272,7 @@ def start(
 def stop(
     ctx: typer.Context,
     service_name: str = typer.Argument(
-        ..., help="Name of the IOC container to stop", autocompletion=running_iocs
+        ..., help="Name of the IOC container to stop", autocompletion=running_svc
     ),
 ):
     """Stop an IOC"""
@@ -285,9 +285,9 @@ def stop(
 @cli.command()
 def validate(
     ctx: typer.Context,
-    ioc_instance: Path = typer.Argument(
+    svc_instance: Path = typer.Argument(
         ...,
-        help="folder of local ioc definition",
+        help="folder of local IOC definition",
         exists=True,
         file_okay=False,
         resolve_path=True,
@@ -301,4 +301,4 @@ def validate(
     Checks that ioc.yaml has the matching schema header and that it passes
       scheme validation
     """
-    IocLocalCommands(ctx.obj).validate_instance(ioc_instance)
+    IocLocalCommands(ctx.obj).validate_instance(svc_instance)

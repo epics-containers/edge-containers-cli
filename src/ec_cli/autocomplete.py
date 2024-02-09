@@ -13,7 +13,7 @@ import ec_cli.globals as globals
 import ec_cli.shell as shell
 from ec_cli.cmds.k8s_commands import check_namespace
 from ec_cli.docker import Docker
-from ec_cli.git import create_ioc_graph
+from ec_cli.git import create_svc_graph
 from ec_cli.logging import log
 from ec_cli.utils import cleanup_temp
 
@@ -47,14 +47,14 @@ def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
 
 
 def fetch_service_graph(beamline_repo: str) -> dict:
-    ioc_graph = read_cached_dict(url_encode(beamline_repo), globals.IOC_CACHE)
-    if not ioc_graph:
+    svc_graph = read_cached_dict(url_encode(beamline_repo), globals.IOC_CACHE)
+    if not svc_graph:
         tmp_dir = Path(tempfile.mkdtemp())
-        ioc_graph = create_ioc_graph(beamline_repo, tmp_dir)
-        cache_dict(url_encode(beamline_repo), globals.IOC_CACHE, ioc_graph)
+        svc_graph = create_svc_graph(beamline_repo, tmp_dir)
+        cache_dict(url_encode(beamline_repo), globals.IOC_CACHE, svc_graph)
         cleanup_temp(tmp_dir)
 
-    return ioc_graph
+    return svc_graph
 
 
 def avail_IOCs(ctx: typer.Context) -> List[str]:
@@ -78,9 +78,9 @@ def avail_versions(ctx: typer.Context) -> List[str]:
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        ioc_graph = fetch_service_graph(beamline_repo)
-        ioc_versions = ioc_graph[service_name]
-        return ioc_versions
+        svc_graph = fetch_service_graph(beamline_repo)
+        svc_versions = svc_graph[service_name]
+        return svc_versions
     except KeyError:
         log.error("IOC not found")
         return [" "]
@@ -94,7 +94,7 @@ def force_plain_completion() -> List[str]:
     return []
 
 
-def running_iocs(ctx: typer.Context) -> List[str]:
+def running_svc(ctx: typer.Context) -> List[str]:
     params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 
@@ -104,21 +104,21 @@ def running_iocs(ctx: typer.Context) -> List[str]:
             docker = Docker().docker
             format = "{{.Names}}"
             command = f"{docker} ps --filter label=is_IOC=true --format {format}"
-            ioc_list = str(shell.run_command(command, interactive=False)).split()
-            return ioc_list
+            svc_list = str(shell.run_command(command, interactive=False)).split()
+            return svc_list
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
             command = f"kubectl -n {namespace} get pod {columns}"
-            ioc_list = str(shell.run_command(command, interactive=False)).split()[1:]
-            return ioc_list
+            svc_list = str(shell.run_command(command, interactive=False)).split()[1:]
+            return svc_list
     except typer.Exit:
         return [" "]
     except CalledProcessError:
         return [" "]
 
 
-def all_iocs(ctx: typer.Context) -> List[str]:
+def all_svc(ctx: typer.Context) -> List[str]:
     params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 
@@ -128,13 +128,13 @@ def all_iocs(ctx: typer.Context) -> List[str]:
             docker = Docker().docker
             format = "{{.Names}}"
             command = f"{docker} ps -a --filter label=is_IOC=true --format {format}"
-            ioc_list = str(shell.run_command(command, interactive=False)).split()
-            return ioc_list
+            svc_list = str(shell.run_command(command, interactive=False)).split()
+            return svc_list
         else:
             check_namespace(namespace)
             command = f"helm list -qn {namespace}"
-            ioc_list = str(shell.run_command(command, interactive=False)).split()
-            return ioc_list
+            svc_list = str(shell.run_command(command, interactive=False)).split()
+            return svc_list
     except typer.Exit:
         return [" "]
     except CalledProcessError:
