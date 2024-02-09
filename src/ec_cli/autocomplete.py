@@ -58,7 +58,7 @@ def fetch_service_graph(beamline_repo: str) -> dict:
 
 
 def avail_IOCs(ctx: typer.Context) -> List[str]:
-    params = ctx.parent.parent.params  # type: ignore
+    params = ctx.parent.params  # type: ignore
     services_repo = params["repo"] or globals.EC_SERVICES_REPO
 
     # This block prevents getting a stack trace during autocompletion
@@ -72,7 +72,7 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
 
 
 def avail_versions(ctx: typer.Context) -> List[str]:
-    params = ctx.parent.parent.params  # type: ignore
+    params = ctx.parent.params  # type: ignore
     beamline_repo = params["repo"] or globals.EC_SERVICES_REPO
     ioc_name = ctx.params["ioc_name"]
 
@@ -95,7 +95,7 @@ def force_plain_completion() -> List[str]:
 
 
 def running_iocs(ctx: typer.Context) -> List[str]:
-    params = ctx.parent.parent.params  # type: ignore
+    params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 
     # This block prevents getting a stack trace during autocompletion
@@ -119,7 +119,7 @@ def running_iocs(ctx: typer.Context) -> List[str]:
 
 
 def all_iocs(ctx: typer.Context) -> List[str]:
-    params = ctx.parent.parent.params  # type: ignore
+    params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 
     # This block prevents getting a stack trace during autocompletion
