@@ -3,8 +3,11 @@ ec_cli
 
 |code_ci| |docs_ci| |coverage| |pypi_version| |license|
 
-This is where you should write a short paragraph that describes what your module does,
-how it does it, and why people should use it.
+Edge containers command line interface: a tool for deploying and managing
+IOCs and services in a beamline or accelerator cluster.
+
+For detailed documentation on the framework that this supports see:
+https://epics-containers.github.io/
 
 ============== ==============================================================
 PyPI           ``pip install ec-cli``
@@ -13,19 +16,12 @@ Source code    https://github.com/epics-containers/ec-cli
 Releases       https://github.com/epics-containers/ec-cli/releases
 ============== ==============================================================
 
-This is where you should put some images or code snippets that illustrate
-some relevant examples. If it is a library then you might put some
-introductory code here:
 
-.. code-block:: python
+To discover the CLI commands, create a python virtual environment,
+and perform the following::
 
-    from ec_cli import __version__
-
-    print(f"Hello ec_cli {__version__}")
-
-Or if it is a commandline tool then you might put some example commands here::
-
-    $ python -m ec_cli --version
+    pip install ec-cli
+    ec --version
 
 .. |code_ci| image:: https://github.com/epics-containers/ec-cli/actions/workflows/code.yml/badge.svg?branch=main
     :target: https://github.com/epics-containers/ec-cli/actions/workflows/code.yml
