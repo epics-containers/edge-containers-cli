@@ -20,10 +20,10 @@ from ec_cli.ioc.kubectl import json_service_headers, json_service_info
 from ec_cli.logging import log
 
 
-def check_ioc(ioc_name: str, domain: str):
-    cmd = f"kubectl get -n {domain} statefulset/{ioc_name}"
+def check_service(service_name: str, domain: str):
+    cmd = f"helm list -n {domain} -qf {service_name}"
     if not shell.run_command(cmd, interactive=False, error_OK=True):
-        log.error(f"ioc {ioc_name} does not exist in domain {domain}")
+        log.error(f"{service_name} does not exist in domain {domain}")
         raise typer.Exit(1)
 
 
@@ -59,9 +59,10 @@ class IocK8sCommands:
             namespace = ctx.namespace
             check_namespace(namespace)
             if ioc_name != "":
-                check_ioc(ioc_name, namespace)
+                check_service(ioc_name, namespace)
             self.namespace = namespace
             self.beamline_repo = ctx.beamline_repo
+            self.branch = ctx.branch
         self.ioc_name: str = ioc_name
 
     def attach(self):
@@ -90,13 +91,20 @@ class IocK8sCommands:
         chart.deploy_local(ioc_instance)
 
     def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
-        ioc_name = ioc_instance.name.lower()
+        service_name = ioc_instance.name.lower()
 
-        chart = Helm(self.namespace, ioc_name, args=args)
+        chart = Helm(self.namespace, service_name, args=args, branch=self.branch)
         chart.deploy_local(ioc_instance, yes)
 
-    def deploy(self, ioc_name: str, version: str, args: str):
-        chart = Helm(self.namespace, ioc_name, args, version, repo=self.beamline_repo)
+    def deploy(self, service_name: str, version: str, args: str):
+        chart = Helm(
+            self.namespace,
+            service_name,
+            args,
+            version,
+            repo=self.beamline_repo,
+            branch=self.branch,
+        )
         chart.deploy()
 
     def exec(self):

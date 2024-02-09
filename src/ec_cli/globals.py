@@ -33,7 +33,7 @@ class Targets(str, Enum):
 
 # common stings used in paths
 # folder containing the beamline IOC Instance Helm Chart
-SHARED_CHARTS_FOLDER = "beamline-chart"
+SHARED_CHARTS_FOLDER = "../helm"
 # location of IOC Instance configuration in a beamline ioc Instance folder
 CONFIG_FOLDER = "config"
 # location of IOC Instance configuration inside a Generic IOC container
