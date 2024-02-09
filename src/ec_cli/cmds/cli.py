@@ -91,7 +91,7 @@ def template(
         file_okay=False,
         resolve_path=True,
         autocompletion=force_plain_completion,
-    ),
+    ),  # noqa: B008
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """

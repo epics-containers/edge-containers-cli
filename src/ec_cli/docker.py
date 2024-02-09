@@ -6,7 +6,7 @@ import re
 import sys
 from pathlib import Path
 from time import sleep
-from typing import List, Optional
+from typing import Optional
 
 import typer
 
@@ -68,7 +68,7 @@ class Docker:
         log.debug(f"buildx={self.is_buildx} ({result})")
 
     def _all_params(
-        self, args: str, mounts: Optional[List[Path]] = None, exec: bool = False
+        self, args: str, mounts: Optional[list[Path]] = None, exec: bool = False
     ):
         """
         set up parameters for call to docker/podman
@@ -99,7 +99,7 @@ class Docker:
 
         return params
 
-    def run(self, name: str, args: str = "", mounts: Optional[List[Path]] = None):
+    def run(self, name: str, args: str = "", mounts: Optional[list[Path]] = None):
         """
         run a command in a local container
         """
@@ -198,7 +198,7 @@ class Docker:
         """
         verify that a given container is up and running
         """
-        for i in range(retry):
+        for _i in range(retry):
             result = shell.run_command(
                 f"{self.docker} ps -f name={container} --format '{{{{.Names}}}}'",
                 interactive=False,

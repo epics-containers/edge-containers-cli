@@ -108,6 +108,7 @@ line-length = 88
 ignore = [
     "C408", # Unnecessary collection call - e.g. list(...) instead of [...]
     "E501", # Line too long, should be fixed by black.
+    "B008", # Do not perform function calls in argument defaults.
 ]
 lint.select = [
     "B",  # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b

@@ -5,7 +5,6 @@ import time
 import urllib
 from pathlib import Path
 from subprocess import CalledProcessError
-from typing import List
 
 import typer
 
@@ -57,7 +56,7 @@ def fetch_service_graph(beamline_repo: str) -> dict:
     return svc_graph
 
 
-def avail_IOCs(ctx: typer.Context) -> List[str]:
+def avail_IOCs(ctx: typer.Context) -> list[str]:
     params = ctx.parent.params  # type: ignore
     services_repo = params["repo"] or globals.EC_SERVICES_REPO
 
@@ -71,7 +70,7 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
         return [" "]
 
 
-def avail_versions(ctx: typer.Context) -> List[str]:
+def avail_versions(ctx: typer.Context) -> list[str]:
     params = ctx.parent.params  # type: ignore
     beamline_repo = params["repo"] or globals.EC_SERVICES_REPO
     service_name = ctx.params["service_name"]
@@ -90,11 +89,11 @@ def avail_versions(ctx: typer.Context) -> List[str]:
         return [" "]
 
 
-def force_plain_completion() -> List[str]:
+def force_plain_completion() -> list[str]:
     return []
 
 
-def running_svc(ctx: typer.Context) -> List[str]:
+def running_svc(ctx: typer.Context) -> list[str]:
     params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 
@@ -118,7 +117,7 @@ def running_svc(ctx: typer.Context) -> List[str]:
         return [" "]
 
 
-def all_svc(ctx: typer.Context) -> List[str]:
+def all_svc(ctx: typer.Context) -> list[str]:
     params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 

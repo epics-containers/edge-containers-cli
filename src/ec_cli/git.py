@@ -5,7 +5,7 @@ Utility functions for working with git
 import os
 import re
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 import typer
 
@@ -32,7 +32,7 @@ def get_image_name(
     return image
 
 
-def get_git_name(folder: Path = Path(".")) -> Tuple[str, Path]:
+def get_git_name(folder: Path = Path(".")) -> tuple[str, Path]:
     """
     work out the git repo name and top level folder for a local clone
     """
@@ -107,7 +107,7 @@ def repo2registry(repo_name: str) -> str:
     return registry
 
 
-def create_svc_graph(repo: str, folder: Path) -> Dict:
+def create_svc_graph(repo: str, folder: Path) -> dict:
     """
     return a dictionary of the available IOCs (by discovering the children
     to the services/ folder in the beamline repo) as well as a list of the corresponding

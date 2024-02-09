@@ -2,7 +2,7 @@ import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, Dict, List, Union
+from typing import Callable, Union
 
 from pytest import fixture
 from ruamel.yaml import YAML
@@ -33,10 +33,10 @@ class MockRun:
     rsp = "rsp"
 
     def __init__(self) -> None:
-        self.cmd_rsp: List[Dict] = []
+        self.cmd_rsp: list[dict] = []
         self._runner = CliRunner()
         self.log: str = ""
-        self.params: List[str] = []
+        self.params: list[str] = []
 
     def _str_command(
         self, command: str, interactive: bool = True, error_OK: bool = False
@@ -51,8 +51,8 @@ class MockRun:
 
         try:
             cmd_rsp = self.cmd_rsp.pop(0)
-        except IndexError:
-            raise IndexError("No test command response to return")
+        except IndexError as e:
+            raise IndexError("No test command response to return") from e
 
         cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]
@@ -73,7 +73,7 @@ class MockRun:
 
         return rsp
 
-    def set_seq(self, cmd_rsp: List[Dict[str, Union[str, bool]]]):
+    def set_seq(self, cmd_rsp: list[dict[str, Union[str, bool]]]):
         """
         Set up the expected sequence of commands that we expect to see come
         through the mock of run_command. Also supplies the response to
