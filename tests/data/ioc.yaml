@@ -1,8 +1,8 @@
 checks:
   - cmd: kubectl get namespace bl45p -o name
     rsp: namespace/bl45p
-  - cmd: helm list -n bl45p -qf bl45p-ea-ioc-01
-    rsp: bl45p-ea-ioc-01
+  - cmd: kubectl get statefulset -o name -n bl45p bl45p-ea-ioc-01 --ignore-not-found
+    rsp: statefulset/bl45p-ea-ioc-01
 
 attach:
   - cmd: kubectl -it -n bl45p attach statefulset/bl45p-ea-ioc-01

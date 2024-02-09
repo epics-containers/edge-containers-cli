@@ -20,11 +20,23 @@ from edge_containers_cli.cmds.kubectl import json_service_info, json_service_typ
 from edge_containers_cli.logging import log
 
 
-def check_service(service_name: str, domain: str):
-    cmd = f"helm list -n {domain} -qf {service_name}"
-    if not shell.run_command(cmd, interactive=False, error_OK=True):
-        log.error(f"{service_name} does not exist in domain {domain}")
+def check_service(service_name: str, namespace: str) -> str:
+    """
+    validate that there is a pod with the given service_name and
+    determine if it is managed by a statefulset or deployment
+    """
+    cmd = f"kubectl get {{t}} -o name -n {namespace} {service_name} --ignore-not-found"
+    for t in ["statefulset", "deployment"]:
+        result = shell.run_command(cmd.format(t=t), interactive=False, error_OK=True)
+        if result:
+            break
+    else:
+        log.error(f"{service_name} does not exist in domain {namespace}")
         raise typer.Exit(1)
+
+    # return statefulset/name or deployment/name
+    log.debug(f"fullname = {result}")
+    return str(result).strip()
 
 
 def check_namespace(namespace: Optional[str]):
@@ -60,19 +72,20 @@ class IocK8sCommands:
     ):
         self.namespace: str = ""
         self.beamline_repo: str = ""
+        self.service_type: str = ""
         # TODO isnt ctx always set??
         if ctx is not None:
             namespace = ctx.namespace
             check_namespace(namespace)
             if service_name != "" and check:
-                check_service(service_name, namespace)
+                self.fullname = check_service(service_name, namespace)
             self.namespace = namespace
             self.beamline_repo = ctx.beamline_repo
         self.service_name: str = service_name
 
     def attach(self):
         shell.run_command(
-            f"kubectl -it -n {self.namespace} attach statefulset/{self.service_name}",
+            f"kubectl -it -n {self.namespace} attach {self.fullname}",
             interactive=True,
         )
 
@@ -117,7 +130,7 @@ class IocK8sCommands:
 
     def exec(self):
         shell.run_command(
-            f"kubectl -it -n {self.namespace} exec statefulset/{self.service_name} -- bash"
+            f"kubectl -it -n {self.namespace} exec {self.fullname} -- bash"
         )
 
     def log_history(self):
@@ -133,7 +146,7 @@ class IocK8sCommands:
         fol = "-f" if follow else ""
 
         shell.run_command(
-            f"kubectl -n {self.namespace} logs statefulset/{self.service_name} {previous} {fol}"
+            f"kubectl -n {self.namespace} logs {self.fullname} {previous} {fol}"
         )
 
     def restart(self):
@@ -145,13 +158,13 @@ class IocK8sCommands:
 
     def start(self):
         shell.run_command(
-            f"kubectl scale -n {self.namespace} statefulset/{self.service_name} --replicas=1"
+            f"kubectl scale -n {self.namespace} {self.fullname} --replicas=1"
         )
 
     def stop(self):
         """Stop an IOC"""
         shell.run_command(
-            f"kubectl scale -n {self.namespace} statefulset/{self.service_name} --replicas=0 "
+            f"kubectl scale -n {self.namespace} {self.fullname} --replicas=0 "
         )
 
     def ps(self, all: bool, wide: bool):
@@ -164,6 +177,7 @@ class IocK8sCommands:
         log.debug(df)
 
         if not all:
+            # only show running services - get the pods list and merge with helm list
             services_csv = shell.run_command(
                 f"kubectl get pods -n {self.namespace} {json_service_info}",
                 interactive=False,
