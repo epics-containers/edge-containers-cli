@@ -1,4 +1,3 @@
-import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -60,11 +59,12 @@ class Helm:
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
 
-        bl_chart_folder = service_path.parent.parent / globals.BEAMLINE_CHART_FOLDER
-        # temporary copy of the beamline chart for destructive modification
-        shutil.copytree(bl_chart_folder, self.tmp / globals.BEAMLINE_CHART_FOLDER)
+        # to update the local helm charts we may need to remove the lock files
+        lock_files = service_path.glob("../../**/Chart.lock")
+        for lock_file in lock_files:
+            lock_file.unlink()
 
-        self._do_deploy()
+        self._do_deploy(service_path)
 
     def deploy(self):
         """
