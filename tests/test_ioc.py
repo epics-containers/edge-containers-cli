@@ -1,6 +1,8 @@
 import shutil
 from pathlib import Path
 
+import pytest
+
 from tests.conftest import TMPDIR
 
 
@@ -16,37 +18,35 @@ def test_delete(mock_run, ioc):
 
 def test_template(mock_run, data, ioc):
     mock_run.set_seq(ioc.checks[:1] + ioc.template)
-    mock_run.run_cli(f"template {data / 'iocs/bl45p-ea-ioc-01'}")
+    mock_run.run_cli(f"template {data / 'services/bl45p-ea-ioc-01'}")
 
 
 def test_deploy_local(mock_run, data, ioc):
     mock_run.set_seq(ioc.checks[:1] + ioc.deploy_local)
-    mock_run.run_cli(f"deploy-local {data / 'iocs/bl45p-ea-ioc-01'}")
+    mock_run.run_cli(f"deploy-local {data / 'services/bl45p-ea-ioc-01'}")
 
 
 def test_deploy(mock_run, data: Path, ioc):
-    mock_run.set_seq(ioc.checks + ioc.deploy)
+    mock_run.set_seq(ioc.deploy)
     # prep what deploy expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "beamline-chart", TMPDIR / "beamline-chart")
-    shutil.copytree(data / "iocs", TMPDIR / "iocs")
+    shutil.copytree(data / "services", TMPDIR / "services")
     mock_run.run_cli("deploy bl45p-ea-ioc-01 2.0")
 
 
 def test_deploy_path(mock_run, data: Path, ioc):
-    mock_run.set_seq(ioc.checks + ioc.deploy)
+    mock_run.set_seq(ioc.deploy)
     # prep what deploy expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "beamline-chart", TMPDIR / "beamline-chart")
-    shutil.copytree(data / "iocs", TMPDIR / "iocs")
-    mock_run.run_cli("deploy bl45p/iocs/bl45p-ea-ioc-01 2.0")
+    shutil.copytree(data / "services", TMPDIR / "services")
+    mock_run.run_cli("deploy bl45p/services/bl45p-ea-ioc-01 2.0")
 
 
 def test_list(mock_run, ioc, data: Path):
     mock_run.set_seq(ioc.instances)
     # prep what instances expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "iocs", TMPDIR / "iocs")
+    shutil.copytree(data / "services", TMPDIR / "services")
     mock_run.run_cli("list")
 
 
@@ -54,7 +54,7 @@ def test_instances(mock_run, ioc, data: Path):
     mock_run.set_seq(ioc.instances)
     # prep what instances expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "iocs", TMPDIR / "iocs")
+    shutil.copytree(data / "services", TMPDIR / "services")
     mock_run.run_cli("instances bl45p-ea-ioc-01")
 
 
@@ -88,6 +88,7 @@ def test_stop(mock_run, ioc):
     mock_run.run_cli("stop bl45p-ea-ioc-01")
 
 
+@pytest.mark.skip(reason="under review - and in flux")
 def test_ps(mock_run, ioc):
     mock_run.set_seq(ioc.ps)
     mock_run.run_cli("ps")

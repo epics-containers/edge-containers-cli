@@ -34,23 +34,23 @@ def get_instance_image_name(ioc_instance: Path, tag: Optional[str] = None) -> st
     return image
 
 
-def check_instance_path(ioc_path: Path):
+def check_instance_path(service_path: Path):
     """
-    verify that the ioc instance path is valid
+    verify that the service instance path is valid
     """
-    ioc_path = ioc_path.absolute()
-    ioc_name = ioc_path.name.lower()
+    service_path = service_path.absolute()
+    service_name = service_path.name.lower()
 
-    log.info(f"checking IOC instance {ioc_name} at {ioc_path}")
-    if ioc_path.is_dir():
-        if not (ioc_path / "values.yaml").exists():
+    log.info(f"checking instance {service_name} at {service_path}")
+    if service_path.is_dir():
+        if not (service_path / "values.yaml").exists():
             log.error("IOC instance requires values.yaml")
             raise typer.Exit(1)
     else:
-        log.error(f"IOC instance path {ioc_path} does not exist")
+        log.error(f"instance path {service_path} does not exist")
         raise typer.Exit(1)
 
-    return ioc_name, ioc_path
+    return service_name, service_path
 
 
 def generic_ioc_from_image(image_name: str) -> str:
@@ -65,12 +65,12 @@ def generic_ioc_from_image(image_name: str) -> str:
     return match[0]
 
 
-def drop_ioc_path(raw_input: str):
+def drop_path(raw_input: str):
     """
     Extracts the IOC name if is a path through ioc
     """
     match = re.findall(
-        r"iocs\/(.*?)(?:/|\s|$)", raw_input
+        r"services\/(.*?)(?:/|\s|$)", raw_input
     )  # https://regex101.com/r/L3GUvk/1
     if not match:
         return raw_input

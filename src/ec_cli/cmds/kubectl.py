@@ -37,4 +37,6 @@ json_service_info = (
     r'{"\n"}{end}'
     "'"
 )
-json_service_types = {"name": str, "ready": bool, "restarts": int, "started": str}
+
+# force all the values to be strings so there are never parsing errors
+json_service_types = {"name": str, "ready": str, "restarts": str, "started": str}

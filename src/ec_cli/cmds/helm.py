@@ -59,11 +59,6 @@ class Helm:
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
 
-        # to update the local helm charts we may need to remove the lock files
-        lock_files = service_path.glob("../../**/Chart.lock")
-        for lock_file in lock_files:
-            lock_file.unlink()
-
         self._do_deploy(service_path)
 
     def deploy(self):
@@ -92,11 +87,11 @@ class Helm:
 
         # package up the charts to get the appVersion set
         for chart in chart_paths:
-            shell.run_command(f"helm dependency build {chart}", interactive=False)
+            shell.run_command(f"helm dependency update {chart}", interactive=False)
 
         with chdir(service_folder):
             shell.run_command(
-                f"helm dependency build {service_folder}; "
+                f"helm dependency update {service_folder}; "
                 f"helm package {service_folder} --app-version {self.version}",
                 interactive=False,
             )

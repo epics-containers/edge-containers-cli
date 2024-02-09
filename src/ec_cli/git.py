@@ -107,20 +107,18 @@ def repo2registry(repo_name: str) -> str:
     return registry
 
 
-def create_ioc_graph(beamline_repo: str, folder: Path, branch="main") -> Dict:
+def create_ioc_graph(repo: str, folder: Path, branch="main") -> Dict:
     """
     return a dictionary of the available IOCs (by discovering the children
-    to the iocs/ folder in the beamline repo) as well as a list of the corresponding
+    to the services/ folder in the beamline repo) as well as a list of the corresponding
     available versions for each IOC (by discovering the tags in the beamline repo at
     which changes to the instance were made since the last tag) and the respective
     list of available versions
     """
     ioc_graph = {}
 
-    check_services_repo(beamline_repo)
-    shell.run_command(
-        f"git clone {beamline_repo} {folder} -b {branch}", interactive=False
-    )
+    check_services_repo(repo)
+    shell.run_command(f"git clone {repo} {folder} -b {branch}", interactive=False)
     path_list = os.listdir(os.path.join(folder, "services"))
     service_list = [
         path

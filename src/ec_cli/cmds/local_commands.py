@@ -52,7 +52,7 @@ class IocLocalCommands:
         self.ioc_name: str = ioc_name
 
         self.tmp = Path(tempfile.mkdtemp())
-        self.ioc_folder = self.tmp / "iocs" / ioc_name
+        self.ioc_folder = self.tmp / "services" / ioc_name
         self.docker = Docker(check=with_docker)
 
     def __del__(self):

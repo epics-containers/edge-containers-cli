@@ -16,7 +16,7 @@ from ec_cli.cmds.k8s_commands import IocK8sCommands
 from ec_cli.cmds.local_commands import IocLocalCommands
 from ec_cli.git import create_ioc_graph
 from ec_cli.logging import log
-from ec_cli.utils import cleanup_temp, drop_ioc_path
+from ec_cli.utils import cleanup_temp, drop_path
 
 cli = typer.Typer(pretty_exceptions_show_locals=False)
 
@@ -143,7 +143,7 @@ def deploy(
     """
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
-    service_name = drop_ioc_path(service_name)
+    service_name = drop_path(service_name)
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
         IocLocalCommands(ctx.obj, service_name).deploy(service_name, version, args)
     else:

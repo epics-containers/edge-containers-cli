@@ -46,7 +46,7 @@ def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
     return read_dict
 
 
-def fetch_ioc_graph(beamline_repo: str) -> dict:
+def fetch_service_graph(beamline_repo: str) -> dict:
     ioc_graph = read_cached_dict(url_encode(beamline_repo), globals.IOC_CACHE)
     if not ioc_graph:
         tmp_dir = Path(tempfile.mkdtemp())
@@ -59,12 +59,12 @@ def fetch_ioc_graph(beamline_repo: str) -> dict:
 
 def avail_IOCs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.parent.params  # type: ignore
-    beamline_repo = params["repo"] or globals.EC_SERVICES_REPO
+    services_repo = params["repo"] or globals.EC_SERVICES_REPO
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        ioc_graph = fetch_ioc_graph(beamline_repo)
-        return list(ioc_graph.keys())
+        services_graph = fetch_service_graph(services_repo)
+        return list(services_graph.keys())
     except typer.Exit:
         return [" "]
     except CalledProcessError:
@@ -78,7 +78,7 @@ def avail_versions(ctx: typer.Context) -> List[str]:
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        ioc_graph = fetch_ioc_graph(beamline_repo)
+        ioc_graph = fetch_service_graph(beamline_repo)
         ioc_versions = ioc_graph[ioc_name]
         return ioc_versions
     except KeyError:

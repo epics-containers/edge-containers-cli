@@ -21,14 +21,14 @@ def test_delete(mock_run, local):
 
 def test_deploy_local(mock_run, data, local):
     mock_run.set_seq(local.setup + local.deploy_local)
-    mock_run.run_cli(f"deploy-local {data / 'iocs/bl45p-ea-ioc-01'}")
+    mock_run.run_cli(f"deploy-local {data / 'services/bl45p-ea-ioc-01'}")
 
 
 def test_deploy(mock_run, data, local):
     mock_run.set_seq(local.setup + local.deploy)
     # prep what deploy expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "iocs", TMPDIR / "iocs")
+    shutil.copytree(data / "services", TMPDIR / "services")
     mock_run.run_cli("deploy bl45p-ea-ioc-01 2.0")
 
 
@@ -36,7 +36,7 @@ def test_instances(mock_run, local, data: Path):
     mock_run.set_seq(local.instances)
     # prep what instances expects to find after it cloned bl45p repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "iocs", TMPDIR / "iocs")
+    shutil.copytree(data / "services", TMPDIR / "services")
     mock_run.run_cli("instances bl45p-ea-ioc-01")
 
 
@@ -73,4 +73,4 @@ def test_ps(mock_run, local):
 def test_validate(mock_run, local, data):
     mock_run.set_seq(local.setup + local.validate)
     os.chdir(Path(__file__).parent)
-    mock_run.run_cli(f"validate {data / 'iocs/bl45p-ea-ioc-01'}")
+    mock_run.run_cli(f"validate {data / 'services/bl45p-ea-ioc-01'}")

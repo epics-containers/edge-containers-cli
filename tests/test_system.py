@@ -24,7 +24,7 @@ def test_validate():
         cli,
         [
             "validate",
-            f"{THIS_DIR}/data/iocs/bl45p-ea-ioc-01",
+            f"{THIS_DIR}/data/services/bl45p-ea-ioc-01",
         ],
     )
 
@@ -44,7 +44,7 @@ def test_validate_chdir():
             cli,
             [
                 "validate",
-                f"{THIS_DIR}/data/iocs/bl45p-ea-ioc-01",
+                f"{THIS_DIR}/data/services/bl45p-ea-ioc-01",
             ],
         )
 

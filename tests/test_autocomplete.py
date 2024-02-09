@@ -41,7 +41,7 @@ def test_all_iocs_local(mock_run, mocker, autocomplete, ctx):
 
 def test_avail_IOCs(mock_run, data, autocomplete, ctx):
     mock_run.set_seq(autocomplete.avail_IOCs)
-    shutil.copytree(data / "iocs", TMPDIR / "iocs")
+    shutil.copytree(data / "services", TMPDIR / "services")
 
     ctx.parent.parent.params["repo"] = ""  # use env variable
     result = mock_run.call(avail_IOCs, ctx)
@@ -50,7 +50,7 @@ def test_avail_IOCs(mock_run, data, autocomplete, ctx):
 
 def test_avail_versions(mock_run, data, autocomplete, ctx):
     mock_run.set_seq(autocomplete.avail_versions)
-    # shutil.copytree(data / "iocs", TMPDIR / "iocs") already exists
+    # shutil.copytree(data / "services", TMPDIR / "services") already exists
 
     ctx.parent.parent.params["repo"] = ""  # use env variable
     ctx.parent.parent.params["ioc_name"] = "bl45p-ea-ioc-01"

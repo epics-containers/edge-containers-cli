@@ -1,8 +1,8 @@
 checks:
   - cmd: kubectl get namespace bl45p -o name
     rsp: namespace/bl45p
-  - cmd: kubectl get -n bl45p statefulset/bl45p-ea-ioc-01
-    rsp: bl45p-ea-ioc-01   1/1     1            1           5d5h
+  - cmd: helm list -n bl45p -qf bl45p-ea-ioc-01
+    rsp: bl45p-ea-ioc-01
 
 attach:
   - cmd: kubectl -it -n bl45p attach statefulset/bl45p-ea-ioc-01
@@ -13,31 +13,28 @@ delete:
     rsp: True
 
 template:
-  - cmd: helm dependency update /tmp/ec_tests/beamline-chart
+  - cmd: 'helm dependency update .*\/tests\/data\/services\/bl45p-ea-ioc-01\; helm package .*\/tests\/data\/services\/bl45p-ea-ioc-01 --app-version .*'
     rsp: ""
-  - cmd:
-      'bash -c "helm template bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart --version
-      20.*--namespace bl45p -f \/.*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
+  - cmd: 'bash -c "helm template bl45p-ea-ioc-01 .*pretend_helm.tgz --namespace bl45p  --debug'
     rsp: |
       # Source: bl45p-ea-ioc-01/templates/configmap.yaml
       apiVersion: v1
       ...
 
-# TODO blank response is that OK?
 deploy_local:
-  - cmd: helm dependency update /tmp/ec_tests/beamline-chart
+  - cmd: 'helm dependency update .*\/tests\/data\/services\/bl45p-ea-ioc-01\; helm package .*\/tests\/data\/services\/bl45p-ea-ioc-01 --app-version .*'
     rsp: ""
-  - cmd:
-      'bash -c "helm upgrade --install bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart
-      --version 20.*--namespace bl45p -f \/.*\/data\/iocs\/bl45p-ea-ioc-01\/values.yaml.*'
+  - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 .*pretend_helm.tgz --namespace bl45p'
     rsp: ""
 
 deploy:
-  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=2.0
+  - cmd: kubectl get namespace bl45p -o name
+    rsp: namespace/bl45p
+  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=main
     rsp: ""
-  - cmd: helm dependency update /tmp/ec_tests/beamline-chart
+  - cmd: helm dependency update /tmp/ec_tests/services/bl45p-ea-ioc-01; helm package /tmp/ec_tests/services/bl45p-ea-ioc-01 --app-version 2.0
     rsp: ""
-  - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 /tmp/ec_tests/beamline-chart --version 2.0 --namespace bl45p -f /tmp/ec_tests/iocs/bl45p-ea-ioc-01/values.yaml.*'
+  - cmd: 'bash -c "helm upgrade --install bl45p-ea-ioc-01 .*pretend_helm.tgz --namespace bl45p.*'
     rsp: ""
 
 instances:
