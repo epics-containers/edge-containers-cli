@@ -122,12 +122,6 @@ def all_iocs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 
-    print(
-        "all_iocs: namespace=",
-        namespace,
-        "globals.LOCAL_NAMESPACE=",
-        globals.LOCAL_NAMESPACE,
-    )
     # This block prevents getting a stack trace during autocompletion
     try:
         if namespace == globals.LOCAL_NAMESPACE:
@@ -138,9 +132,8 @@ def all_iocs(ctx: typer.Context) -> List[str]:
             return ioc_list
         else:
             check_namespace(namespace)
-            columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
-            command = f"kubectl -n {namespace} get statefulset {columns}"
-            ioc_list = str(shell.run_command(command, interactive=False)).split()[1:]
+            command = f"helm list -qn {namespace}"
+            ioc_list = str(shell.run_command(command, interactive=False)).split()
             return ioc_list
     except typer.Exit:
         return [" "]

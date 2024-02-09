@@ -1,8 +1,8 @@
 all_iocs:
   - cmd: kubectl get namespace bl45p -o name
     rsp: namespace/bl45p
-  - cmd: kubectl -n bl45p get statefulset
-    rsp: NAME, bl45p-ea-ioc-01
+  - cmd: helm list -qn bl45p
+    rsp: bl45p-ea-ioc-01
 
 all_iocs_local:
   - cmd: docker --version
