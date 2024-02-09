@@ -23,7 +23,7 @@ import ec_cli.shell as shell
 from ec_cli.docker import Docker
 from ec_cli.ioc.k8s_commands import check_namespace
 from ec_cli.logging import log
-from ec_cli.shell import check_beamline_repo
+from ec_cli.shell import check_services_repo
 from ec_cli.utils import (
     check_instance_path,
     cleanup_temp,
@@ -133,7 +133,7 @@ class IocLocalCommands:
         deploy a tagged version of an ioc from a remote repo
         """
 
-        check_beamline_repo(self.beamline_repo)
+        check_services_repo(self.beamline_repo)
 
         shell.run_command(
             f"git clone {self.beamline_repo} {self.tmp} --depth=1 "

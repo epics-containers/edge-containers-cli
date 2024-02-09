@@ -12,7 +12,7 @@ import typer
 import ec_cli.globals as globals
 import ec_cli.shell as shell
 from ec_cli.logging import log
-from ec_cli.shell import check_beamline_repo
+from ec_cli.shell import check_services_repo
 from ec_cli.utils import chdir
 
 
@@ -117,42 +117,38 @@ def create_ioc_graph(beamline_repo: str, folder: Path, branch="main") -> Dict:
     """
     ioc_graph = {}
 
-    check_beamline_repo(beamline_repo)
+    check_services_repo(beamline_repo)
     shell.run_command(
         f"git clone {beamline_repo} {folder} -b {branch}", interactive=False
     )
     path_list = os.listdir(os.path.join(folder, "services"))
-    ioc_list = [
+    service_list = [
         path
         for path in path_list
         if os.path.isdir(os.path.join(folder, "services", path))
     ]
-    log.debug(f"ioc_list = {ioc_list}")
+    log.debug(f"service_list = {service_list}")
 
     with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
-        for ioc_name in ioc_list:
-            ioc_name = Path(ioc_name).name
+        for service_name in service_list:
+            service_name = Path(service_name).name
             result = str(shell.run_command("git tag", interactive=False))
             log.debug(f"checking these tags for changes in the instance: {result}")
 
             version_list = []
             tags = result.split("\n")
+            tags.remove("")
 
             for tag in tags:
-                if tag == "":
-                    continue
                 cmd = f"git diff --name-only {tag} {tag}^"
                 result = str(shell.run_command(cmd, interactive=False))
-                if ioc_name in result:
+                if service_name in result:
                     version_list.append(tag)
 
             if not version_list:
-                # also look to see if the first tag was when the instance was created
-                cmd = f"git diff --name-only {tags[0]} $(git hash-object -t tree /dev/null)"
-                result = str(shell.run_command(cmd, interactive=False))
-                if ioc_name in result:
-                    version_list.append(tags[0])
+                # give the latest tag if there are no changes
+                version_list.append(tags[-1])
 
-            ioc_graph[ioc_name] = version_list
+            ioc_graph[service_name] = version_list
 
     return ioc_graph
