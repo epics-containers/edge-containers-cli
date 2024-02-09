@@ -39,7 +39,7 @@ def test_validate_chdir():
     """Test the validate command from a different directory"""
     runner = CliRunner()
 
-    with chdir(THIS_DIR / "data/beamline-chart"):
+    with chdir(THIS_DIR / "data/example-ibek-config"):
         result = runner.invoke(
             cli,
             [
