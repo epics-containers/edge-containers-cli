@@ -16,7 +16,7 @@ import typer
 import ec_cli.globals as globals
 import ec_cli.shell as shell
 from ec_cli.ioc.helm import Helm
-from ec_cli.ioc.kubectl import json_service_headers, json_service_info
+from ec_cli.ioc.kubectl import json_service_info, json_service_types
 from ec_cli.logging import log
 
 
@@ -166,7 +166,11 @@ class IocK8sCommands:
                 f"kubectl get pods -n {self.namespace} {json_service_info}",
                 interactive=False,
             )
-            pods_df = pd.read_csv(StringIO(services_csv), names=json_service_headers)
+            pods_df = pd.read_csv(
+                StringIO(services_csv),
+                names=json_service_types.keys(),
+                dtype=json_service_types,
+            )
             log.debug(pods_df)
 
             df = pd.merge(pods_df, df, left_on="name", right_on="name")

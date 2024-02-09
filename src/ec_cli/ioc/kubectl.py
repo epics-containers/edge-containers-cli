@@ -37,4 +37,4 @@ json_service_info = (
     r'{"\n"}{end}'
     "'"
 )
-json_service_headers = ["name", "ready", "restarts", "started"]
+json_service_types = {"name": str, "ready": bool, "restarts": int, "started": str}
