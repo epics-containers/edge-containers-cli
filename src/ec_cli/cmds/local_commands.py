@@ -5,7 +5,7 @@ In future we could support remote deployment and possibly creating
 portainer manifests.
 
 However, for the moment, Using this by connecting to each server and running
-'ec deploy <ioc_name> <ioc_version> and then managing the network with a
+'ec deploy <service_name> <ioc_version> and then managing the network with a
 tool like Portainer is a decent workflow.
 """
 
@@ -40,7 +40,7 @@ class IocLocalCommands:
     def __init__(
         self,
         ctx: Optional[globals.Context],
-        ioc_name: str = "",
+        service_name: str = "",
         with_docker: bool = True,
     ):
         self.namespace = ""
@@ -49,10 +49,10 @@ class IocLocalCommands:
             self.beamline_repo = ctx.beamline_repo
             self.namespace = ctx.namespace
 
-        self.ioc_name: str = ioc_name
+        self.service_name: str = service_name
 
         self.tmp = Path(tempfile.mkdtemp())
-        self.ioc_folder = self.tmp / "services" / ioc_name
+        self.ioc_folder = self.tmp / "services" / service_name
         self.docker = Docker(check=with_docker)
 
     def __del__(self):
@@ -60,26 +60,26 @@ class IocLocalCommands:
             cleanup_temp(self.tmp)
 
     def attach(self):
-        self.docker.attach(self.ioc_name)
+        self.docker.attach(self.service_name)
 
     def delete(self):
         if not typer.confirm(
-            f"This will remove the IOC container {self.ioc_name} "
+            f"This will remove the IOC container {self.service_name} "
             "from the this server. Are you sure ?"
         ):
             raise typer.Abort()
-        self.docker.remove(self.ioc_name)
+        self.docker.remove(self.service_name)
 
     def _do_deploy(self, ioc_instance: Path, version: str, args: str):
-        ioc_name, ioc_path = check_instance_path(ioc_instance)
+        service_name, ioc_path = check_instance_path(ioc_instance)
 
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
         config = ioc_instance / globals.CONFIG_FOLDER
-        ioc_name = ioc_instance.name
-        volume = f"{ioc_name}_config"
+        service_name = ioc_instance.name
+        volume = f"{service_name}_config"
 
-        self.docker.remove(ioc_name)
+        self.docker.remove(service_name)
         shell.run_command(
             f"{self.docker.docker} volume rm -f {volume}", interactive=False
         )
@@ -106,10 +106,10 @@ class IocLocalCommands:
         shell.run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
 
         # launch the ioc container with mounted config volume
-        shell.run_command(f"{self.docker.docker} {cmd} --name {ioc_name} {image}")
-        if not self.docker.is_running(ioc_name, retry=5):
+        shell.run_command(f"{self.docker.docker} {cmd} --name {service_name} {image}")
+        if not self.docker.is_running(service_name, retry=5):
             typer.echo(
-                f"Failed to start {ioc_name} please try 'ec ioc logs {ioc_name}'"
+                f"Failed to start {service_name} please try 'ec ioc logs {service_name}'"
             )
             raise typer.Exit(1)
 
@@ -128,7 +128,7 @@ class IocLocalCommands:
                 raise typer.Abort()
         self._do_deploy(ioc_instance, version, args)
 
-    def deploy(self, ioc_name: str, version: str, args: str):
+    def deploy(self, service_name: str, version: str, args: str):
         """
         deploy a tagged version of an ioc from a remote repo
         """
@@ -144,19 +144,19 @@ class IocLocalCommands:
         self._do_deploy(self.ioc_folder, version, args)
 
     def exec(self):
-        self.docker.exec(self.ioc_name, "bash", args="-it")
+        self.docker.exec(self.service_name, "bash", args="-it")
 
     def logs(self, prev: bool, follow: bool):
-        self.docker.logs(self.ioc_name, prev, follow)
+        self.docker.logs(self.service_name, prev, follow)
 
     def restart(self):
-        shell.run_command(f"{self.docker.docker} restart {self.ioc_name}")
+        shell.run_command(f"{self.docker.docker} restart {self.service_name}")
 
     def start(self):
-        shell.run_command(f"{self.docker.docker} start {self.ioc_name}")
+        shell.run_command(f"{self.docker.docker} start {self.service_name}")
 
     def stop(self):
-        shell.run_command(f"{self.docker.docker} stop {self.ioc_name}")
+        shell.run_command(f"{self.docker.docker} stop {self.service_name}")
 
     def ps(self, all: bool, wide: bool):
         all_arg = " --all" if all else ""

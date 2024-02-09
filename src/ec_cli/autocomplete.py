@@ -74,12 +74,12 @@ def avail_IOCs(ctx: typer.Context) -> List[str]:
 def avail_versions(ctx: typer.Context) -> List[str]:
     params = ctx.parent.params  # type: ignore
     beamline_repo = params["repo"] or globals.EC_SERVICES_REPO
-    ioc_name = ctx.params["ioc_name"]
+    service_name = ctx.params["service_name"]
 
     # This block prevents getting a stack trace during autocompletion
     try:
         ioc_graph = fetch_service_graph(beamline_repo)
-        ioc_versions = ioc_graph[ioc_name]
+        ioc_versions = ioc_graph[service_name]
         return ioc_versions
     except KeyError:
         log.error("IOC not found")
@@ -109,7 +109,7 @@ def running_iocs(ctx: typer.Context) -> List[str]:
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=IOC_NAME:metadata.labels.app"
-            command = f"kubectl -n {namespace} get pod -l is_ioc==true {columns}"
+            command = f"kubectl -n {namespace} get pod {columns}"
             ioc_list = str(shell.run_command(command, interactive=False)).split()[1:]
             return ioc_list
     except typer.Exit:
@@ -122,6 +122,12 @@ def all_iocs(ctx: typer.Context) -> List[str]:
     params = ctx.parent.params  # type: ignore
     namespace = params["namespace"] or globals.EC_K8S_NAMESPACE
 
+    print(
+        "all_iocs: namespace=",
+        namespace,
+        "globals.LOCAL_NAMESPACE=",
+        globals.LOCAL_NAMESPACE,
+    )
     # This block prevents getting a stack trace during autocompletion
     try:
         if namespace == globals.LOCAL_NAMESPACE:
@@ -133,9 +139,7 @@ def all_iocs(ctx: typer.Context) -> List[str]:
         else:
             check_namespace(namespace)
             columns = "-o custom-columns=DEPLOYMENT:metadata.labels.app"
-            command = (
-                f"kubectl -n {namespace} get statefulset -l is_ioc==true {columns}"
-            )
+            command = f"kubectl -n {namespace} get statefulset {columns}"
             ioc_list = str(shell.run_command(command, interactive=False)).split()[1:]
             return ioc_list
     except typer.Exit:

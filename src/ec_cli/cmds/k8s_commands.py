@@ -68,30 +68,34 @@ class IocK8sCommands:
                 check_service(service_name, namespace)
             self.namespace = namespace
             self.beamline_repo = ctx.beamline_repo
-        self.ioc_name: str = service_name
+        self.service_name: str = service_name
 
     def attach(self):
         shell.run_command(
-            f"kubectl -it -n {self.namespace} attach statefulset/{self.ioc_name}",
+            f"kubectl -it -n {self.namespace} attach statefulset/{self.service_name}",
             interactive=True,
         )
 
     def delete(self):
         if not typer.confirm(
-            f"This will remove all versions of {self.ioc_name} "
+            f"This will remove all versions of {self.service_name} "
             "from the cluster. Are you sure ?"
         ):
             raise typer.Abort()
 
-        shell.run_command(f"helm delete -n {self.namespace} {self.ioc_name}")
+        shell.run_command(f"helm delete -n {self.namespace} {self.service_name}")
 
     def template(self, ioc_instance: Path, args: str):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
 
-        ioc_name = ioc_instance.name.lower()
+        service_name = ioc_instance.name.lower()
 
         chart = Helm(
-            self.namespace, ioc_name, args=args, template=True, repo=self.beamline_repo
+            self.namespace,
+            service_name,
+            args=args,
+            template=True,
+            repo=self.beamline_repo,
         )
         chart.deploy_local(ioc_instance)
 
@@ -113,7 +117,7 @@ class IocK8sCommands:
 
     def exec(self):
         shell.run_command(
-            f"kubectl -it -n {self.namespace} exec statefulset/{self.ioc_name} -- bash"
+            f"kubectl -it -n {self.namespace} exec statefulset/{self.service_name} -- bash"
         )
 
     def log_history(self):
@@ -121,7 +125,7 @@ class IocK8sCommands:
             log.error("EC_LOG_URL environment not set")
             raise typer.Exit(1)
 
-        url = globals.EC_LOG_URL.format(service_name=self.ioc_name)
+        url = globals.EC_LOG_URL.format(service_name=self.service_name)
         webbrowser.open(url)
 
     def logs(self, prev: bool, follow: bool):
@@ -129,25 +133,25 @@ class IocK8sCommands:
         fol = "-f" if follow else ""
 
         shell.run_command(
-            f"kubectl -n {self.namespace} logs statefulset/{self.ioc_name} {previous} {fol}"
+            f"kubectl -n {self.namespace} logs statefulset/{self.service_name} {previous} {fol}"
         )
 
     def restart(self):
         pod_name = shell.run_command(
-            f"kubectl get -n {self.namespace} pod -l app={self.ioc_name} -o name",
+            f"kubectl get -n {self.namespace} pod -l app={self.service_name} -o name",
             interactive=False,
         )
         shell.run_command(f"kubectl delete -n {self.namespace} {pod_name}")
 
     def start(self):
         shell.run_command(
-            f"kubectl scale -n {self.namespace} statefulset/{self.ioc_name} --replicas=1"
+            f"kubectl scale -n {self.namespace} statefulset/{self.service_name} --replicas=1"
         )
 
     def stop(self):
         """Stop an IOC"""
         shell.run_command(
-            f"kubectl scale -n {self.namespace} statefulset/{self.ioc_name} --replicas=0 "
+            f"kubectl scale -n {self.namespace} statefulset/{self.service_name} --replicas=0 "
         )
 
     def ps(self, all: bool, wide: bool):
@@ -179,7 +183,7 @@ class IocK8sCommands:
 
         # if all:
         #     shell.run_command(
-        #         f"kubectl -n {self.namespace} get statefulset -l is_ioc==true -o {fmt_deploys}"
+        #         f"kubectl -n {self.namespace} get statefulset -l ==true -o {fmt_deploys}"
         #     )
         # else:
         #     format = fmt_pods_wide if wide else fmt_pods

@@ -83,5 +83,5 @@ stop:
 ps:
   - cmd: kubectl get namespace bl45p -o name
     rsp: bl45p-ea-ioc-01-xxxx
-  - cmd: kubectl -n bl45p get pod -l is_ioc==true -o custom-columns=IOC_NAME:metadata.labels.app,VERSION:metadata.labels.ioc_version,STATE:status.phase,RESTARTS:status.containerStatuses[0].restartCount,STARTED:metadata.managedFields[0].time
+  - cmd: kubectl -n bl45p get pod -o custom-columns=IOC_NAME:metadata.labels.app,VERSION:metadata.labels.ioc_version,STATE:status.phase,RESTARTS:status.containerStatuses[0].restartCount,STARTED:metadata.managedFields[0].time
     rsp: True

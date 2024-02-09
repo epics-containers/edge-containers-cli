@@ -52,7 +52,7 @@ def env(
 @cli.command()
 def attach(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC to attach to", autocompletion=running_iocs
     ),
 ):
@@ -60,15 +60,15 @@ def attach(
     Attach to the IOC shell of a live IOC
     """
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).attach()
+        IocLocalCommands(ctx.obj, service_name).attach()
     else:
-        IocK8sCommands(ctx.obj, ioc_name).attach()
+        IocK8sCommands(ctx.obj, service_name).attach()
 
 
 @cli.command()
 def delete(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC to delete", autocompletion=all_iocs
     ),
 ):
@@ -76,9 +76,9 @@ def delete(
     Remove an IOC helm deployment from the cluster
     """
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).delete()
+        IocLocalCommands(ctx.obj, service_name).delete()
     else:
-        IocK8sCommands(ctx.obj, ioc_name).delete()
+        IocK8sCommands(ctx.obj, service_name).delete()
 
 
 @cli.command()
@@ -176,16 +176,16 @@ def list(
 @cli.command()
 def instances(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC to inspect", autocompletion=avail_IOCs
     ),
 ):
     """List all versions of the IOC available in the helm registry"""
-    typer.echo(f"Available instance versions for {ioc_name}:")
+    typer.echo(f"Available instance versions for {service_name}:")
     tmp_dir = Path(tempfile.mkdtemp())
     ioc_graph = create_ioc_graph(ctx.obj.beamline_repo, tmp_dir)
     try:
-        iocs_list = ioc_graph[ioc_name]
+        iocs_list = ioc_graph[service_name]
     except KeyError:
         iocs_list = []
 
@@ -198,33 +198,33 @@ def instances(
 @cli.command()
 def exec(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC container to run in", autocompletion=running_iocs
     ),
 ):
     """Execute a bash prompt in a live IOC's container"""
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).exec()
+        IocLocalCommands(ctx.obj, service_name).exec()
     else:
-        IocK8sCommands(ctx.obj, ioc_name).exec()
+        IocK8sCommands(ctx.obj, service_name).exec()
 
 
 @cli.command()
 def log_history(
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ...,
         help="Name of the IOC to inspect",
         autocompletion=all_iocs,
     ),
 ):
     """Open historical logs for an IOC"""
-    IocK8sCommands(None, ioc_name).log_history()
+    IocK8sCommands(None, service_name).log_history()
 
 
 @cli.command()
 def logs(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC to inspect", autocompletion=running_iocs
     ),
     prev: bool = typer.Option(
@@ -234,52 +234,52 @@ def logs(
 ):
     """Show logs for current and previous instances of an IOC"""
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).logs(prev, follow)
+        IocLocalCommands(ctx.obj, service_name).logs(prev, follow)
     else:
-        IocK8sCommands(ctx.obj, ioc_name).logs(prev, follow)
+        IocK8sCommands(ctx.obj, service_name).logs(prev, follow)
 
 
 @cli.command()
 def restart(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC container to restart", autocompletion=running_iocs
     ),
 ):
     """Restart an IOC"""
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).restart()
+        IocLocalCommands(ctx.obj, service_name).restart()
     else:
-        IocK8sCommands(ctx.obj, ioc_name).restart()
+        IocK8sCommands(ctx.obj, service_name).restart()
 
 
 @cli.command()
 def start(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC container to start", autocompletion=all_iocs
     ),
 ):
     """Start an IOC"""
     log.debug("Starting IOC with LOCAL={ctx.obj.namespace == " "}")
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).start()
+        IocLocalCommands(ctx.obj, service_name).start()
     else:
-        IocK8sCommands(ctx.obj, ioc_name).start()
+        IocK8sCommands(ctx.obj, service_name).start()
 
 
 @cli.command()
 def stop(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC container to stop", autocompletion=running_iocs
     ),
 ):
     """Stop an IOC"""
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).stop()
+        IocLocalCommands(ctx.obj, service_name).stop()
     else:
-        IocK8sCommands(ctx.obj, ioc_name).stop()
+        IocK8sCommands(ctx.obj, service_name).stop()
 
 
 @cli.command()

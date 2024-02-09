@@ -53,7 +53,7 @@ def test_avail_versions(mock_run, data, autocomplete, ctx):
     # shutil.copytree(data / "services", TMPDIR / "services") already exists
 
     ctx.parent.parent.params["repo"] = ""  # use env variable
-    ctx.parent.parent.params["ioc_name"] = "bl45p-ea-ioc-01"
+    ctx.parent.parent.params["service_name"] = "bl45p-ea-ioc-01"
     result = mock_run.call(avail_versions, ctx)
     assert result == ["2.0"]
 

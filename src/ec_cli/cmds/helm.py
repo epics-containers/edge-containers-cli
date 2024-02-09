@@ -47,11 +47,11 @@ class Helm:
         Deploy a local helm chart directly to the cluster with dated beta version
         """
 
-        ioc_name, service_path = check_instance_path(service_path)
+        service_name, service_path = check_instance_path(service_path)
 
         if not yes and not self.template:
             typer.echo(
-                f"Deploy {ioc_name} TEMPORARY version {self.version} "
+                f"Deploy {service_name} TEMPORARY version {self.version} "
                 f"from {service_path} to domain {self.namespace}"
             )
             if not typer.confirm("Are you sure ?"):

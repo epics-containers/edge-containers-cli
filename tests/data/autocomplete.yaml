@@ -1,7 +1,7 @@
 all_iocs:
   - cmd: kubectl get namespace bl45p -o name
     rsp: namespace/bl45p
-  - cmd: kubectl -n bl45p get statefulset -l is_ioc==true
+  - cmd: kubectl -n bl45p get statefulset
     rsp: NAME, bl45p-ea-ioc-01
 
 all_iocs_local:
@@ -35,7 +35,7 @@ avail_versions:
 running_iocs:
   - cmd: kubectl get namespace bl45p -o name
     rsp: namespace/bl45p
-  - cmd: kubectl -n bl45p get pod -l is_ioc==true -o custom-columns=IOC_NAME:metadata
+  - cmd: kubectl -n bl45p get pod -o custom-columns=IOC_NAME:metadata
     rsp: NAME, bl45p-ea-ioc-01
 
 running_iocs_local:
