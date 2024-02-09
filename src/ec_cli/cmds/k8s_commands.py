@@ -158,7 +158,7 @@ class IocK8sCommands:
         helm_json = shell.run_command(
             f"helm list -n {self.namespace} -o json", interactive=False
         )
-        df = pd.read_json(StringIO(helm_json))
+        df = pd.read_json(StringIO(str(helm_json)))
         log.debug(df)
 
         if not all:
@@ -166,10 +166,10 @@ class IocK8sCommands:
                 f"kubectl get pods -n {self.namespace} {json_service_info}",
                 interactive=False,
             )
-            pods_df = pd.read_csv(
-                StringIO(services_csv),
-                names=json_service_types.keys(),
-                dtype=json_service_types,
+            pods_df = pd.read_csv(  # type: ignore
+                StringIO(str(services_csv)),
+                names=json_service_types.keys(),  # type: ignore
+                dtype=json_service_types,  # type: ignore
             )
             log.debug(pods_df)
 
