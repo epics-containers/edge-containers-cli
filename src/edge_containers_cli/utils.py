@@ -11,8 +11,8 @@ from typing import Optional
 
 import typer
 
-import ec_cli.globals as globals
-from ec_cli.logging import log
+import edge_containers_cli.globals as globals
+from edge_containers_cli.logging import log
 
 
 def get_instance_image_name(svc_instance: Path, tag: Optional[str] = None) -> str:

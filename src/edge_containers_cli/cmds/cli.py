@@ -4,19 +4,19 @@ from pathlib import Path
 import typer
 from natsort import natsorted
 
-import ec_cli.globals as globals
-from ec_cli.autocomplete import (
+import edge_containers_cli.globals as globals
+from edge_containers_cli.autocomplete import (
     all_svc,
     avail_IOCs,
     avail_versions,
     force_plain_completion,
     running_svc,
 )
-from ec_cli.cmds.k8s_commands import IocK8sCommands
-from ec_cli.cmds.local_commands import IocLocalCommands
-from ec_cli.git import create_svc_graph
-from ec_cli.logging import log
-from ec_cli.utils import cleanup_temp, drop_path
+from edge_containers_cli.cmds.k8s_commands import IocK8sCommands
+from edge_containers_cli.cmds.local_commands import IocLocalCommands
+from edge_containers_cli.git import create_svc_graph
+from edge_containers_cli.logging import log
+from edge_containers_cli.utils import cleanup_temp, drop_path
 
 cli = typer.Typer(pretty_exceptions_show_locals=False)
 

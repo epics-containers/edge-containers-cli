@@ -9,8 +9,8 @@ from ruamel.yaml import YAML
 from typer import Context
 from typer.testing import CliRunner
 
-from ec_cli.__main__ import cli
-from ec_cli.logging import log
+from edge_containers_cli.__main__ import cli
+from edge_containers_cli.logging import log
 
 TMPDIR = Path("/tmp/ec_tests")
 DATA_PATH = Path(__file__).parent / "data"
@@ -129,21 +129,21 @@ def mktempdir(_1=None, _2=None, _3=None):
 def mock_run(mocker):
     # Patch globals
     mocker.patch(
-        "ec_cli.globals.EC_K8S_NAMESPACE",
+        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
         "bl45p",
     )
     mocker.patch(
-        "ec_cli.globals.EC_SERVICES_REPO",
+        "edge_containers_cli.globals.EC_SERVICES_REPO",
         "https://github.com/epics-containers/bl45p",
     )
     mocker.patch(
-        "ec_cli.globals.EC_LOG_URL",
+        "edge_containers_cli.globals.EC_LOG_URL",
         "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields="
         "message%2Csource&width=1489&highlightMessage=&relative=172800&q="
         "pod_name%3A{service_name}*",
     )
     mocker.patch(
-        "ec_cli.globals.EC_DEBUG",
+        "edge_containers_cli.globals.EC_DEBUG",
         "1",
     )
 
@@ -151,7 +151,7 @@ def mock_run(mocker):
     mocker.patch("webbrowser.open", MOCKRUN._str_command)
     mocker.patch("typer.confirm", return_value=True)
     mocker.patch("tempfile.mkdtemp", mktempdir)
-    mocker.patch("ec_cli.shell.run_command", MOCKRUN._str_command)
+    mocker.patch("edge_containers_cli.shell.run_command", MOCKRUN._str_command)
     return MOCKRUN
 
 
@@ -181,7 +181,7 @@ def ioc(data):
 def local(data, mocker):
     file = Path(__file__).parent / "data" / "local.yaml"
     mocker.patch(
-        "ec_cli.globals.EC_K8S_NAMESPACE",
+        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
         "local",
     )
     yaml = YAML(typ="safe").load(file)

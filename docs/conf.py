@@ -10,15 +10,15 @@ from subprocess import check_output
 
 import requests
 
-import ec_cli
+import edge_containers_cli
 
 # -- General configuration ------------------------------------------------
 
 # General information about the project.
-project = "ec-cli"
+project = "edge-containers-cli"
 
 # The full version, including alpha/beta/rc tags.
-release = ec_cli.__version__
+release = edge_containers_cli.__version__
 
 # The short X.Y version.
 if "+" in release:

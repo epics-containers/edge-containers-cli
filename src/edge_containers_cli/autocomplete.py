@@ -8,13 +8,13 @@ from subprocess import CalledProcessError
 
 import typer
 
-import ec_cli.globals as globals
-import ec_cli.shell as shell
-from ec_cli.cmds.k8s_commands import check_namespace
-from ec_cli.docker import Docker
-from ec_cli.git import create_svc_graph
-from ec_cli.logging import log
-from ec_cli.utils import cleanup_temp
+import edge_containers_cli.globals as globals
+import edge_containers_cli.shell as shell
+from edge_containers_cli.cmds.k8s_commands import check_namespace
+from edge_containers_cli.docker import Docker
+from edge_containers_cli.git import create_svc_graph
+from edge_containers_cli.logging import log
+from edge_containers_cli.utils import cleanup_temp
 
 
 def url_encode(in_string: str) -> str:

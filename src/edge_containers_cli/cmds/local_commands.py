@@ -18,13 +18,13 @@ from typing import Optional
 import requests
 import typer
 
-import ec_cli.globals as globals
-import ec_cli.shell as shell
-from ec_cli.cmds.k8s_commands import check_namespace
-from ec_cli.docker import Docker
-from ec_cli.logging import log
-from ec_cli.shell import check_services_repo
-from ec_cli.utils import (
+import edge_containers_cli.globals as globals
+import edge_containers_cli.shell as shell
+from edge_containers_cli.cmds.k8s_commands import check_namespace
+from edge_containers_cli.docker import Docker
+from edge_containers_cli.logging import log
+from edge_containers_cli.shell import check_services_repo
+from edge_containers_cli.utils import (
     check_instance_path,
     cleanup_temp,
     generic_ioc_from_image,

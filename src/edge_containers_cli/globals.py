@@ -46,7 +46,7 @@ IOC_NAME = "test-ioc"
 # namespace name for deploying IOC instances into the local podman/docker
 LOCAL_NAMESPACE = "local"
 # location for caching
-CACHE_ROOT = os.path.expanduser("~/.cache/ec-cli/")
+CACHE_ROOT = os.path.expanduser("~/.cache/edge-containers-cli/")
 # available ioc cache
 IOC_CACHE = "ioc_cache.json"
 # cache expiry time in seconds

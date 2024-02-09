@@ -1,14 +1,14 @@
 API
 ===
 
-.. automodule:: ec_cli
+.. automodule:: edge_containers_cli
 
-    ``ec_cli``
+    ``edge_containers_cli``
     -----------------------------------
 
-This is the internal API reference for ec_cli
+This is the internal API reference for edge_containers_cli
 
-.. data:: ec_cli.__version__
+.. data:: edge_containers_cli.__version__
     :type: str
 
     Version number as calculated by https://github.com/pypa/setuptools_scm

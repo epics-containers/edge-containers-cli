@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.style import Style
 
-import ec_cli.globals as globals
+import edge_containers_cli.globals as globals
 
 from .logging import log
 

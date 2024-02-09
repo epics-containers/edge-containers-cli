@@ -13,11 +13,11 @@ from typing import Optional
 import pandas as pd
 import typer
 
-import ec_cli.globals as globals
-import ec_cli.shell as shell
-from ec_cli.cmds.helm import Helm
-from ec_cli.cmds.kubectl import json_service_info, json_service_types
-from ec_cli.logging import log
+import edge_containers_cli.globals as globals
+import edge_containers_cli.shell as shell
+from edge_containers_cli.cmds.helm import Helm
+from edge_containers_cli.cmds.kubectl import json_service_info, json_service_types
+from edge_containers_cli.logging import log
 
 
 def check_service(service_name: str, domain: str):

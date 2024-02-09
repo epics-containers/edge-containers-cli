@@ -5,9 +5,9 @@ from typing import Optional
 
 import typer
 
-import ec_cli.globals as globals
-import ec_cli.shell as shell
-from ec_cli.utils import chdir, check_instance_path, cleanup_temp, log
+import edge_containers_cli.globals as globals
+import edge_containers_cli.shell as shell
+from edge_containers_cli.utils import chdir, check_instance_path, cleanup_temp, log
 
 
 class Helm:

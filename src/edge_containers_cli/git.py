@@ -9,11 +9,11 @@ from typing import Optional
 
 import typer
 
-import ec_cli.globals as globals
-import ec_cli.shell as shell
-from ec_cli.logging import log
-from ec_cli.shell import check_services_repo
-from ec_cli.utils import chdir
+import edge_containers_cli.globals as globals
+import edge_containers_cli.shell as shell
+from edge_containers_cli.logging import log
+from edge_containers_cli.shell import check_services_repo
+from edge_containers_cli.utils import chdir
 
 
 def get_image_name(

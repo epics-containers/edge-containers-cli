@@ -2,8 +2,8 @@ from typing import Optional
 
 import typer
 
-import ec_cli.globals as globals
-from ec_cli.cmds.cli import cli
+import edge_containers_cli.globals as globals
+from edge_containers_cli.cmds.cli import cli
 
 from . import __version__
 from .logging import init_logging
@@ -64,6 +64,6 @@ def main(
 
 
 # test with:
-#     python -m ec_cli
+#     python -m edge_containers_cli
 if __name__ == "__main__":
     cli()

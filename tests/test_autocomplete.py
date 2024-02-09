@@ -6,7 +6,7 @@ of the tested function must be surpressed
 
 import shutil
 
-from ec_cli.autocomplete import (
+from edge_containers_cli.autocomplete import (
     all_svc,
     avail_IOCs,
     avail_versions,
@@ -25,11 +25,11 @@ def test_all_iocs(mock_run, autocomplete, ctx):
 
 def test_all_iocs_local(mock_run, mocker, autocomplete, ctx):
     mocker.patch(
-        "ec_cli.globals.EC_K8S_NAMESPACE",
+        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
         "local",
     )
     mocker.patch(
-        "ec_cli.globals.EC_SERVICES_REPO",
+        "edge_containers_cli.globals.EC_SERVICES_REPO",
         "https://github.com/epics-containers/bl01t",
     )
     mock_run.set_seq(autocomplete.all_iocs_local)
@@ -68,11 +68,11 @@ def test_running_iocs(mock_run, autocomplete, ctx):
 
 def test_running_iocs_local(mock_run, mocker, autocomplete, ctx):
     mocker.patch(
-        "ec_cli.globals.EC_K8S_NAMESPACE",
+        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
         "local",
     )
     mocker.patch(
-        "ec_cli.globals.EC_SERVICES_REPO",
+        "edge_containers_cli.globals.EC_SERVICES_REPO",
         "https://github.com/epics-containers/bl01t",
     )
     mock_run.set_seq(autocomplete.running_iocs_local)

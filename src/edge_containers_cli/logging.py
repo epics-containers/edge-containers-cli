@@ -4,9 +4,9 @@ Setup logging for the project
 
 import logging
 
-import ec_cli.globals as globals
+import edge_containers_cli.globals as globals
 
-log = logging.getLogger("ec-cli")
+log = logging.getLogger("edge-containers-cli")
 handler = logging.StreamHandler()
 
 
