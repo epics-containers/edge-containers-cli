@@ -130,7 +130,7 @@ def deploy_local(
 @cli.command()
 def deploy(
     ctx: typer.Context,
-    ioc_name: str = typer.Argument(
+    service_name: str = typer.Argument(
         ..., help="Name of the IOC to deploy", autocompletion=avail_IOCs
     ),
     version: str = typer.Argument(
@@ -143,11 +143,13 @@ def deploy(
     """
     Pull an IOC helm chart version from the domain repo and deploy it to the cluster
     """
-    ioc_name = drop_ioc_path(ioc_name)
+    service_name = drop_ioc_path(service_name)
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        IocLocalCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
+        IocLocalCommands(ctx.obj, service_name).deploy(service_name, version, args)
     else:
-        IocK8sCommands(ctx.obj, ioc_name).deploy(ioc_name, version, args)
+        IocK8sCommands(ctx.obj, service_name, check=False).deploy(
+            service_name, version, args
+        )
 
 
 @cli.command()

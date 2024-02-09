@@ -25,7 +25,7 @@ from ec_cli.ioc.k8s_commands import check_namespace
 from ec_cli.logging import log
 from ec_cli.shell import check_beamline_repo
 from ec_cli.utils import (
-    check_ioc_instance_path,
+    check_instance_path,
     cleanup_temp,
     generic_ioc_from_image,
     get_instance_image_name,
@@ -71,7 +71,7 @@ class IocLocalCommands:
         self.docker.remove(self.ioc_name)
 
     def _do_deploy(self, ioc_instance: Path, version: str, args: str):
-        ioc_name, ioc_path = check_ioc_instance_path(ioc_instance)
+        ioc_name, ioc_path = check_instance_path(ioc_instance)
 
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
@@ -179,7 +179,7 @@ class IocLocalCommands:
             result = re.sub(r"%.*? version:([^\],%]*).*?%", r"%\1%", str(result))
 
     def validate_instance(self, ioc_instance: Path):
-        check_ioc_instance_path(ioc_instance)
+        check_instance_path(ioc_instance)
 
         typer.echo(f"Validating {ioc_instance}")
 

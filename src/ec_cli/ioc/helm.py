@@ -8,7 +8,7 @@ import typer
 
 import ec_cli.globals as globals
 import ec_cli.shell as shell
-from ec_cli.utils import chdir, check_ioc_instance_path, cleanup_temp, log
+from ec_cli.utils import chdir, check_instance_path, cleanup_temp, log
 
 
 class Helm:
@@ -47,10 +47,10 @@ class Helm:
 
     def deploy_local(self, service_path: Path, yes: bool = False):
         """
-        Deploy a local IOC helm chart directly to the cluster with dated beta version
+        Deploy a local helm chart directly to the cluster with dated beta version
         """
 
-        ioc_name, service_path = check_ioc_instance_path(service_path)
+        ioc_name, service_path = check_instance_path(service_path)
 
         if not yes and not self.template:
             typer.echo(
@@ -89,14 +89,14 @@ class Helm:
         """
 
         chart_paths = list(service_folder.glob(f"{globals.SHARED_CHARTS_FOLDER}/*"))
-        chart_paths.append(service_folder)
 
         # package up the charts to get the appVersion set
         for chart in chart_paths:
-            shell.run_command(f"helm dependency update {chart}", interactive=False)
+            shell.run_command(f"helm dependency build {chart}", interactive=False)
 
         with chdir(service_folder):
             shell.run_command(
+                f"helm dependency build {service_folder}; "
                 f"helm package {service_folder} --app-version {self.version}",
                 interactive=False,
             )
@@ -106,7 +106,7 @@ class Helm:
         # use helm to install the chart
         self._install(chart_file)
 
-    def _install(self, helm_chart_folder: Path):
+    def _install(self, helm_chart: Path):
         """
         Execute helm install command
         """
@@ -116,9 +116,8 @@ class Helm:
         cmd = (
             f"bash -c "
             f'"'
-            f"helm {helm_cmd} {self.service_name} {helm_chart_folder} "
-            f"--version {self.version} --namespace {self.namespace} "
-            f"{self.args}"
+            f"helm {helm_cmd} {self.service_name} {helm_chart} "
+            f"--namespace {self.namespace} {self.args}"
             f" 2> >(grep -v 'found symbolic link' >&2) "
             f'"'
         )

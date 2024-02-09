@@ -34,7 +34,7 @@ def get_instance_image_name(ioc_instance: Path, tag: Optional[str] = None) -> st
     return image
 
 
-def check_ioc_instance_path(ioc_path: Path):
+def check_instance_path(ioc_path: Path):
     """
     verify that the ioc instance path is valid
     """

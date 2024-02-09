@@ -52,18 +52,24 @@ class IocK8sCommands:
     A class for implementing the ioc command namespace
     """
 
-    def __init__(self, ctx: Optional[globals.Context], ioc_name: str = ""):
+    def __init__(
+        self,
+        ctx: Optional[globals.Context],
+        service_name: str = "",
+        check: bool = True,
+    ):
         self.namespace: str = ""
         self.beamline_repo: str = ""
+        # TODO isnt ctx always set??
         if ctx is not None:
             namespace = ctx.namespace
             check_namespace(namespace)
-            if ioc_name != "":
-                check_service(ioc_name, namespace)
+            if service_name != "" and check:
+                check_service(service_name, namespace)
             self.namespace = namespace
             self.beamline_repo = ctx.beamline_repo
             self.branch = ctx.branch
-        self.ioc_name: str = ioc_name
+        self.ioc_name: str = service_name
 
     def attach(self):
         shell.run_command(
@@ -149,21 +155,25 @@ class IocK8sCommands:
     def ps(self, all: bool, wide: bool):
         """List all IOCs and Services in the current namespace"""
 
-        services_csv = shell.run_command(
-            f"kubectl get pods -n {self.namespace} {json_service_info}",
-            interactive=False,
-        )
-        pods_df = pd.read_csv(StringIO(services_csv), names=json_service_headers)
-
         helm_json = shell.run_command(
             f"helm list -n {self.namespace} -o json", interactive=False
         )
-        helm_df = pd.read_json(StringIO(helm_json))
+        df = pd.read_json(StringIO(helm_json))
+        log.debug(df)
 
-        both = pd.merge(pods_df, helm_df, left_on="name", right_on="name")
-        both.drop(columns=["revision", "updated", "status", "chart"], inplace=True)
+        if not all:
+            services_csv = shell.run_command(
+                f"kubectl get pods -n {self.namespace} {json_service_info}",
+                interactive=False,
+            )
+            pods_df = pd.read_csv(StringIO(services_csv), names=json_service_headers)
+            log.debug(pods_df)
 
-        print(both.to_string(index=False))
+            df = pd.merge(pods_df, df, left_on="name", right_on="name")
+
+        df.drop(columns=["revision", "updated", "status", "chart"], inplace=True)
+
+        print(df.to_string(index=False))
 
         # if all:
         #     shell.run_command(
