@@ -139,7 +139,7 @@ def create_svc_graph(repo: str, folder: Path) -> dict:
 
             for tag in tags:
                 cmd = f"git diff --name-only {tag} {tag}^"
-                result = str(shell.run_command(cmd, interactive=False))
+                result = str(shell.run_command(cmd, interactive=False, error_OK=True))
                 if service_name in result:
                     version_list.append(tag)
 
