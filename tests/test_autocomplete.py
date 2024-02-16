@@ -8,7 +8,7 @@ import shutil
 
 from edge_containers_cli.autocomplete import (
     all_svc,
-    avail_IOCs,
+    avail_services,
     avail_versions,
     running_svc,
 )
@@ -44,7 +44,7 @@ def test_avail_IOCs(mock_run, data, autocomplete, ctx):
     shutil.copytree(data / "services", TMPDIR / "services")
 
     ctx.parent.parent.params["repo"] = ""  # use env variable
-    result = mock_run.call(avail_IOCs, ctx)
+    result = mock_run.call(avail_services, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
 

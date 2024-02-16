@@ -32,7 +32,7 @@ from edge_containers_cli.utils import (
 )
 
 
-class IocLocalCommands:
+class LocalCommands:
     """
     A class for implementing the ioc command namespace for local docker/podman
     """

@@ -56,7 +56,7 @@ def fetch_service_graph(beamline_repo: str) -> dict:
     return svc_graph
 
 
-def avail_IOCs(ctx: typer.Context) -> list[str]:
+def avail_services(ctx: typer.Context) -> list[str]:
     params = ctx.parent.params  # type: ignore
     services_repo = params["repo"] or globals.EC_SERVICES_REPO
 

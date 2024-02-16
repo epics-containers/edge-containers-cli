@@ -59,7 +59,7 @@ def check_namespace(namespace: Optional[str]):
     log.info("domain = %s", namespace)
 
 
-class IocK8sCommands:
+class K8sCommands:
     """
     A class for implementing the Kubernetes based commands
     """

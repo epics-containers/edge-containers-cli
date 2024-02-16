@@ -49,7 +49,7 @@ def main(
         help="Enable debug logging to console and retain temporary files",
     ),
 ):
-    """EPICS Containers assistant CLI"""
+    """Edge Containers assistant CLI"""
 
     globals.EC_VERBOSE, globals.EC_DEBUG = bool(verbose), bool(debug)
 
