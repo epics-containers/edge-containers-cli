@@ -12,9 +12,11 @@ tool like Portainer is a decent workflow.
 import re
 import tempfile
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Optional
 
+import pandas as pd
 import requests
 import typer
 
@@ -163,7 +165,7 @@ class LocalCommands:
 
         # We have to build the table ourselves because docker is unable to
         # format a table with labels.
-        format = "{{.Names}}%{{.Labels}}%{{.Status}}%{{.Image}}"
+        format = "{{.Names}}%{{.Labels}}%{{.State}}%{{.Image}}"
 
         result = shell.run_command(
             f"{self.docker.docker} ps{all_arg} --filter label=is_IOC=true "
@@ -177,6 +179,16 @@ class LocalCommands:
             result = re.sub(r"%.*?[,%]version=([^,%]*).*?%", r"%\1%", str(result))
         else:
             result = re.sub(r"%.*? version:([^\],%]*).*?%", r"%\1%", str(result))
+
+        result = result.replace("%", ",")
+
+        df = pd.read_csv(  # type: ignore
+            StringIO(result),
+            names=["name", "version", "state", "image"],  # type: ignore
+        )
+        log.debug(df)
+
+        print(df.to_string(index=False))
 
     def validate_instance(self, ioc_instance: Path):
         check_instance_path(ioc_instance)
