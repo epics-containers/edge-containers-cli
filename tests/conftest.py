@@ -2,15 +2,15 @@ import re
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, Dict, List, Union
+from typing import Callable, Union
 
 from pytest import fixture
 from ruamel.yaml import YAML
 from typer import Context
 from typer.testing import CliRunner
 
-from epics_containers_cli.__main__ import cli
-from epics_containers_cli.logging import log
+from edge_containers_cli.__main__ import cli
+from edge_containers_cli.logging import log
 
 TMPDIR = Path("/tmp/ec_tests")
 DATA_PATH = Path(__file__).parent / "data"
@@ -33,10 +33,10 @@ class MockRun:
     rsp = "rsp"
 
     def __init__(self) -> None:
-        self.cmd_rsp: List[Dict] = []
+        self.cmd_rsp: list[dict] = []
         self._runner = CliRunner()
         self.log: str = ""
-        self.params: List[str] = []
+        self.params: list[str] = []
 
     def _str_command(
         self, command: str, interactive: bool = True, error_OK: bool = False
@@ -51,8 +51,8 @@ class MockRun:
 
         try:
             cmd_rsp = self.cmd_rsp.pop(0)
-        except IndexError:
-            raise IndexError("No test command response to return")
+        except IndexError as e:
+            raise IndexError("No test command response to return") from e
 
         cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]
@@ -73,7 +73,7 @@ class MockRun:
 
         return rsp
 
-    def set_seq(self, cmd_rsp: List[Dict[str, Union[str, bool]]]):
+    def set_seq(self, cmd_rsp: list[dict[str, Union[str, bool]]]):
         """
         Set up the expected sequence of commands that we expect to see come
         through the mock of run_command. Also supplies the response to
@@ -129,21 +129,21 @@ def mktempdir(_1=None, _2=None, _3=None):
 def mock_run(mocker):
     # Patch globals
     mocker.patch(
-        "epics_containers_cli.globals.EC_K8S_NAMESPACE",
+        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
         "bl45p",
     )
     mocker.patch(
-        "epics_containers_cli.globals.EC_SERVICES_REPO",
+        "edge_containers_cli.globals.EC_SERVICES_REPO",
         "https://github.com/epics-containers/bl45p",
     )
     mocker.patch(
-        "epics_containers_cli.globals.EC_LOG_URL",
+        "edge_containers_cli.globals.EC_LOG_URL",
         "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields="
         "message%2Csource&width=1489&highlightMessage=&relative=172800&q="
-        "pod_name%3A{ioc_name}*",
+        "pod_name%3A{service_name}*",
     )
     mocker.patch(
-        "epics_containers_cli.globals.EC_DEBUG",
+        "edge_containers_cli.globals.EC_DEBUG",
         "1",
     )
 
@@ -151,7 +151,7 @@ def mock_run(mocker):
     mocker.patch("webbrowser.open", MOCKRUN._str_command)
     mocker.patch("typer.confirm", return_value=True)
     mocker.patch("tempfile.mkdtemp", mktempdir)
-    mocker.patch("epics_containers_cli.shell.run_command", MOCKRUN._str_command)
+    mocker.patch("edge_containers_cli.shell.run_command", MOCKRUN._str_command)
     return MOCKRUN
 
 
@@ -163,9 +163,10 @@ def data() -> Path:
 @fixture()
 def ctx():
     ctx = Context
-    ctx.parent = Context
-    ctx.parent.parent = Context
-    ctx.parent.parent.params = {}
+    # TODO - are these required now the namespace is flat ?
+    ctx.parent = Context  # type: ignore
+    ctx.parent.parent = Context  # type: ignore
+    ctx.parent.parent.params = {}  # type: ignore
     return ctx
 
 
@@ -180,7 +181,7 @@ def ioc(data):
 def local(data, mocker):
     file = Path(__file__).parent / "data" / "local.yaml"
     mocker.patch(
-        "epics_containers_cli.globals.EC_K8S_NAMESPACE",
+        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
         "local",
     )
     yaml = YAML(typ="safe").load(file)

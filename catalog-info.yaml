@@ -1,0 +1,10 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: edge-containers-cli
+  title: edge-containers-cli
+  description: CLI for deploying and managing epics containers IOCs and services
+spec:
+  type: documentation
+  lifecycle: experimental
+  owner: group:default/sscc
