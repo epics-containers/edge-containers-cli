@@ -30,11 +30,10 @@ requires-python = ">=3.9"
 
 [project.optional-dependencies]
 dev = [
-    "black",
-    "mock",
-    "pyright",
+    "copier",
     "pipdeptree",
     "pre-commit",
+    "pyright",
     "pytest",
     "pytest-cov",
     "pytest-mock",
@@ -88,7 +87,7 @@ legacy_tox_ini = """
 [tox]
 skipsdist=True
 
-[testenv:{pre-commit,pyright,pytest}]
+[testenv:{pre-commit,type-checking,tests}]
 # Don't create a virtualenv for the command, requires tox-direct plugin
 direct = True
 passenv = *
@@ -97,9 +96,9 @@ allowlist_externals =
     pre-commit
     pyright
 commands =
-    pytest: pytest --cov=edge_containers_cli --cov-report term --cov-report xml:cov.xml {posargs}
-    pyright: pyright src tests {posargs}
     pre-commit: pre-commit run --all-files {posargs}
+    type-checking: pyright src tests {posargs}
+    tests: pytest --cov=edge_containers_cli --cov-report term --cov-report xml:cov.xml {posargs}
 """
 
 [tool.ruff]
