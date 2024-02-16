@@ -188,7 +188,10 @@ class LocalCommands:
         )
         log.debug(df)
 
-        print(df.to_string(index=False))
+        if len(df.index) == 0:
+            typer.echo("No running services found")
+        else:
+            print(df.to_string(index=False))
 
     def validate_instance(self, ioc_instance: Path):
         check_instance_path(ioc_instance)
