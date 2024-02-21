@@ -137,15 +137,23 @@ def create_svc_graph(repo: str, folder: Path) -> dict:
             tags = result.split("\n")
             tags.remove("")
 
+            # Check initial configuration
+            tag = tags[0]
+            cmd = f"git ls-tree -r {tag} --name-only"
+            result = str(shell.run_command(cmd, interactive=False, error_OK=True))
+            if service_name in result:
+                version_list.append(tag)
+
+            # Check repo changes
             for tag in tags:
                 cmd = f"git diff --name-only {tag} {tag}^"
                 result = str(shell.run_command(cmd, interactive=False, error_OK=True))
                 if service_name in result:
                     version_list.append(tag)
 
+            # Capture services preceding a tag
             if not version_list:
-                # give the latest tag if there are no changes
-                version_list.append(tags[-1])
+                version_list.append("")
 
             svc_graph[service_name] = version_list
 

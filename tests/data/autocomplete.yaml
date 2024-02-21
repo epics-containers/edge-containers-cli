@@ -18,6 +18,9 @@ avail_IOCs:
   - cmd: git tag
     rsp: |
       2.0
+  - cmd: git ls-tree -r 2.0 --name-only
+    rsp: |
+      2.0
   - cmd: git diff --name-only 2.0 2.0\^
     rsp: |
       2.0 bl45p-ea-ioc-01
@@ -26,6 +29,9 @@ avail_versions:
   - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
     rsp: Cloning into /tmp/xxxx...
   - cmd: git tag
+    rsp: |
+      2.0
+  - cmd: git ls-tree -r 2.0 --name-only
     rsp: |
       2.0
   - cmd: git diff --name-only 2.0 2.0\^
