@@ -151,7 +151,7 @@ def create_svc_graph(repo: str, folder: Path) -> dict:
                 if service_name in result:
                     version_list.append(tag)
 
-            # Capture services preceding a tag
+            # Capture services committed since the most recent tag
             if not version_list:
                 version_list.append("")
 
