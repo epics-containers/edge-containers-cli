@@ -69,6 +69,9 @@ instances:
   - cmd: git tag
     rsp: |
       2.0
+  - cmd: git ls-tree -r 2.0 --name-only
+    rsp: |
+      2.0
   - cmd: git diff --name-only 2.0 2.0\^
     rsp: |
       2.0
