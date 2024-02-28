@@ -178,31 +178,43 @@ class K8sCommands:
                 f"kubectl get {resource} -n {self.namespace} {jsonpath_deploy_info}",
                 interactive=False,
             )
-            res_df = polars.read_csv(
-                StringIO(str(kubectl_res)),
-                separator=",",
-                has_header=False,
-                new_columns=["name", "image"],
-            )
-            log.debug(res_df)
-            services_df = polars.concat([services_df, res_df], how="diagonal")
+            if kubectl_res:
+                res_df = polars.read_csv(
+                    StringIO(str(kubectl_res)),
+                    separator=",",
+                    has_header=False,
+                    new_columns=["name", "image"],
+                )
+                log.debug(res_df)
+                services_df = polars.concat([services_df, res_df], how="diagonal")
+        if services_df.is_empty():
+            print("No deployed services found")
+            raise typer.Exit()
 
         # Gives the status, restarts for running services
         kubectl_gtpo = shell.run_command(
             f"kubectl get pods -n {self.namespace} {jsonpath_pod_info}",
             interactive=False,
         )
-        gtpo_df = polars.read_csv(
-            StringIO(str(kubectl_gtpo)),
-            separator=",",
-            has_header=False,
-            new_columns=["name", "running", "restarts"],
-        )
-        services_df = services_df.join(gtpo_df, on="name", how="left")
-        services_df = services_df.with_columns(
-            polars.col("running").replace({"Running": True}, default=False),
-            polars.col("restarts").fill_null(0),
-        )
+        if kubectl_gtpo:
+            gtpo_df = polars.read_csv(
+                StringIO(str(kubectl_gtpo)),
+                separator=",",
+                has_header=False,
+                new_columns=["name", "running", "restarts"],
+            )
+            services_df = services_df.join(gtpo_df, on="name", how="left")
+            services_df = services_df.with_columns(
+                polars.col("running").replace({"Running": True}, default=False),
+                polars.col("restarts").fill_null(0),
+            )
+        elif all:
+            services_df = services_df.with_columns(
+                running=polars.lit(False), restarts=polars.lit(0)
+            )
+        else:
+            print("No running services found")
+            raise typer.Exit()
 
         # Adds the version, deployment time for all services
         helm_out = shell.run_command(
@@ -218,13 +230,10 @@ class K8sCommands:
         services_df = services_df.select(
             ["name", "version", "running", "restarts", "deployed", "image"]
         )
-
         if not all:
             services_df = services_df.filter(polars.col("running").eq(True))
             log.debug(services_df)
-
         if not wide:
             services_df.drop_in_place("image")
             log.debug(services_df)
-
         print(services_df)

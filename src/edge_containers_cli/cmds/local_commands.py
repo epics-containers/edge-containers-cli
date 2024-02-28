@@ -172,12 +172,19 @@ class LocalCommands:
         )
         log.debug(result_json)
         if not self.docker.is_docker:
-            services_dicts = json.load(StringIO(result_json))
+            services_dicts = json.load(StringIO(str(result_json)))
         else:
-            # Docker does not format as a list but per line
+            # Docker does not format as a list of json but per line
             services_dicts = []
-            for line in result_json.strip().split("\n"):
+            for line in str(result_json).strip().split("\n"):
                 services_dicts.append(json.load(StringIO(line)))
+
+        if not services_dicts:
+            if all_arg:
+                print("No deployed services found")
+            else:
+                print("No running services found")
+            raise typer.Exit()
 
         select_data = []
         for service in services_dicts:
@@ -198,11 +205,8 @@ class LocalCommands:
         log.debug(select_data)
 
         services_df = polars.DataFrame(select_data)
-        if services_df.is_empty():
-            typer.echo("No running services found")
-        else:
-            if not wide:
-                services_df.drop_in_place("image")
+        if not wide:
+            services_df.drop_in_place("image")
         print(services_df)
 
     def validate_instance(self, ioc_instance: Path):
