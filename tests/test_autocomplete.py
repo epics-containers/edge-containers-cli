@@ -18,7 +18,7 @@ from tests.conftest import TMPDIR
 def test_all_iocs(mock_run, autocomplete, ctx):
     mock_run.set_seq(autocomplete.all_iocs)
 
-    ctx.parent.parent.params["namespace"] = ""  # use env variable
+    ctx.parent.params["namespace"] = ""  # use env variable
     result = mock_run.call(all_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
@@ -34,34 +34,36 @@ def test_all_iocs_local(mock_run, mocker, autocomplete, ctx):
     )
     mock_run.set_seq(autocomplete.all_iocs_local)
 
-    ctx.parent.parent.params["namespace"] = ""  # use env variable
+    ctx.parent.params["namespace"] = ""  # use env variable
     result = mock_run.call(all_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
 
 def test_avail_IOCs(mock_run, data, autocomplete, ctx):
     mock_run.set_seq(autocomplete.avail_IOCs)
+    TMPDIR.mkdir()
     shutil.copytree(data / "services", TMPDIR / "services")
 
-    ctx.parent.parent.params["repo"] = ""  # use env variable
+    ctx.parent.params["repo"] = ""  # use env variable
     result = mock_run.call(avail_services, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
 
 def test_avail_versions(mock_run, data, autocomplete, ctx):
     mock_run.set_seq(autocomplete.avail_versions)
-    # shutil.copytree(data / "services", TMPDIR / "services") already exists
+    TMPDIR.mkdir()
+    shutil.copytree(data / "services", TMPDIR / "services")
 
-    ctx.parent.parent.params["repo"] = ""  # use env variable
-    ctx.parent.parent.params["service_name"] = "bl45p-ea-ioc-01"
+    ctx.parent.params["repo"] = ""  # use env variable
+    ctx.parent.params["service_name"] = "bl45p-ea-ioc-01"
     result = mock_run.call(avail_versions, ctx)
-    assert result == ["2.0"]
+    assert result == ["1.0", "2.0"]
 
 
 def test_running_iocs(mock_run, autocomplete, ctx):
     mock_run.set_seq(autocomplete.running_iocs)
 
-    ctx.parent.parent.params["namespace"] = ""  # use env variable
+    ctx.parent.params["namespace"] = ""  # use env variable
     result = mock_run.call(running_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]
 
@@ -77,6 +79,6 @@ def test_running_iocs_local(mock_run, mocker, autocomplete, ctx):
     )
     mock_run.set_seq(autocomplete.running_iocs_local)
 
-    ctx.parent.parent.params["namespace"] = ""  # use env variable
+    ctx.parent.params["namespace"] = ""  # use env variable
     result = mock_run.call(running_svc, ctx)
     assert result == ["bl45p-ea-ioc-01"]

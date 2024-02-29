@@ -68,13 +68,12 @@ instances:
     rsp: Cloning into /tmp/xxxx...
   - cmd: git tag
     rsp: |
+      1.0
       2.0
-  - cmd: git ls-tree -r 2.0 --name-only
-    rsp: |
-      2.0
-  - cmd: git diff --name-only 2.0 2.0\^
-    rsp: |
-      2.0
+  - cmd: git ls-tree -r 1.0 --name-only
+    rsp: bl45p-ea-ioc-01
+  - cmd: git diff --name-only 1.0 2.0
+    rsp: bl45p-ea-ioc-01
 
 exec:
   - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*

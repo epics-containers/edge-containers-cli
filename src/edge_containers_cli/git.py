@@ -130,26 +130,33 @@ def create_svc_graph(repo: str, folder: Path) -> dict:
     with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
         for service_name in service_list:
             service_name = Path(service_name).name
-            result = str(shell.run_command("git tag", interactive=False))
+            result = str(
+                shell.run_command("git tag --sort=committerdate", interactive=False)
+            )
             log.debug(f"checking these tags for changes in the instance: {result}")
 
             version_list = []
             tags = result.split("\n")
             tags.remove("")
 
-            # Check initial configuration
-            tag = tags[0]
-            cmd = f"git ls-tree -r {tag} --name-only"
-            result = str(shell.run_command(cmd, interactive=False, error_OK=True))
-            if service_name in result:
-                version_list.append(tag)
+            for tag_no, _ in enumerate(tags):
+                # Check initial configuration
+                if not tag_no:
+                    cmd = f"git ls-tree -r {tags[tag_no]} --name-only"
+                    result = str(
+                        shell.run_command(cmd, interactive=False, error_OK=True)
+                    )
+                    if service_name in result:
+                        version_list.append(tags[tag_no])
 
-            # Check repo changes
-            for tag in tags:
-                cmd = f"git diff --name-only {tag} {tag}^"
-                result = str(shell.run_command(cmd, interactive=False, error_OK=True))
-                if service_name in result:
-                    version_list.append(tag)
+                # Check repo changes
+                else:
+                    cmd = f"git diff --name-only {tags[tag_no-1]} {tags[tag_no]}"
+                    result = str(
+                        shell.run_command(cmd, interactive=False, error_OK=True)
+                    )
+                    if service_name in result:
+                        version_list.append(tags[tag_no])
 
             # Capture services committed since the most recent tag
             if not version_list:

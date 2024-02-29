@@ -146,6 +146,14 @@ def mock_run(mocker):
         "edge_containers_cli.globals.EC_DEBUG",
         "1",
     )
+    mocker.patch(
+        "edge_containers_cli.globals.CACHE_ROOT",
+        TMPDIR,
+    )
+    mocker.patch(
+        "edge_containers_cli.globals.CACHE_EXPIRY",
+        0,
+    )
 
     # Patch functions
     mocker.patch("webbrowser.open", MOCKRUN._str_command)
@@ -163,10 +171,8 @@ def data() -> Path:
 @fixture()
 def ctx():
     ctx = Context
-    # TODO - are these required now the namespace is flat ?
     ctx.parent = Context  # type: ignore
-    ctx.parent.parent = Context  # type: ignore
-    ctx.parent.parent.params = {}  # type: ignore
+    ctx.parent.params = {}  # type: ignore
     return ctx
 
 
