@@ -35,7 +35,7 @@ def test_validate():
     os.getenv("EC_INTERACTIVE_TESTING") != "true",
     reason="export EC_INTERACTIVE_TESTING=true",
 )
-def test_list():
+def test_deploy():
     """Test deploy"""
     runner = CliRunner()
 
@@ -48,7 +48,7 @@ def test_list():
         ],
     )
 
-    assert trigger.exit_code == 0
+    assert trigger.exit_code == 0, trigger.output
 
     time.sleep(3)  # Temporary
     check = runner.invoke(cli, "ps")
