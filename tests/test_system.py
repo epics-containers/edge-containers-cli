@@ -1,13 +1,13 @@
 # Some tests that really run the underlying commands:
 # requires podman to be installed
 import os
+import time
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 from edge_containers_cli.__main__ import cli
-from edge_containers_cli.utils import chdir
 
 THIS_DIR = Path(__file__).parent
 
@@ -32,20 +32,25 @@ def test_validate():
 
 
 @pytest.mark.skipif(
-    os.getenv("REMOTE_CONTAINERS") == "true",
-    reason="podman tests not supported inside devcontainer",
+    os.getenv("EC_INTERACTIVE_TESTING") != "true",
+    reason="export EC_INTERACTIVE_TESTING=true",
 )
-def test_validate_chdir():
-    """Test the validate command from a different directory"""
+def test_list():
+    """Test deploy"""
     runner = CliRunner()
 
-    with chdir(THIS_DIR / "data/example-ibek-config"):
-        result = runner.invoke(
-            cli,
-            [
-                "validate",
-                f"{THIS_DIR}/data/services/bl45p-ea-ioc-01",
-            ],
-        )
+    trigger = runner.invoke(
+        cli,
+        [
+            "deploy",
+            "bl47p-ea-test-01",
+            "2024.2.1",
+        ],
+    )
 
-    assert result.exit_code == 0
+    assert trigger.exit_code == 0
+
+    time.sleep(3)  # Temporary
+    check = runner.invoke(cli, "ps")
+
+    assert "bl01c-ea-test-03" in check.output

@@ -1,0 +1,36 @@
+on:
+  workflow_call:
+      inputs:
+      python-version:
+        type: string
+        description: The version of python to install
+        required: true
+      runs-on:
+        type: string
+        description: The runner to run this job on
+        required: true
+
+env:
+  EC_INTERACTIVE_TESTING: "True"
+  EC_K8S_NAMESPACE: "default"
+  EC_DOMAIN_REPO: https://github.com/epics-containers/bl47p.git
+
+jobs:
+  run:
+    runs-on: ${{ inputs.runs-on }}
+
+    steps:
+      - name: start minikube
+        id: minikube
+        uses: medyagh/setup-minikube@master
+      - run: kubectl version
+      - run: helm version
+      - name: Checkout
+        uses: actions/checkout@v4
+        name: Install latest versions of python packages
+        uses: ./.github/actions/install_requirements
+        with:
+          python-version: ${{ inputs.python-version }}
+          pip-install: ".[dev]"
+      - name: system tests
+        run: tox -e tests
