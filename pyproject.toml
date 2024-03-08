@@ -19,8 +19,7 @@ dependencies = [
     "requests",
     "ruamel.yaml",
     "jinja2",
-    "pandas",
-    "pyarrow",
+    "polars",
 ]
 
 dynamic = ["version"]

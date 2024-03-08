@@ -9,6 +9,7 @@ However, for the moment, Using this by connecting to each server and running
 tool like Portainer is a decent workflow.
 """
 
+import json
 import re
 import tempfile
 from datetime import datetime
@@ -16,7 +17,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Optional
 
-import pandas as pd
+import polars
 import requests
 import typer
 
@@ -163,35 +164,50 @@ class LocalCommands:
     def ps(self, all: bool, wide: bool):
         all_arg = " --all" if all else ""
 
-        # We have to build the table ourselves because docker is unable to
-        # format a table with labels.
-        format = "{{.Names}}%{{.Labels}}%{{.State}}%{{.Image}}"
-
-        result = shell.run_command(
+        # Retrieve data (json option exposes more data than table)
+        result_json = shell.run_command(
             f"{self.docker.docker} ps{all_arg} --filter label=is_IOC=true "
-            f'--format "{format}"',
+            f"--format json",
             interactive=False,
         )
-
-        # this regex extracts just the version from the set of all labels,
-        # docker and podman have different output formats
-        if self.docker.is_docker:
-            result = re.sub(r"%.*?[,%]version=([^,%]*).*?%", r"%\1%", str(result))
+        log.debug(result_json)
+        if not self.docker.is_docker:
+            services_dicts = json.load(StringIO(str(result_json)))
         else:
-            result = re.sub(r"%.*? version:([^\],%]*).*?%", r"%\1%", str(result))
+            # Docker does not format as a list of json but per line
+            services_dicts = []
+            for line in str(result_json).strip().split("\n"):
+                services_dicts.append(json.load(StringIO(line)))
 
-        result = result.replace("%", ",")
+        if not services_dicts:
+            if all_arg:
+                print("No deployed services found")
+            else:
+                print("No running services found")
+            raise typer.Exit()
 
-        df = pd.read_csv(  # type: ignore
-            StringIO(result),
-            names=["name", "version", "state", "image"],  # type: ignore
-        )
-        log.debug(df)
+        select_data = []
+        for service in services_dicts:
+            # Note if adding more keys that there are differences
+            # between what is given between docker and podman
+            select_data.append(
+                {
+                    "name": service["Names"][0],
+                    "version": service["Labels"]["version"],
+                    "running": service["State"] == "running",
+                    "restarts": service["Restarts"],
+                    "deployed": service["CreatedAt"][:19]
+                    if self.docker.is_docker
+                    else datetime.fromtimestamp(service["Created"]),
+                    "image": service["Image"],
+                }
+            )
+        log.debug(select_data)
 
-        if len(df.index) == 0:
-            typer.echo("No running services found")
-        else:
-            print(df.to_string(index=False))
+        services_df = polars.DataFrame(select_data)
+        if not wide:
+            services_df.drop_in_place("image")
+        print(services_df)
 
     def validate_instance(self, ioc_instance: Path):
         check_instance_path(ioc_instance)

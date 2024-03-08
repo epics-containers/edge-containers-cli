@@ -1,8 +1,6 @@
 import shutil
 from pathlib import Path
 
-import pytest
-
 from tests.conftest import TMPDIR
 
 
@@ -88,7 +86,6 @@ def test_stop(mock_run, ioc):
     mock_run.run_cli("stop bl45p-ea-ioc-01")
 
 
-@pytest.mark.skip(reason="under review - and in flux")
 def test_ps(mock_run, ioc):
     mock_run.set_seq(ioc.ps)
     mock_run.run_cli("ps")

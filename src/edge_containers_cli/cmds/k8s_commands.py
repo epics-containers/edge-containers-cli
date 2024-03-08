@@ -10,13 +10,13 @@ from io import StringIO
 from pathlib import Path
 from typing import Optional
 
-import pandas as pd
+import polars
 import typer
 
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
 from edge_containers_cli.cmds.helm import Helm
-from edge_containers_cli.cmds.kubectl import json_service_info, json_service_types
+from edge_containers_cli.cmds.kubectl import jsonpath_deploy_info, jsonpath_pod_info
 from edge_containers_cli.logging import log
 
 
@@ -170,27 +170,70 @@ class K8sCommands:
     def ps(self, all: bool, wide: bool):
         """List all IOCs and Services in the current namespace"""
 
-        helm_json = shell.run_command(
-            f"helm list -n {self.namespace} -o json", interactive=False
-        )
-        df = pd.read_json(StringIO(str(helm_json)))
-        log.debug(df)
+        services_df = polars.DataFrame()
 
-        if not all:
-            # only show running services - get the pods list and merge with helm list
-            services_csv = shell.run_command(
-                f"kubectl get pods -n {self.namespace} {json_service_info}",
+        # Gives all services (running & not running) and their image
+        for resource in ["deployment", "statefulset"]:
+            kubectl_res = shell.run_command(
+                f"kubectl get {resource} -n {self.namespace} {jsonpath_deploy_info}",
                 interactive=False,
             )
-            pods_df = pd.read_csv(  # type: ignore
-                StringIO(str(services_csv)),
-                names=json_service_types.keys(),  # type: ignore
-                dtype=json_service_types,  # type: ignore
+            if kubectl_res:
+                res_df = polars.read_csv(
+                    StringIO(str(kubectl_res)),
+                    separator=",",
+                    has_header=False,
+                    new_columns=["name", "image"],
+                )
+                log.debug(res_df)
+                services_df = polars.concat([services_df, res_df], how="diagonal")
+        if services_df.is_empty():
+            print("No deployed services found")
+            raise typer.Exit()
+
+        # Gives the status, restarts for running services
+        kubectl_gtpo = shell.run_command(
+            f"kubectl get pods -n {self.namespace} {jsonpath_pod_info}",
+            interactive=False,
+        )
+        if kubectl_gtpo:
+            gtpo_df = polars.read_csv(
+                StringIO(str(kubectl_gtpo)),
+                separator=",",
+                has_header=False,
+                new_columns=["name", "running", "restarts"],
             )
-            log.debug(pods_df)
+            services_df = services_df.join(gtpo_df, on="name", how="left")
+            services_df = services_df.with_columns(
+                polars.col("running").replace({"Running": True}, default=False),
+                polars.col("restarts").fill_null(0),
+            )
+        elif all:
+            services_df = services_df.with_columns(
+                running=polars.lit(False), restarts=polars.lit(0)
+            )
+        else:
+            print("No running services found")
+            raise typer.Exit()
 
-            df = pd.merge(pods_df, df, left_on="name", right_on="name")
+        # Adds the version, deployment time for all services
+        helm_out = shell.run_command(
+            f"helm list -n {self.namespace} -o json", interactive=False
+        )
+        helm_df = polars.read_json(StringIO(str(helm_out)))
+        helm_df = helm_df.rename({"app_version": "version", "updated": "deployed"})
+        helm_df = helm_df.with_columns(polars.col("deployed").str.slice(0, 19))
+        services_df = services_df.join(helm_df, on="name", how="left")
+        log.debug(services_df)
 
-        df.drop(columns=["revision", "updated", "status", "chart"], inplace=True)
-
-        print(df.to_string(index=False))
+        # Arrange columns
+        services_df = services_df.select(
+            ["name", "version", "running", "restarts", "deployed", "image"]
+        )
+        if not all:
+            services_df = services_df.filter(polars.col("running").eq(True))
+            log.debug(services_df)
+        if not wide:
+            services_df.drop_in_place("image")
+            log.debug(services_df)
+        print(services_df)

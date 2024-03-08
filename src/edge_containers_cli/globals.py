@@ -2,6 +2,8 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 
+import polars
+
 
 @dataclass
 class Context:
@@ -88,3 +90,11 @@ EC_CONTAINER_CLI = os.environ.get("EC_CONTAINER_CLI")  # default to auto choice
 EC_SERVICES_REPO = os.environ.get("EC_SERVICES_REPO", "")
 EC_K8S_NAMESPACE = os.environ.get("EC_K8S_NAMESPACE", "")
 EC_LOG_URL = os.environ.get("EC_LOG_URL", None)
+
+# Set formatting of polars tables
+polars.Config.set_tbl_hide_column_data_types(True)
+polars.Config.set_tbl_hide_dataframe_shape(True)
+polars.Config.set_tbl_rows(-1)
+polars.Config.set_tbl_cols(-1)
+polars.Config.set_fmt_str_lengths(82)
+polars.Config.set_tbl_formatting("ASCII_MARKDOWN")

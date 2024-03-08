@@ -85,5 +85,16 @@ stop:
 ps:
   - cmd: kubectl get namespace bl45p -o name
     rsp: bl45p-ea-ioc-01-xxxx
-  - cmd: kubectl -n bl45p get pod -o custom-columns=IOC_NAME:metadata.labels.app,VERSION:metadata.labels.ioc_version,STATE:status.phase,RESTARTS:status.containerStatuses[0].restartCount,STARTED:metadata.managedFields[0].time
-    rsp: True
+  - cmd: kubectl get deployment -n bl45p -o jsonpath=*
+    rsp: name,image
+  - cmd: kubectl get statefulset -n bl45p -o jsonpath=*
+    rsp: name,image
+  - cmd: kubectl get pods -n bl45p -o jsonpath=*
+    rsp: name,Running,0
+  - cmd: helm list -n bl45p -o json
+    rsp: >
+      [{
+      "name":"",
+      "updated":"",
+      "app_version":""
+      }]
