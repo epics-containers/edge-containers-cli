@@ -108,37 +108,6 @@ class Docker:
             f"{self.docker} run --rm --name {name} {params}", interactive=True
         )
 
-    def build(
-        self,
-        context: str,
-        name: str,
-        target: str,
-        args: str = "",
-        cache_from: str = "",
-        cache_to: str = "",
-        push: bool = False,
-        arch: globals.Architecture = globals.Architecture.linux,
-    ):
-        """
-        build a container
-        """
-        if self.is_buildx:
-            cmd = f"{self.docker} buildx"
-            shell.run_command(
-                f"{cmd} create --driver docker-container --use", interactive=False
-            )
-            args += f" --cache-from={cache_from}" if cache_from else ""
-            args += f" --cache-to={cache_to},mode=max" if cache_to else ""
-            args += " --push" if push else " --load "
-        else:
-            cmd = f"{self.docker}"
-
-        t_arch = f" --build-arg TARGET_ARCHITECTURE={arch}" if self.devcontainer else ""
-
-        shell.run_command(
-            f"{cmd} build --target {target}{t_arch} {args} -t {name} {context}"
-        )
-
     def exec(
         self,
         container: str,

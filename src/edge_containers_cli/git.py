@@ -5,7 +5,6 @@ Utility functions for working with git
 import os
 import re
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -14,22 +13,6 @@ import edge_containers_cli.shell as shell
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import check_services_repo
 from edge_containers_cli.utils import chdir
-
-
-def get_image_name(
-    repo: str,
-    arch: globals.Architecture = globals.Architecture.linux,
-    target: str = "developer",
-    suffix: Optional[str] = None,
-) -> str:
-    if suffix is None:
-        suffix = "-{arch}-{target}"
-    registry = repo2registry(repo).lower()
-    img_suffix = suffix.format(repo=repo, arch=arch, target=target, registry=registry)
-
-    image = f"{registry}{img_suffix}"
-    log.info("repo = %s image  = %s", repo, image)
-    return image
 
 
 def get_git_name(folder: Path = Path(".")) -> tuple[str, Path]:

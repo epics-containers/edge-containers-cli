@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from enum import Enum
 
 import polars
 
@@ -13,23 +12,6 @@ class Context:
     beamline_repo: str = ""
     verbose: bool = False
     debug: bool = False
-
-
-class Architecture(str, Enum):
-    linux = "linux"
-    rtems = "rtems"
-    arm = "arm"
-
-    def __str__(self):
-        return str(self.value)
-
-
-class Targets(str, Enum):
-    developer = "developer"
-    runtime = "runtime"
-
-    def __str__(self):
-        return str(self.value)
 
 
 # common stings used in paths
