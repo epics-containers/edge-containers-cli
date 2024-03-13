@@ -1,5 +1,4 @@
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -7,7 +6,13 @@ import typer
 
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
-from edge_containers_cli.utils import chdir, check_instance_path, cleanup_temp, log
+from edge_containers_cli.utils import (
+    chdir,
+    check_instance_path,
+    cleanup_temp,
+    local_version,
+    log,
+)
 
 
 class Helm:
@@ -31,9 +36,7 @@ class Helm:
         self.beamline_repo = repo
         self.namespace = namespace
         self.args = args
-        self.version = version or datetime.strftime(
-            datetime.now(), "%Y.%-m.%-d-b%-H.%-M"
-        )
+        self.version = version or local_version()
         self.template = template
 
         self.tmp = Path(tempfile.mkdtemp())
