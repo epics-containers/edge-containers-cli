@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 
+import polars
 import typer
 from natsort import natsorted
 
@@ -159,18 +160,14 @@ def list(
     ctx: typer.Context,
 ):
     """List all IOCs/services available in the helm registry"""
-    typer.echo(typer.style(f"{'Available services:':35}Latest instance:", bold=True))
     tmp_dir = Path(tempfile.mkdtemp())
     svc_graph = create_svc_graph(ctx.obj.beamline_repo, tmp_dir)
     svc_list = natsorted(svc_graph.keys())
     log.debug(f"svc_graph = {svc_graph}")
 
-    for svc in svc_list:
-        if len(svc_graph[svc]) == 0:
-            latest_instance = "None found."
-        else:
-            latest_instance = natsorted(svc_graph[svc])[-1]
-        typer.echo(f"{svc:35}{latest_instance}")
+    versions = [natsorted(svc_graph[svc])[-1] for svc in svc_list]
+    services_df = polars.from_dict({"name": svc_list, "version": versions})
+    print(services_df)
 
     cleanup_temp(tmp_dir)
 
