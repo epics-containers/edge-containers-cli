@@ -180,7 +180,6 @@ def instances(
     ),
 ):
     """List all versions of the IOC/service available in the helm registry"""
-    typer.echo(f"Available instances for {service_name}:")
     tmp_dir = Path(tempfile.mkdtemp())
     svc_graph = create_svc_graph(ctx.obj.beamline_repo, tmp_dir)
     try:
@@ -189,7 +188,8 @@ def instances(
         svc_list = []
 
     sorted_list = natsorted(svc_list)[::-1]
-    typer.echo("  ".join(sorted_list))
+    services_df = polars.from_dict({"version": sorted_list})
+    print(services_df)
 
     cleanup_temp(tmp_dir)
 
