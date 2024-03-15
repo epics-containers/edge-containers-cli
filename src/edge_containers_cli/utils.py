@@ -6,6 +6,7 @@ import contextlib
 import os
 import re
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -111,3 +112,15 @@ def normalize_tag(tag: str) -> str:
     tag = tag.lower()
     tag = tag.replace("/", "-")
     return tag
+
+
+def local_version() -> str:
+    """
+    create a CalVer style YYYY:MM:MICRO-b version where MICRO
+    is derived from DD:HH:MM:SS in seconds in base 16
+    """
+    time_now = datetime.now()
+    time_month = time_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elapsed = (time_now - time_month).seconds
+    elapsed_base = hex(elapsed)[2:]
+    return datetime.strftime(time_now, f"%Y.%-m.{elapsed_base}-b")

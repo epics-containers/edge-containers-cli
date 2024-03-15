@@ -32,6 +32,7 @@ from edge_containers_cli.utils import (
     cleanup_temp,
     generic_ioc_from_image,
     get_instance_image_name,
+    local_version,
 )
 
 
@@ -121,7 +122,7 @@ class LocalCommands:
         Use a local copy of an ioc instance definition to deploy a temporary
         version of the IOC to the local docker instance
         """
-        version = datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
+        version = local_version()
         if not yes:
             typer.echo(
                 f"Deploy TEMPORARY version {version} "
