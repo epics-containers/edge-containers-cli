@@ -75,7 +75,7 @@ class LocalCommands:
         self.docker.remove(self.service_name)
 
     def _do_deploy(self, ioc_instance: Path, version: str, args: str):
-        service_name, ioc_path = check_instance_path(ioc_instance)
+        service_name, _ = check_instance_path(ioc_instance)
 
         image = get_instance_image_name(ioc_instance)
         log.debug(f"deploying {ioc_instance} with image {image}")
