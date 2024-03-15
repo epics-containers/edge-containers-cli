@@ -3,22 +3,14 @@ Utility functions for working interacting with docker / podman CLI
 """
 
 import re
-import sys
 from pathlib import Path
 from time import sleep
-from typing import Optional
 
 import typer
 
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
 from edge_containers_cli.logging import log
-
-IMAGE_TAG = "local"
-MOUNTED_FILES = ["/.bashrc", "/.inputrc", "/.bash_eternal_history"]
-
-# podman needs this security option to allow containers to mount tmp etc.
-PODMAN_OPT = " --security-opt=label=type:container_runtime_t"
 
 
 class Docker:
@@ -66,78 +58,6 @@ class Docker:
         self.is_buildx = "docker/buildx" in str(result)
 
         log.debug(f"buildx={self.is_buildx} ({result})")
-
-    def _all_params(
-        self, args: str, mounts: Optional[list[Path]] = None, exec: bool = False
-    ):
-        """
-        set up parameters for call to docker/podman
-        """
-        opts = PODMAN_OPT if not self.is_docker and not exec else ""
-
-        if self.devcontainer:
-            if sys.stdin.isatty():
-                # interactive
-                env = "-e DISPLAY -e SHELL -e TERM -it"
-            else:
-                env = "-e DISPLAY -e SHELL"
-
-            volumes = ""
-            for file in MOUNTED_FILES:
-                file_path = Path(file)
-                if file_path.exists():
-                    volumes += f" -v {file}:/root/{file_path.name}"
-            if mounts is not None:
-                for mount in mounts:
-                    volumes += f" -v {mount}"
-
-            log.debug(f"env={env} volumes={volumes} opts={opts}")
-
-            params = f"{env}{opts}{volumes}" + f" {args}" if args else ""
-        else:
-            params = f"{opts}" + (f"{args}" if args else "")
-
-        return params
-
-    def run(self, name: str, args: str = "", mounts: Optional[list[Path]] = None):
-        """
-        run a command in a local container
-        """
-        params = self._all_params(args, mounts=mounts)
-        shell.run_command(
-            f"{self.docker} run --rm --name {name} {params}", interactive=True
-        )
-
-    def build(
-        self,
-        context: str,
-        name: str,
-        target: str,
-        args: str = "",
-        cache_from: str = "",
-        cache_to: str = "",
-        push: bool = False,
-        arch: globals.Architecture = globals.Architecture.linux,
-    ):
-        """
-        build a container
-        """
-        if self.is_buildx:
-            cmd = f"{self.docker} buildx"
-            shell.run_command(
-                f"{cmd} create --driver docker-container --use", interactive=False
-            )
-            args += f" --cache-from={cache_from}" if cache_from else ""
-            args += f" --cache-to={cache_to},mode=max" if cache_to else ""
-            args += " --push" if push else " --load "
-        else:
-            cmd = f"{self.docker}"
-
-        t_arch = f" --build-arg TARGET_ARCHITECTURE={arch}" if self.devcontainer else ""
-
-        shell.run_command(
-            f"{cmd} build --target {target}{t_arch} {args} -t {name} {context}"
-        )
 
     def exec(
         self,

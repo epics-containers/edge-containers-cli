@@ -72,7 +72,6 @@ class K8sCommands:
     ):
         self.namespace: str = ""
         self.beamline_repo: str = ""
-        self.service_type: str = ""
         # TODO isnt ctx always set??
         if ctx is not None:
             namespace = ctx.namespace
