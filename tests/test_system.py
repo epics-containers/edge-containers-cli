@@ -37,7 +37,7 @@ def test_validate():
 )
 def test_deploy():
     """Test deploy"""
-    IOC = "bl47p-ea-test-01"
+    IOC = "bl01t-ea-test-01"
     runner = CliRunner()
 
     trigger = runner.invoke(
@@ -51,7 +51,7 @@ def test_deploy():
 
     assert trigger.exit_code == 0, trigger.output
 
-    time.sleep(3)  # Temporary
+    time.sleep(10)  # Temporary
     check = runner.invoke(cli, "ps")
 
     assert IOC in check.output
