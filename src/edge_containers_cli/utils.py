@@ -49,8 +49,8 @@ def check_instance_path(service_path: Path):
 
     log.info(f"checking instance {service_name} at {service_path}")
     if service_path.is_dir():
-        if not (service_path / "values.yaml").exists():
-            log.error("IOC instance requires values.yaml")
+        if not (service_path / "Chart.yaml").exists():
+            log.error("A Service instance requires Chart.yaml")
             raise typer.Exit(1)
     else:
         log.error(f"instance path {service_path} does not exist")
