@@ -100,16 +100,44 @@ stop:
     rsp: True
 
 ps:
-  - cmd: docker ps --filter label=is_IOC=true --format json
+  - cmd: docker ps -q --filter label=is_IOC=true
+    rsp: |
+      0
+      1
+  - cmd: docker inspect $(docker ps -q --filter label=is_IOC=true)
     rsp: >
-      {
-      "CreatedAt":"",
-      "Image": "",
-      "Labels":{"version":""},
-      "Names":[""],
-      "State":"",
-      "Restarts":""
-      }
+      [
+          {
+                "Created": "2024-03-19T11:10:53.736808252Z",
+                "State": {
+                    "Running": true
+                },
+                "Name": "/bl01t-ea-test-01",
+                "RestartCount": 0,
+                "Config": {
+                    "Image": "ghcr.io/test",
+                    "Labels": {
+                          "is_IOC": "true",
+                          "version": "0"
+                    }
+                }
+          },
+          {
+                "Created": "2024-03-19T11:10:53.736808252Z",
+                "State": {
+                    "Running": true
+                },
+                "Name": "/bl01t-ea-test-02",
+                "RestartCount": 0,
+                "Config": {
+                    "Image": "ghcr.io/test",
+                    "Labels": {
+                          "is_IOC": "true",
+                          "version": "0"
+                    }
+                }
+          }
+      ]
 
 validate:
   - cmd: docker run --rm -w .* -v .*:.* -v \/tmp:\/tmp ghcr.io\/epics-containers\/yajsv -v .*:.* -s \/tmp\/ec_tests\/schema.json .*/bl45p-ea-ioc-01\/config\/ioc.yaml
