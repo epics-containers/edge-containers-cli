@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from ruamel.yaml import YAML
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
@@ -23,16 +24,20 @@ def get_instance_image_name(svc_instance: Path, tag: Optional[str] = None) -> st
         log.error(f"values.yaml not found in {svc_instance}")
         raise typer.Exit(1)
 
-    values_text = values.read_text()
-    matches = re.findall(r"image: (.*):(.*)", values_text)
-    if len(matches) == 1:
-        tag = tag or matches[0][1]
-        image = matches[0][0] + f":{tag}"
-    else:
-        log.error(f"image tag definition not found in {values}")
-        raise typer.Exit(1)
+    with open(values) as fp:
+        yaml = YAML(typ="safe").load(fp)
 
-    return image
+    try:
+        read_image = yaml["shared"]["ioc-instance"]["image"] + f":{tag}"
+        base_image, base_tag = read_image.split(":")[:2]
+    except KeyError:
+        log.error(f"shared.ioc-instance.image not found in {values}")
+        raise typer.Exit(1) from None
+
+    tag = tag or base_tag
+    full_image = base_image + f":{tag}"
+
+    return full_image
 
 
 def check_instance_path(service_path: Path):
