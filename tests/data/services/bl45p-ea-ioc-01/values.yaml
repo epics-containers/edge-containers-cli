@@ -1,1 +1,3 @@
-image: ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
+shared:
+  ioc-instance:
+    image: ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
