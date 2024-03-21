@@ -1,0 +1,21 @@
+# A Helm Chart for an IOC instance
+apiVersion: v2
+name: ioc-instance
+
+# This chart is to be shared by all IOC instances in the services folder
+# via a symlink. When changes are made to the dependent charts, it is
+# necessary to update the version number here so that all IOC instances
+# show a change in the next commit.
+version: 3.0.0
+
+# When we deploy with the edge-containers-cli we override this on the command line.
+# Direct deployment with Helm will use the default beta value.This value should
+# be left as beta always, as it gets used when deploying manually with Helm.
+appVersion: 0.0.1b1
+
+type: application
+
+dependencies:
+  - name: shared
+    version: "3.0.0"
+    repository: file://../../helm/shared

@@ -1,0 +1,16 @@
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify_ioc_instances:
+    runs-on: ubuntu-latest
+    # pull requests are a duplicate of a branch push if within the same repo.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: run IOC checks
+        run: |
+          bash .github/workflows/ci_verify.sh

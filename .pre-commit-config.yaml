@@ -21,3 +21,4 @@ repos:
         entry: ruff format --force-exclude
         types: [python]
         require_serial: true
+exclude: tests/data/bl01t

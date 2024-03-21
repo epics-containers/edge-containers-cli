@@ -130,11 +130,11 @@ def mock_run(mocker):
     # Patch globals
     mocker.patch(
         "edge_containers_cli.globals.EC_K8S_NAMESPACE",
-        "bl45p",
+        "bl01t",
     )
     mocker.patch(
         "edge_containers_cli.globals.EC_SERVICES_REPO",
-        "https://github.com/epics-containers/bl45p",
+        "https://github.com/epics-containers/bl01t",
     )
     mocker.patch(
         "edge_containers_cli.globals.EC_LOG_URL",

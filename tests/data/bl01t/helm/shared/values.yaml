@@ -1,0 +1,85 @@
+# default values for all IOCs on bl47p beamline
+ioc-instance:
+
+  # the beamline name - only set for beamlines
+  beamline: bl01t
+  # the location where the IOCs will run - same as beamline for beamlines
+  ioc_group: bl01t
+  # the name of the repository in which the IOC is grouped
+  location: bl01t
+
+  # typically use the default service account in the namespace.
+  # If you need to specify an alternative then uncomment below
+  # serviceAccountName: k8s-p38-iocs
+
+  # useHostNetwork - use host network for IOC - required for Channel Access
+  # to work outside of the cluster
+  hostNetwork: true
+
+  # useAffinity - only run on nodes with label beamline:<beamline-name>
+  # or location:<location-name>
+  # Comment out useAffiniity for dedicated cluster, set to true for shared cluster
+  
+
+  # root folder for ioc source/binaries inside generic IOC container
+  iocFolder: /epics/ioc
+  iocConfig: /epics/ioc/config
+  # scripts for controlling the IOC
+  start: /epics/ioc/start.sh
+  stop: /epics/ioc/stop.sh
+  liveness: /epics/ioc/liveness.sh
+
+  # The following are added to the pod's environment
+  # Add any environment variables as needed
+  globalenv:
+    - name: "EXAMPLE_ENV"
+      value: "example"
+
+  # defaults for securityContext
+  # Usually override runAsXXX in the individual IOC values.yaml.
+  # At DLS the IOCs that write to the shared data directory must use
+  # iXXdetector user/group IDs
+  securityContext:
+    allowPrivilegeEscalation: false
+  #   runAsUser: 37887
+  #   runAsGroup: 37887
+
+  ########################################################################################
+  # The following values are expected to be overridden in individual IOC values.yaml
+  ########################################################################################
+
+  # This value is the only mandatory override. You must declare the image for the
+  # Generic IOC in the values.yaml for each IOC instance.
+  image:
+
+  # a volume to mount for writing data to. This can be a PVC or a hostPath
+  # the PVC
+  dataVolume:
+    # Create a PVC called {.Chart.Name}-data when true
+    pvc: true
+    # A path on the host machine to write data into. Also used as the path that the
+    # pvc or hostPath will be mounted at so that users need not be confused about
+    # inside/outside container paths.
+
+    # This should be a hostPath to the shared data directory for IOCs that
+    # need to write to the shared data directory - at DLS this must be
+    # /dls/iXX/data (writing data to the host also needs 'pvc: false')
+    hostPath: /data
+
+  # use the shared PVC for publishing opi files over http (see services/opis)
+  opisClaim: bl01t-opi-claim
+  # use the shared PVC for publishing opi files over http (see services/opis)
+  runtimeClaim: bl01t-runtime-claim
+  # use the shared PVC autosave files (comment out for no autosave)
+  autosaveClaim: bl01t-autosave-claim
+
+  # default resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 64M
+
+  # extra tolerations as required

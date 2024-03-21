@@ -1,8 +1,8 @@
 all_iocs:
-  - cmd: kubectl get namespace bl45p -o name
-    rsp: namespace/bl45p
-  - cmd: helm list -qn bl45p
-    rsp: bl45p-ea-ioc-01
+  - cmd: kubectl get namespace bl01t -o name
+    rsp: namespace/bl01t
+  - cmd: helm list -qn bl01t
+    rsp: bl01t-ea-test-01
 
 all_iocs_local:
   - cmd: docker --version
@@ -10,10 +10,10 @@ all_iocs_local:
   - cmd: podman buildx version
     rsp: buildah 1.31.3
   - cmd: podman ps -a --filter label=is_IOC=true --format .*
-    rsp: bl45p-ea-ioc-01
+    rsp: bl01t-ea-test-01
 
 avail_IOCs:
-  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
+  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/.*
     rsp: Cloning into /tmp/xxxx...
   - cmd: git tag
     rsp: |
@@ -21,27 +21,33 @@ avail_IOCs:
   - cmd: git ls-tree -r 2.0 --name-only
     rsp: |
       2.0
+  - cmd: git tag --sort=committerdate
+    rsp: |
+      2.0
+  - cmd: git ls-tree -r 2.0 --name-only
+    rsp: |
+      2.0
   - cmd: git diff --name-only 2.0 2.0\^
     rsp: |
-      2.0 bl45p-ea-ioc-01
+      2.0 bl01t-ea-test-01
 
 avail_versions:
-  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
+  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/.*
     rsp: Cloning into /tmp/xxxx...
   - cmd: git tag
     rsp: |
       1.0
       2.0
   - cmd: git ls-tree -r 1.0 --name-only
-    rsp: bl45p-ea-ioc-01
+    rsp: bl01t-ea-test-01
   - cmd: git diff --name-only 1.0 2.0
-    rsp: bl45p-ea-ioc-01
+    rsp: bl01t-ea-test-01
 
 running_iocs:
-  - cmd: kubectl get namespace bl45p -o name
-    rsp: namespace/bl45p
-  - cmd: kubectl -n bl45p get pod -o custom-columns=IOC_NAME:metadata
-    rsp: NAME, bl45p-ea-ioc-01
+  - cmd: kubectl get namespace bl01t -o name
+    rsp: namespace/bl01t
+  - cmd: kubectl -n bl01t get pod -o custom-columns=IOC_NAME:metadata
+    rsp: NAME, bl01t-ea-test-01
 
 running_iocs_local:
   - cmd: docker --version
@@ -49,4 +55,4 @@ running_iocs_local:
   - cmd: podman buildx version
     rsp: buildah 1.31.3
   - cmd: podman ps --filter label=is_IOC=true --format .*
-    rsp: bl45p-ea-ioc-01
+    rsp: bl01t-ea-test-01
