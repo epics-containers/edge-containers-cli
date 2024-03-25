@@ -1,7 +1,6 @@
 # Some tests that really run the underlying commands:
 # requires podman to be installed
 import os
-import time
 from pathlib import Path
 
 import pytest
@@ -42,16 +41,9 @@ def test_deploy():
 
     trigger = runner.invoke(
         cli,
-        [
-            "deploy",
-            IOC,
-            "2024.2.1",
-        ],
+        ["deploy", IOC, "2024.2.1", "--wait"],
     )
-
     assert trigger.exit_code == 0, trigger.output
 
-    time.sleep(10)  # Temporary
     check = runner.invoke(cli, "ps")
-
     assert IOC in check.output

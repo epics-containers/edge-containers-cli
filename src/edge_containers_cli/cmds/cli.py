@@ -117,6 +117,7 @@ def deploy_local(
         autocompletion=force_plain_completion,
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+    wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
@@ -125,6 +126,7 @@ def deploy_local(
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
         LocalCommands(ctx.obj).deploy_local(svc_instance, yes, args)
     else:
+        args = args if not wait else args + " --wait"
         K8sCommands(ctx.obj).deploy_local(svc_instance, yes, args)
 
 
@@ -139,6 +141,7 @@ def deploy(
         help="Version tag of the IOC/service to deploy",
         autocompletion=avail_versions,
     ),
+    wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     args: str = typer.Option(
         "", help="Additional args for helm or docker, 'must be quoted'"
     ),
@@ -150,6 +153,7 @@ def deploy(
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
         LocalCommands(ctx.obj, service_name).deploy(service_name, version, args)
     else:
+        args = args if not wait else args + " --wait"
         K8sCommands(ctx.obj, service_name, check=False).deploy(
             service_name, version, args
         )
