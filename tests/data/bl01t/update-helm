@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# force refresh all helm dependencies #############
+
+THIS=$(realpath $(dirname $0))
+
+# remove all locks and chart caches
+for i in $(find ${THIS} -name *.lock) $(find ${THIS} -name charts); do
+  rm -r $i
+done
+
+# rebuild dependencies (depth first)
+for i in helm/* services/*; do
+  if [ -f $i/Chart.yaml ]; then
+    echo "Updating helm dependencies for $i"
+    # filter out the noisy "found symbolic link" messages
+    helm dependency build $i |& sed "/found symbolic/d"
+  fi
+done

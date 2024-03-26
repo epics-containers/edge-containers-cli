@@ -6,97 +6,101 @@ setup:
     rsp: ""
 
 attach:
-  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
-    rsp: bl45p-ea-ioc-01
-  - cmd: docker attach bl45p-ea-ioc-01
+  - cmd: docker ps -f name=bl01t-ea-test-01 --format .*
+    rsp: bl01t-ea-test-01
+  - cmd: docker attach bl01t-ea-test-01
     rsp: True
 
 delete:
-  - cmd: docker stop -t0 bl45p-ea-ioc-01
+  - cmd: docker stop -t0 bl01t-ea-test-01
     rsp: ""
-  - cmd: docker rm -f bl45p-ea-ioc-01
+  - cmd: docker rm -f bl01t-ea-test-01
     rsp: ""
 
 deploy_local:
-  - cmd: docker stop -t0 bl45p-ea-ioc-01
-    rsp: bl45p-ea-ioc-01
-  - cmd: docker rm -f bl45p-ea-ioc-01
-    rsp: bl45p-ea-ioc-01
-  - cmd: docker volume rm -f bl45p-ea-ioc-01_config
-    rsp: bl45p-ea-ioc-01-config
-  - cmd: docker volume create bl45p-ea-ioc-01_config
-    rsp: bl45p-ea-ioc-01-config
+  - cmd: docker stop -t0 bl01t-ea-test-01
+    rsp: bl01t-ea-test-01
+  - cmd: docker rm -f bl01t-ea-test-01
+    rsp: bl01t-ea-test-01
+  - cmd: docker volume rm -f bl01t-ea-test-01_config
+    rsp: bl01t-ea-test-01-config
+  - cmd: docker volume create bl01t-ea-test-01_config
+    rsp: bl01t-ea-test-01-config
   - cmd: docker rm -f busybox
     rsp: ""
-  - cmd: docker container create --name busybox -v bl45p-ea-ioc-01_config:/copyto busybox
+  - cmd: docker container create --name busybox -v bl01t-ea-test-01_config:/copyto busybox
     rsp: ""
-  - cmd: docker cp {data}/services/bl45p-ea-ioc-01/config/ioc.yaml busybox:copyto
+  - cmd: docker cp {data}/bl01t/services/bl01t-ea-test-01/config/ioc.db busybox:copyto
+    rsp: ""
+  - cmd: docker cp {data}/bl01t/services/bl01t-ea-test-01/config/ioc.yaml busybox:copyto
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
-  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=.* -v bl45p-ea-ioc-01_config:\/epics\/ioc\/config\/  --name bl45p-ea-ioc-01 ghcr.io\/epics-containers\/ioc-adaravis-linux-runtime:23.9.4
+  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=.* -v bl01t-ea-test-01_config:\/epics\/ioc\/config\/  --name bl01t-ea-test-01 ghcr.io\/epics-containers\/ioc-adsimdetector-linux-runtime:2024.2.1
     rsp: True
-  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
-    rsp: bl45p-ea-ioc-01
+  - cmd: docker ps -f name=bl01t-ea-test-01 --format .*
+    rsp: bl01t-ea-test-01
 
 deploy:
-  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/ec_tests --depth=1 --single-branch --branch=2.0
+  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/ec_tests --depth=1 --single-branch --branch=2.0
     rsp: Cloning into '/tmp/ec_tests'...
-  - cmd: docker stop -t0 bl45p-ea-ioc-01
-    rsp: bl45p-ea-ioc-01
-  - cmd: docker rm -f bl45p-ea-ioc-01
-    rsp: bl45p-ea-ioc-01
-  - cmd: docker volume rm -f bl45p-ea-ioc-01_config
-    rsp: bl45p-ea-ioc-01-config
-  - cmd: docker volume create bl45p-ea-ioc-01_config
-    rsp: bl45p-ea-ioc-01-config
+  - cmd: docker stop -t0 bl01t-ea-test-01
+    rsp: bl01t-ea-test-01
+  - cmd: docker rm -f bl01t-ea-test-01
+    rsp: bl01t-ea-test-01
+  - cmd: docker volume rm -f bl01t-ea-test-01_config
+    rsp: bl01t-ea-test-01-config
+  - cmd: docker volume create bl01t-ea-test-01_config
+    rsp: bl01t-ea-test-01-config
   - cmd: docker rm -f busybox
     rsp: ""
-  - cmd: docker container create --name busybox -v bl45p-ea-ioc-01_config:/copyto busybox
+  - cmd: docker container create --name busybox -v bl01t-ea-test-01_config:/copyto busybox
     rsp: ""
-  - cmd: docker cp /tmp/ec_tests/services/bl45p-ea-ioc-01/config/ioc.yaml busybox:copyto
+  - cmd: docker cp /tmp/ec_tests/services/bl01t-ea-test-01/config/ioc.db busybox:copyto
+    rsp: ""
+  - cmd: docker cp /tmp/ec_tests/services/bl01t-ea-test-01/config/ioc.yaml busybox:copyto
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
-  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=2.0 -v bl45p-ea-ioc-01_config:/epics/ioc/config/  --name bl45p-ea-ioc-01 ghcr.io/epics-containers/ioc-adaravis-linux-runtime:23.9.4
+  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=2.0 -v bl01t-ea-test-01_config:/epics/ioc/config/  --name bl01t-ea-test-01 ghcr.io/epics-containers/ioc-adsimdetector-linux-runtime:2024.2.1
     rsp: True
-  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
-    rsp: bl45p-ea-ioc-01
+  - cmd: docker ps -f name=bl01t-ea-test-01 --format .*
+    rsp: bl01t-ea-test-01
 
 instances:
-  - cmd: git clone https://github.com/epics-containers/bl45p /tmp/.*
+  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/.*
     rsp: Cloning into /tmp/xxxx...
   - cmd: git tag
     rsp: |
       1.0
       2.0
   - cmd: git ls-tree -r 1.0 --name-only
-    rsp: bl45p-ea-ioc-01
+    rsp: bl01t-ea-test-01
   - cmd: git diff --name-only 1.0 2.0
-    rsp: bl45p-ea-ioc-01
+    rsp: bl01t-ea-test-01
 
 exec:
-  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
-    rsp: bl45p-ea-ioc-01
-  - cmd: docker exec -it bl45p-ea-ioc-01 bash -c "bash"
+  - cmd: docker ps -f name=bl01t-ea-test-01 --format .*
+    rsp: bl01t-ea-test-01
+  - cmd: docker exec -it bl01t-ea-test-01 bash -c "bash"
     rsp: True
 
 logs:
-  - cmd: docker ps -f name=bl45p-ea-ioc-01 --format .*
-    rsp: bl45p-ea-ioc-01
-  - cmd: docker logs bl45p-ea-ioc-01
+  - cmd: docker ps -f name=bl01t-ea-test-01 --format .*
+    rsp: bl01t-ea-test-01
+  - cmd: docker logs bl01t-ea-test-01
     rsp: True
 
 restart:
-  - cmd: docker restart bl45p-ea-ioc-01
+  - cmd: docker restart bl01t-ea-test-01
     rsp: True
 
 start:
-  - cmd: docker start bl45p-ea-ioc-01
+  - cmd: docker start bl01t-ea-test-01
     rsp: True
 
 stop:
-  - cmd: docker stop bl45p-ea-ioc-01
+  - cmd: docker stop bl01t-ea-test-01
     rsp: True
 
 ps:
@@ -140,7 +144,7 @@ ps:
       ]
 
 validate:
-  - cmd: docker run --rm -w .* -v .*:.* -v \/tmp:\/tmp ghcr.io\/epics-containers\/yajsv -v .*:.* -s \/tmp\/ec_tests\/schema.json .*/bl45p-ea-ioc-01\/config\/ioc.yaml
+  - cmd: docker run --rm -w .* -v .*:.* -v \/tmp:\/tmp ghcr.io\/epics-containers\/yajsv -v .*:.* -s \/tmp\/ec_tests\/schema.json .*/bl01t-ea-test-01\/config\/ioc.yaml
     rsp: True
-  - cmd: docker manifest inspect ghcr.io\/epics-containers\/ioc-adaravis-linux-runtime:23.9.4
+  - cmd: docker manifest inspect ghcr.io\/epics-containers\/ioc-adsimdetector-linux-runtime:2024.2.1
     rsp: "OK"

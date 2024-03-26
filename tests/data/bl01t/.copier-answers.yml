@@ -1,0 +1,10 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 3.2.1
+_src_path: gh:epics-containers/ec-services-template
+beamline: bl01t
+cluster_namespace: local
+description: beamline bl01t IOC Instances and Services
+git_platform: github.com
+github_org: ec-tests
+repo_uri: ec-tests
+type: beamline
