@@ -16,7 +16,7 @@ jobs:
     env:
       EC_INTERACTIVE_TESTING: "true"
       EC_K8S_NAMESPACE: "default"
-      EC_SERVICES_REPO: "https://github.com/marcelldls/bl01t.git"
+      EC_SERVICES_REPO: "https://github.com/epics-containers/bl01t.git"
     steps:
       - name: start minikube
         id: minikube
