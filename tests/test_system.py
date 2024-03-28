@@ -27,7 +27,7 @@ def test_validate():
         ],
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
 
 @pytest.mark.skipif(
