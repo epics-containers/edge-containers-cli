@@ -41,7 +41,7 @@ def test_deploy():
 
     trigger = runner.invoke(
         cli,
-        ["deploy", IOC, "2024.2.1", "--wait"],
+        ["deploy", IOC, "2024.3.1", "--wait"],
     )
     assert trigger.exit_code == 0, trigger.output
 
