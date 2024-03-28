@@ -1,6 +1,6 @@
 jsonpath_pod_info = (
     "-o jsonpath='"
-    r'{range .items[*]}{..labels.app}{","}{.status.phase}'
+    r'{range .items[*]}{..labels.app}{..labels.app\.kubernetes\.io/instance}{","}{.status.phase}'
     r'{","}{..containerStatuses[0].restartCount}'
     r'{"\n"}{end}'
     "'"
