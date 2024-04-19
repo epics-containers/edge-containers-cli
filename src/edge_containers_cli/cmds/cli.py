@@ -15,7 +15,7 @@ from edge_containers_cli.autocomplete import (
 )
 from edge_containers_cli.cmds.k8s_commands import K8sCommands
 from edge_containers_cli.cmds.local_commands import LocalCommands
-from edge_containers_cli.git import create_svc_graph
+from edge_containers_cli.git import create_version_map
 from edge_containers_cli.logging import log
 from edge_containers_cli.utils import cleanup_temp, drop_path
 
@@ -165,11 +165,11 @@ def list(
 ):
     """List all IOCs/services available in the helm registry"""
     tmp_dir = Path(tempfile.mkdtemp())
-    svc_graph = create_svc_graph(ctx.obj.beamline_repo, tmp_dir)
-    svc_list = natsorted(svc_graph.keys())
-    log.debug(f"svc_graph = {svc_graph}")
+    version_map = create_version_map(ctx.obj.beamline_repo, tmp_dir)
+    svc_list = natsorted(version_map.keys())
+    log.debug(f"version_map = {version_map}")
 
-    versions = [natsorted(svc_graph[svc])[-1] for svc in svc_list]
+    versions = [natsorted(version_map[svc])[-1] for svc in svc_list]
     services_df = polars.from_dict({"name": svc_list, "version": versions})
     print(services_df)
 
@@ -185,9 +185,9 @@ def instances(
 ):
     """List all versions of the IOC/service available in the helm registry"""
     tmp_dir = Path(tempfile.mkdtemp())
-    svc_graph = create_svc_graph(ctx.obj.beamline_repo, tmp_dir)
+    version_map = create_version_map(ctx.obj.beamline_repo, tmp_dir)
     try:
-        svc_list = svc_graph[service_name]
+        svc_list = version_map[service_name]
     except KeyError:
         svc_list = []
 
