@@ -56,6 +56,42 @@ def create_version_map(repo: str, folder: Path) -> dict:
                     shell.run_command(cmd, interactive=False, error_OK=True)
                 )
 
+                # Propagate changes through symlinks
+                ## Find symlink mapping to git object
+                cmd = f"git ls-tree {tags_list[tag_no]} -r | grep 120000"
+                result_symlink_obj = str(
+                    shell.run_command(cmd, interactive=False, error_OK=True)
+                )
+                if not result_symlink_obj:
+                    pass
+                else:
+                    symlink_object_map = {
+                        entry.split()[-1]:entry.split()[-2] for entry in result_symlink_obj.rstrip().split("\n")
+                    }
+
+                    ## Find symlink mapping to file               
+                    symlink_map = {}
+                    for symlink in symlink_object_map.keys():
+                        cmd = f"git cat-file -p {symlink_object_map[symlink]}"
+                        result_symlinks = str(
+                            shell.run_command(cmd, interactive=False, error_OK=True)
+                        )
+                        symlink_map[symlink] = result_symlinks
+
+                    ## Group sources per target
+                    target_tree = {}
+                    for source, target_raw in symlink_map.items():
+                        target = str(os.path.normpath(  # Normalise path
+                            os.path.join(os.path.dirname(source), target_raw),  # resolve symlink
+                            ))
+                        target_tree.setdefault(target, []).append(source)
+                    log.debug(f"target_tree = {target_tree}")
+
+                    ## Include symlink source directories as changes
+                    for sym_target in target_tree.keys():
+                        if sym_target in changed_files:
+                            changed_files = "\n".join([changed_files, *target_tree[sym_target]])
+
             # Test each service for changes
             for service_name in service_list:
                 if service_name in changed_files:
