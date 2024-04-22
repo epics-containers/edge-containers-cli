@@ -29,14 +29,13 @@ def create_version_map(repo: str, folder: Path) -> dict:
     ]
     log.debug(f"service_list = {service_list}")
 
-    version_map = {service: [] for service in service_list}
+    version_map = {service_item: [] for service_item in service_list}
 
     with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
         result_tags = str(
             shell.run_command("git tag --sort=committerdate", interactive=False)
         )
-        tags_list = result_tags.split("\n")
-        tags_list.remove("")
+        tags_list = result_tags.rstrip().split("\n")
         log.debug(f"tags_list = {tags_list}")
 
         for tag_no, _ in enumerate(tags_list):
