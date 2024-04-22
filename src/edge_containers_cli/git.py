@@ -48,15 +48,15 @@ def create_version_map(repo: str, folder: Path) -> dict:
                     shell.run_command(cmd, interactive=False, error_OK=True)
                 )
 
-            # Check repo changes
+            # Check repo changes between tags
             else:
                 cmd = f"git diff --name-only {tags_list[tag_no-1]} {tags_list[tag_no]}"
                 changed_files = str(
                     shell.run_command(cmd, interactive=False, error_OK=True)
                 )
 
-                # Propagate changes through symlinks
-                ## Find symlink mapping to git object
+                # Propagate changes through symlink target to source
+                ## Find symlink source mapping to git object
                 cmd = f"git ls-tree {tags_list[tag_no]} -r | grep 120000"
                 result_symlink_obj = str(
                     shell.run_command(cmd, interactive=False, error_OK=True)
@@ -64,18 +64,20 @@ def create_version_map(repo: str, folder: Path) -> dict:
                 if not result_symlink_obj:
                     pass
                 else:
-                    symlink_object_map = {  # source path: git obj
+                    symlink_object_map = {  # source path: git object
                         entry.split()[-1]: entry.split()[-2]
                         for entry in result_symlink_obj.rstrip().split("\n")
                     }
 
-                    ## Find symlink mapping to file
+                    ## Find symlink mapping to target file
                     symlink_map = {}  # source path: target path
                     for symlink in symlink_object_map.keys():
+                        # If already retieved git object, use stored
                         if symlink_object_map[symlink] in cached_git_obj:
                             symlink_map[symlink] = cached_git_obj[
                                 symlink_object_map[symlink]
                             ]
+                        # Else retieve git object
                         else:
                             cmd = f"git cat-file -p {symlink_object_map[symlink]}"
                             result_symlinks = str(
@@ -86,11 +88,11 @@ def create_version_map(repo: str, folder: Path) -> dict:
                                 result_symlinks
                             )
 
-                    ## Group sources per target
+                    ## Group sources per symlink target
                     target_tree = {}
                     for source, target_raw in symlink_map.items():
                         target = str(
-                            os.path.normpath(  # Normalise path
+                            os.path.normpath(  # Simplyfy path
                                 os.path.join(
                                     os.path.dirname(source), target_raw
                                 ),  # resolve symlink
@@ -99,7 +101,7 @@ def create_version_map(repo: str, folder: Path) -> dict:
                         target_tree.setdefault(target, []).append(source)
                     log.debug(f"target_tree = {target_tree}")
 
-                    ## Include symlink source directories as changes
+                    ## Include symlink source files as file changes
                     for sym_target in target_tree.keys():
                         if sym_target in changed_files:
                             changed_files = "\n".join(
