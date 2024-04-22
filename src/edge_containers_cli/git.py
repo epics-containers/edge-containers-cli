@@ -38,6 +38,8 @@ def create_version_map(repo: str, folder: Path) -> dict:
         tags_list = result_tags.rstrip().split("\n")
         log.debug(f"tags_list = {tags_list}")
 
+        cached_git_obj = {}  # Reduce making the same calls to git
+
         for tag_no, _ in enumerate(tags_list):
             # Check initial configuration
             if not tag_no:
@@ -62,19 +64,27 @@ def create_version_map(repo: str, folder: Path) -> dict:
                 if not result_symlink_obj:
                     pass
                 else:
-                    symlink_object_map = {
+                    symlink_object_map = {  # source path: git obj
                         entry.split()[-1]: entry.split()[-2]
                         for entry in result_symlink_obj.rstrip().split("\n")
                     }
 
                     ## Find symlink mapping to file
-                    symlink_map = {}
+                    symlink_map = {}  # source path: target path
                     for symlink in symlink_object_map.keys():
-                        cmd = f"git cat-file -p {symlink_object_map[symlink]}"
-                        result_symlinks = str(
-                            shell.run_command(cmd, interactive=False, error_OK=True)
-                        )
-                        symlink_map[symlink] = result_symlinks
+                        if symlink_object_map[symlink] in cached_git_obj:
+                            symlink_map[symlink] = cached_git_obj[
+                                symlink_object_map[symlink]
+                            ]
+                        else:
+                            cmd = f"git cat-file -p {symlink_object_map[symlink]}"
+                            result_symlinks = str(
+                                shell.run_command(cmd, interactive=False, error_OK=True)
+                            )
+                            symlink_map[symlink] = result_symlinks
+                            cached_git_obj[symlink_object_map[symlink]] = (
+                                result_symlinks
+                            )
 
                     ## Group sources per target
                     target_tree = {}
