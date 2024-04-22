@@ -29,10 +29,9 @@ def create_version_map(repo: str, folder: Path) -> dict:
     ]
     log.debug(f"service_list = {service_list}")
 
-    version_map = {service:[] for service in service_list}
+    version_map = {service: [] for service in service_list}
 
     with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
-
         result_tags = str(
             shell.run_command("git tag --sort=committerdate", interactive=False)
         )
@@ -41,7 +40,6 @@ def create_version_map(repo: str, folder: Path) -> dict:
         log.debug(f"tags_list = {tags_list}")
 
         for tag_no, _ in enumerate(tags_list):
-
             # Check initial configuration
             if not tag_no:
                 cmd = f"git ls-tree -r {tags_list[tag_no]} --name-only"
@@ -66,10 +64,11 @@ def create_version_map(repo: str, folder: Path) -> dict:
                     pass
                 else:
                     symlink_object_map = {
-                        entry.split()[-1]:entry.split()[-2] for entry in result_symlink_obj.rstrip().split("\n")
+                        entry.split()[-1]: entry.split()[-2]
+                        for entry in result_symlink_obj.rstrip().split("\n")
                     }
 
-                    ## Find symlink mapping to file               
+                    ## Find symlink mapping to file
                     symlink_map = {}
                     for symlink in symlink_object_map.keys():
                         cmd = f"git cat-file -p {symlink_object_map[symlink]}"
@@ -81,16 +80,22 @@ def create_version_map(repo: str, folder: Path) -> dict:
                     ## Group sources per target
                     target_tree = {}
                     for source, target_raw in symlink_map.items():
-                        target = str(os.path.normpath(  # Normalise path
-                            os.path.join(os.path.dirname(source), target_raw),  # resolve symlink
-                            ))
+                        target = str(
+                            os.path.normpath(  # Normalise path
+                                os.path.join(
+                                    os.path.dirname(source), target_raw
+                                ),  # resolve symlink
+                            )
+                        )
                         target_tree.setdefault(target, []).append(source)
                     log.debug(f"target_tree = {target_tree}")
 
                     ## Include symlink source directories as changes
                     for sym_target in target_tree.keys():
                         if sym_target in changed_files:
-                            changed_files = "\n".join([changed_files, *target_tree[sym_target]])
+                            changed_files = "\n".join(
+                                [changed_files, *target_tree[sym_target]]
+                            )
 
             # Test each service for changes
             for service_name in service_list:
