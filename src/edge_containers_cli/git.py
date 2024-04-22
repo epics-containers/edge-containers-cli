@@ -72,12 +72,12 @@ def create_version_map(repo: str, folder: Path) -> dict:
                     ## Find symlink mapping to target file
                     symlink_map = {}  # source path: target path
                     for symlink in symlink_object_map.keys():
-                        # If already retieved git object, use stored
+                        # If already retrieved git object, use stored
                         if symlink_object_map[symlink] in cached_git_obj:
                             symlink_map[symlink] = cached_git_obj[
                                 symlink_object_map[symlink]
                             ]
-                        # Else retieve git object
+                        # Else retrieve git object
                         else:
                             cmd = f"git cat-file -p {symlink_object_map[symlink]}"
                             result_symlinks = str(
