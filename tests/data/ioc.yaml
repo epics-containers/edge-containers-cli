@@ -53,7 +53,7 @@ instances:
   - cmd: git diff --name-only 1.0 2.0
     rsp: bl01t-ea-test-01
   - cmd: git ls-tree 2.0 -r | grep 120000
-    rsp: 120000 blob test services/bl01c-ea-test-01/Chart.yaml
+    rsp: 120000 blob test services/bl01t-ea-test-01/Chart.yaml
   - cmd: git cat-file -p test
     rsp: ../../include/iocs/templates
 
