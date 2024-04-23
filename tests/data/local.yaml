@@ -30,9 +30,10 @@ deploy_local:
     rsp: ""
   - cmd: docker container create --name busybox -v bl01t-ea-test-01_config:/copyto busybox
     rsp: ""
-  - cmd: docker cp {data}/bl01t/services/bl01t-ea-test-01/config/ioc.db busybox:copyto
+  # order of globbing of files may be non-deterministic so use ioc.*
+  - cmd: docker cp {data}/bl01t/services/bl01t-ea-test-01/config/ioc.* busybox:copyto
     rsp: ""
-  - cmd: docker cp {data}/bl01t/services/bl01t-ea-test-01/config/ioc.yaml busybox:copyto
+  - cmd: docker cp {data}/bl01t/services/bl01t-ea-test-01/config/ioc.* busybox:copyto
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
@@ -56,9 +57,10 @@ deploy:
     rsp: ""
   - cmd: docker container create --name busybox -v bl01t-ea-test-01_config:/copyto busybox
     rsp: ""
-  - cmd: docker cp /tmp/ec_tests/services/bl01t-ea-test-01/config/ioc.db busybox:copyto
+  # order of globbing of files may be non-deterministic so use ioc.*
+  - cmd: docker cp /tmp/ec_tests/services/bl01t-ea-test-01/config/ioc.* busybox:copyto
     rsp: ""
-  - cmd: docker cp /tmp/ec_tests/services/bl01t-ea-test-01/config/ioc.yaml busybox:copyto
+  - cmd: docker cp /tmp/ec_tests/services/bl01t-ea-test-01/config/ioc.* busybox:copyto
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
