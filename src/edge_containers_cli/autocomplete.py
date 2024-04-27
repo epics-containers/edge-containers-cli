@@ -12,7 +12,7 @@ import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
 from edge_containers_cli.cmds.k8s_commands import check_namespace
 from edge_containers_cli.docker import Docker
-from edge_containers_cli.git import create_svc_graph
+from edge_containers_cli.git import create_version_map
 from edge_containers_cli.logging import log
 from edge_containers_cli.utils import cleanup_temp
 
@@ -46,14 +46,14 @@ def read_cached_dict(cache_folder: str, cached_file: str) -> dict:
 
 
 def fetch_service_graph(beamline_repo: str) -> dict:
-    svc_graph = read_cached_dict(url_encode(beamline_repo), globals.IOC_CACHE)
-    if not svc_graph:
+    version_map = read_cached_dict(url_encode(beamline_repo), globals.IOC_CACHE)
+    if not version_map:
         tmp_dir = Path(tempfile.mkdtemp())
-        svc_graph = create_svc_graph(beamline_repo, tmp_dir)
-        cache_dict(url_encode(beamline_repo), globals.IOC_CACHE, svc_graph)
+        version_map = create_version_map(beamline_repo, tmp_dir)
+        cache_dict(url_encode(beamline_repo), globals.IOC_CACHE, version_map)
         cleanup_temp(tmp_dir)
 
-    return svc_graph
+    return version_map
 
 
 def avail_services(ctx: typer.Context) -> list[str]:
@@ -77,8 +77,8 @@ def avail_versions(ctx: typer.Context) -> list[str]:
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        svc_graph = fetch_service_graph(beamline_repo)
-        svc_versions = svc_graph[service_name]
+        version_map = fetch_service_graph(beamline_repo)
+        svc_versions = version_map[service_name]
         return svc_versions
     except KeyError:
         log.error("IOC not found")
