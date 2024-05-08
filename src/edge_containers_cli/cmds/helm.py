@@ -92,8 +92,7 @@ class Helm:
 
         with chdir(service_folder):
             shell.run_command(
-                f"helm dependency update {service_folder}; "
-                f"helm package {service_folder} --app-version {self.version}",
+                f"helm package {service_folder} -u --app-version {self.version}",
                 interactive=False,
             )
             # find the packaged chart
