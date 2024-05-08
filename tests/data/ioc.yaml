@@ -15,7 +15,7 @@ delete:
 template:
   - cmd: 'helm dependency update .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01\/..\/..\/helm\/shared'
     rsp: ""
-  - cmd: 'helm dependency update .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01\; helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 --app-version .*'
+  - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
   - cmd: 'bash -c "helm template bl01t-ea-test-01 .*pretend_helm.tgz --namespace bl01t  --debug'
     rsp: |
@@ -26,7 +26,7 @@ template:
 deploy_local:
   - cmd: 'helm dependency update .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01\/..\/..\/helm\/shared'
     rsp: ""
-  - cmd: 'helm dependency update .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01\; helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 --app-version .*'
+  - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
   - cmd: 'bash -c "helm upgrade --install bl01t-ea-test-01 .*pretend_helm.tgz --namespace bl01t'
     rsp: ""
@@ -36,7 +36,7 @@ deploy:
     rsp: namespace/bl01t
   - cmd: git clone https://github.com/epics-containers/bl01t /tmp/ec_tests --depth=1 --single-branch --branch=2.0
     rsp: ""
-  - cmd: helm dependency update /tmp/ec_tests/services/bl01t-ea-test-01; helm package /tmp/ec_tests/services/bl01t-ea-test-01 --app-version 2.0
+  - cmd: helm package /tmp/ec_tests/services/bl01t-ea-test-01 -u --app-version 2.0
     rsp: ""
   - cmd: 'bash -c "helm upgrade --install bl01t-ea-test-01 .*pretend_helm.tgz --namespace bl01t.*'
     rsp: ""
