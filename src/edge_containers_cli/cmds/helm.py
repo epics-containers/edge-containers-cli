@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from ruamel.yaml import YAML
 
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
@@ -92,15 +93,19 @@ class Helm:
 
         with chdir(service_folder):
             shell.run_command(
-                f"helm dependency update {service_folder}; "
-                f"helm package {service_folder} --app-version {self.version}",
+                f"helm package {service_folder} -u --app-version {self.version}",
                 interactive=False,
             )
-            # find the packaged chart
-            chart_file = list(service_folder.glob("*.tgz"))[0]
+
+            # Determine package name
+            with open("Chart.yaml") as fp:
+                chart_yaml = YAML(typ="safe").load(fp)
+            package_path = (
+                service_folder / f'{chart_yaml["name"]}-{chart_yaml["version"]}.tgz'
+            )
 
         # use helm to install the chart
-        self._install(chart_file)
+        self._install(package_path)
 
     def _install(self, helm_chart: Path):
         """
