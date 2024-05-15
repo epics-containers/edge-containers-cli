@@ -3,10 +3,12 @@ utility functions
 """
 
 import contextlib
+import json
 import os
 import re
 import shutil
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Optional
 
@@ -14,6 +16,7 @@ import typer
 from ruamel.yaml import YAML
 
 import edge_containers_cli.globals as globals
+import edge_containers_cli.shell as shell
 from edge_containers_cli.logging import log
 
 
@@ -129,3 +132,52 @@ def local_version() -> str:
     elapsed = (time_now - time_month).seconds
     elapsed_base = hex(elapsed)[2:]
     return datetime.strftime(time_now, f"%Y.%-m.{elapsed_base}-b")
+
+
+def get_services(self, all: bool) -> list:
+    all_arg = " --all" if all else ""
+
+    # List services
+    avail_services = shell.run_command(
+        f"{self.docker.docker} ps{all_arg} -q --filter label=is_IOC=true",
+        interactive=False,
+    )
+
+    if not avail_services:
+        if all_arg:
+            print("No deployed services found")
+        else:
+            print("No running services found")
+        raise typer.Exit()
+
+    # Retrieve data
+    result_json = shell.run_command(
+        f"{self.docker.docker} inspect "
+        f"$({self.docker.docker} ps{all_arg} -q --filter label=is_IOC=true)",
+        interactive=False,
+    )
+    log.debug(result_json)
+    services_dicts = json.load(StringIO(str(result_json)))
+
+    select_data = []
+    for service in services_dicts:
+        # Make docker output look like podman
+        if self.docker.is_docker:
+            service["Name"] = service["Name"][1:]  # inspect leads name with /
+
+        # Note if adding more keys that there are differences
+        # between what is available between docker and podman
+        select_data.append(
+            {
+                "name": service["Name"],
+                "version": service["Config"]["Labels"]["version"],
+                "running": "true" if service["State"]["Running"] else "false",
+                "restarts": service["RestartCount"],
+                "deployed": datetime.strptime(
+                    service["Created"].split(".")[0], "%Y-%m-%dT%H:%M:%S"
+                ),
+                "image": service["Config"]["Image"],
+            }
+        )
+    log.debug(select_data)
+    return select_data
