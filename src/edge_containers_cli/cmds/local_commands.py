@@ -162,7 +162,7 @@ class LocalCommands:
     def stop(self):
         shell.run_command(f"{self.docker.docker} stop {self.service_name}")
 
-    def ps(self, all: bool, wide: bool):
+    def _get_services(self, all: bool) -> list:
         all_arg = " --all" if all else ""
 
         # List services
@@ -208,7 +208,10 @@ class LocalCommands:
                 }
             )
         log.debug(select_data)
+        return select_data
 
+    def ps(self, all: bool, wide: bool):
+        select_data = self._get_services(all)
         services_df = polars.DataFrame(select_data)
         if not wide:
             services_df.drop_in_place("image")
