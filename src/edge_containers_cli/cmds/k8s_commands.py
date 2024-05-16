@@ -166,9 +166,7 @@ class K8sCommands:
             f"kubectl scale -n {self.namespace} {self.fullname} --replicas=0 "
         )
 
-    def ps(self, all: bool, wide: bool):
-        """List all IOCs and Services in the current namespace"""
-
+    def _get_services(self, all: bool) -> polars.DataFrame:
         services_df = polars.DataFrame()
 
         # Gives all services (running & not running) and their image
@@ -232,6 +230,11 @@ class K8sCommands:
         if not all:
             services_df = services_df.filter(polars.col("running").eq(True))
             log.debug(services_df)
+        return services_df
+
+    def ps(self, all: bool, wide: bool):
+        """List all IOCs and Services in the current namespace"""
+        services_df = self._get_services(all)
         if not wide:
             services_df.drop_in_place("image")
             log.debug(services_df)
