@@ -24,6 +24,7 @@ import typer
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
 from edge_containers_cli.cmds.k8s_commands import check_namespace
+from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.docker import Docker
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import check_services_repo
@@ -216,6 +217,11 @@ class LocalCommands:
         if not wide:
             services_df.drop_in_place("image")
         print(services_df)
+
+    def monitor(self, all: bool):
+        iocs_df = self._get_services(all)
+        app = MonitorApp(iocs_df)
+        app.run()
 
     def validate_instance(self, ioc_instance: Path):
         check_instance_path(ioc_instance)

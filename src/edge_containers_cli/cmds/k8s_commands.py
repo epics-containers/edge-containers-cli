@@ -17,6 +17,7 @@ import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
 from edge_containers_cli.cmds.helm import Helm
 from edge_containers_cli.cmds.kubectl import jsonpath_deploy_info, jsonpath_pod_info
+from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.logging import log
 
 
@@ -239,3 +240,8 @@ class K8sCommands:
             services_df.drop_in_place("image")
             log.debug(services_df)
         print(services_df)
+
+    def monitor(self, all: bool):
+        iocs_df = self._get_services(all)
+        app = MonitorApp(iocs_df)
+        app.run()

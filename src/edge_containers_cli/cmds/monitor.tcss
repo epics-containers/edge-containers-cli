@@ -1,0 +1,49 @@
+#headings {
+    layout: horizontal;
+    background: grey 90%;
+    height: 3;
+    width: 200;
+    margin-right: 1;
+    margin-left: 1;
+}
+
+#hd {
+    color: lime;
+    text-style: bold;
+    min-height: 1fr;
+    min-width: 1fr;
+    width: 25;
+    content-align: center middle;
+    text-align: center;
+}
+
+#iocs {
+    layout: horizontal;
+    background: grey 90%;
+    height: 5;
+    width: 200;
+    border: blank;
+    margin-top: 1;
+    margin-left: 1;
+}
+
+#td {
+    color: lime;
+    min-height: 1fr;
+    min-width: 1fr;
+    width: 25;
+    content-align: center middle;
+    text-align: center;
+    background: black 30%;
+    margin-right: 1;
+    margin-left: 1;
+}
+
+Button {
+    width: 16;
+    height: 1fr;
+    content-align: center middle;
+    text-align: center;
+    margin-left: 1;
+    margin-right: 1;
+}

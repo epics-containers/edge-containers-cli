@@ -40,6 +40,20 @@ def ps(
 
 
 @cli.command()
+def monitor(
+    ctx: typer.Context,
+    all: bool = typer.Option(
+        False, "-a", "--all", help="list stopped IOCs/services as well as running ones"
+    ),
+):
+    """Open IOC monitor TUI."""
+    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
+        LocalCommands(ctx.obj).monitor(all)
+    else:
+        K8sCommands(ctx.obj).monitor(all)
+
+
+@cli.command()
 def env(
     ctx: typer.Context,
     verbose: bool = typer.Option(
