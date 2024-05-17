@@ -1,42 +1,21 @@
-#headings {
-    layout: horizontal;
-    background: grey 90%;
-    height: 3;
-    width: 200;
-    margin-right: 1;
-    margin-left: 1;
+Footer {
+    background: transparent;
 }
 
-#hd {
-    color: lime;
-    text-style: bold;
-    min-height: 1fr;
-    min-width: 1fr;
-    width: 25;
-    content-align: center middle;
-    text-align: center;
+Footer > .footer--key {
+  background: rgb(30, 144, 255);
 }
 
-#iocs {
-    layout: horizontal;
-    background: grey 90%;
-    height: 5;
-    width: 200;
-    border: blank;
-    margin-top: 1;
-    margin-left: 1;
+IocTable {
+  height: 1fr;
 }
 
-#td {
-    color: lime;
-    min-height: 1fr;
-    min-width: 1fr;
-    width: 25;
-    content-align: center middle;
-    text-align: center;
-    background: black 30%;
-    margin-right: 1;
-    margin-left: 1;
+.narrow IocTable {
+  height: 100%;
+}
+
+IocTable > ScrollView {
+  height: 100%;
 }
 
 Button {
