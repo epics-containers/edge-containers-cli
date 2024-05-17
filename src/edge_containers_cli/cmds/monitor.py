@@ -91,7 +91,7 @@ class IocTable(Widget):
 
     def on_mount(self) -> None:
         """Provides a loop after generating the app for updating the data."""
-        self.set_interval(0.1, self.update_iocs)
+        self.set_interval(1, self.update_iocs)
 
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
