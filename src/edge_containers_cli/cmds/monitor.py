@@ -73,15 +73,16 @@ class HeadingDisplay(Label):
 
 class MonitorApp(App):
     def __init__(
-        self,
-        iocs_df: Union[polars.DataFrame, list],
-        gs: Callable[[bool], Union[polars.DataFrame, list]],
+        self, gs: Callable[[bool], Union[polars.DataFrame, list]], all: bool
     ) -> None:
         super().__init__()
 
+        self.get_services = gs
+        self.all = all
+
+        iocs_df = self.get_services(self.all)
         self.iocs = self._convert_df_to_list(iocs_df)
         self.headings = self.iocs[0].keys()
-        self.get_services = gs
 
         self.header = Header(show_clock=True)
         self.footer = Footer()
@@ -129,7 +130,7 @@ class MonitorApp(App):
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
         # Fetch services dataframe
-        iocs = self.get_services(all=True)  # type: ignore
+        iocs = self.get_services(self.all)  # type: ignore
         iocs = self._convert_df_to_list(iocs)
 
         # Loop over every IOC in the dataframe

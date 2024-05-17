@@ -219,8 +219,7 @@ class LocalCommands:
         print(services_df)
 
     def monitor(self, all: bool):
-        iocs_df = self._get_services(all)
-        app = MonitorApp(iocs_df, self._get_services)
+        app = MonitorApp(self._get_services, all)
         app.run()
 
     def validate_instance(self, ioc_instance: Path):
