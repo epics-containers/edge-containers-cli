@@ -2,10 +2,10 @@ import webbrowser
 from pathlib import Path
 
 import polars
-import shell
 import typer
 
 import edge_containers_cli.globals as globals
+import edge_containers_cli.shell as shell
 from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.logging import log
 

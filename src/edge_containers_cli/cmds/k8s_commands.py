@@ -15,6 +15,7 @@ import typer
 
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
+from edge_containers_cli.cmds.commands import Commands
 from edge_containers_cli.cmds.helm import Helm
 from edge_containers_cli.cmds.kubectl import jsonpath_deploy_info, jsonpath_pod_info
 from edge_containers_cli.cmds.monitor import MonitorApp
@@ -60,7 +61,7 @@ def check_namespace(namespace: Optional[str]):
     log.info("domain = %s", namespace)
 
 
-class K8sCommands:
+class K8sCommands(Commands):
     """
     A class for implementing the Kubernetes based commands
     """
@@ -68,35 +69,27 @@ class K8sCommands:
     def __init__(
         self,
         ctx: Optional[globals.Context],
-        service_name: str = "",
-        check: bool = True,
+        # check: bool = True,
     ):
-        self.namespace: str = ""
-        self.beamline_repo: str = ""
-        # TODO isnt ctx always set??
-        if ctx is not None:
-            namespace = ctx.namespace
-            check_namespace(namespace)
-            if service_name != "" and check:
-                self.fullname = check_service(service_name, namespace)
-            self.namespace = namespace
-            self.beamline_repo = ctx.beamline_repo
-        self.service_name: str = service_name
+        super().__init__(ctx)
+        check_namespace(self.namespace)
 
-    def attach(self):
+    def attach(self, service_name):
+        fullname = check_service(service_name, self.namespace)
         shell.run_command(
-            f"kubectl -it -n {self.namespace} attach {self.fullname}",
+            f"kubectl -it -n {self.namespace} attach {fullname}",
             interactive=True,
         )
 
-    def delete(self):
+    def delete(self, service_name):
+        check_service(service_name, self.namespace)
         if not typer.confirm(
-            f"This will remove all versions of {self.service_name} "
+            f"This will remove all versions of {service_name} "
             "from the cluster. Are you sure ?"
         ):
             raise typer.Abort()
 
-        shell.run_command(f"helm delete -n {self.namespace} {self.service_name}")
+        shell.run_command(f"helm delete -n {self.namespace} {service_name}")
 
     def template(self, svc_instance: Path, args: str):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")

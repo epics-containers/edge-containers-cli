@@ -23,6 +23,7 @@ import typer
 
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
+from edge_containers_cli.cmds.commands import Commands
 from edge_containers_cli.cmds.k8s_commands import check_namespace
 from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.docker import Docker
@@ -37,7 +38,7 @@ from edge_containers_cli.utils import (
 )
 
 
-class LocalCommands:
+class LocalCommands(Commands):
     """
     A class for implementing the ioc command namespace for local docker/podman
     """
@@ -45,35 +46,27 @@ class LocalCommands:
     def __init__(
         self,
         ctx: Optional[globals.Context],
-        service_name: str = "",
         with_docker: bool = True,
     ):
-        self.namespace = ""
-        self.beamline_repo: str = ""
-        if ctx is not None:
-            self.beamline_repo = ctx.beamline_repo
-            self.namespace = ctx.namespace
-
-        self.service_name: str = service_name
-
         self.tmp = Path(tempfile.mkdtemp())
-        self.ioc_folder = self.tmp / "services" / service_name
+        self.ioc_folder = self.tmp / "services"
         self.docker = Docker(check=with_docker)
+        super().__init__(ctx)
 
     def __del__(self):
         if hasattr(self, "tmp"):
             cleanup_temp(self.tmp)
 
-    def attach(self):
-        self.docker.attach(self.service_name)
+    def attach(self, service_name):
+        self.docker.attach(service_name)
 
-    def delete(self):
+    def delete(self, service_name):
         if not typer.confirm(
-            f"This will remove the IOC container {self.service_name} "
+            f"This will remove the IOC container {service_name} "
             "from the this server. Are you sure ?"
         ):
             raise typer.Abort()
-        self.docker.remove(self.service_name)
+        self.docker.remove(service_name)
 
     def _do_deploy(self, ioc_instance: Path, version: str, args: str):
         service_name, _ = check_instance_path(ioc_instance)
@@ -146,7 +139,7 @@ class LocalCommands:
             interactive=False,
         )
 
-        self._do_deploy(self.ioc_folder, version, args)
+        self._do_deploy(self.ioc_folder / service_name, version, args)
 
     def exec(self):
         self.docker.exec(self.service_name, "bash", args="-it")

@@ -22,6 +22,18 @@ from edge_containers_cli.utils import cleanup_temp, drop_path
 cli = typer.Typer(pretty_exceptions_show_locals=False)
 
 
+def commands(ctx):
+    """
+    Construct the appropriate commands class for the local or K8S namespace
+    """
+    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
+        commands = LocalCommands(ctx.obj)
+    else:
+        commands = K8sCommands(ctx.obj)
+
+    return commands
+
+
 @cli.command()
 def ps(
     ctx: typer.Context,
@@ -33,10 +45,7 @@ def ps(
     ),
 ):
     """List the IOCs/services running in the current namespace"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj).ps(all, wide)
-    else:
-        K8sCommands(ctx.obj).ps(all, wide)
+    commands(ctx).ps(all, wide)
 
 
 @cli.command()
@@ -47,10 +56,7 @@ def monitor(
     ),
 ):
     """Open IOC monitor TUI."""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj).monitor(all)
-    else:
-        K8sCommands(ctx.obj).monitor(all)
+    commands(ctx).monitor(all)
 
 
 @cli.command()
@@ -74,10 +80,7 @@ def attach(
     """
     Attach to the console of a live service
     """
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).attach()
-    else:
-        K8sCommands(ctx.obj, service_name).attach()
+    commands(ctx).attach(service_name)
 
 
 @cli.command()
@@ -90,10 +93,7 @@ def delete(
     """
     Remove a helm deployment from the cluster
     """
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).delete()
-    else:
-        K8sCommands(ctx.obj, service_name).delete()
+    commands(ctx).delete(service_name)
 
 
 @cli.command()
@@ -113,10 +113,8 @@ def template(
     print out the helm template generated from a local service instance
     """
     args = f"{args} --debug"
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        typer.echo("Not applicable to local deployments")
-    else:
-        K8sCommands(ctx.obj).template(svc_instance, args)
+    # always try to do helm template on a service regardless of namespace
+    K8sCommands(ctx.obj)(ctx).template(svc_instance, args)
 
 
 @cli.command()
@@ -137,11 +135,7 @@ def deploy_local(
     """
     Deploy a local IOC/service helm chart directly to the cluster with dated beta version
     """
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj).deploy_local(svc_instance, yes, args)
-    else:
-        args = args if not wait else args + " --wait"
-        K8sCommands(ctx.obj).deploy_local(svc_instance, yes, args)
+    commands(ctx).deploy_local(svc_instance, yes, args)
 
 
 @cli.command()
@@ -163,14 +157,9 @@ def deploy(
     """
     Pull an IOC/service helm chart version from the domain repo and deploy it to the cluster
     """
+    args = args if not wait else args + " --wait"
     service_name = drop_path(service_name)
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).deploy(service_name, version, args)
-    else:
-        args = args if not wait else args + " --wait"
-        K8sCommands(ctx.obj, service_name, check=False).deploy(
-            service_name, version, args
-        )
+    commands(ctx).deploy(service_name, version, args)
 
 
 @cli.command()
