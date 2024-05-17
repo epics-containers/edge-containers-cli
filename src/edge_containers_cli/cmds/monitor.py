@@ -1,6 +1,6 @@
 """TUI monitor for containerised IOCs."""
 
-from typing import Union
+from typing import Callable, Union
 
 import polars
 from textual import on
@@ -72,12 +72,16 @@ class HeadingDisplay(Label):
 
 
 class MonitorApp(App):
-    def __init__(self, iocs_df: Union[polars.DataFrame, list], ec) -> None:
+    def __init__(
+        self,
+        iocs_df: Union[polars.DataFrame, list],
+        gs: Callable[[bool], Union[polars.DataFrame, list]],
+    ) -> None:
         super().__init__()
 
         self.iocs = self._convert_df_to_list(iocs_df)
         self.headings = self.iocs[0].keys()
-        self.ec = ec
+        self.get_services = gs
 
         self.header = Header(show_clock=True)
         self.footer = Footer()
@@ -125,7 +129,7 @@ class MonitorApp(App):
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
         # Fetch services dataframe
-        iocs = self.ec._get_services(all=True)
+        iocs = self.get_services(all=True)  # type: ignore
         iocs = self._convert_df_to_list(iocs)
 
         # Loop over every IOC in the dataframe
@@ -140,8 +144,3 @@ class MonitorApp(App):
                 textdisplay = ioc_con.get_child_by_id(key).get_child_by_id("td")
                 assert isinstance(textdisplay, Label)
                 textdisplay.update(str(val))
-
-
-# if __name__ == "__main__":
-#     app = MonitorApp()
-#     app.run()
