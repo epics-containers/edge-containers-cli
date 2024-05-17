@@ -11,8 +11,10 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
+from textual.containers import Grid
+from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import DataTable, Footer, Header
+from textual.widgets import Button, DataTable, Footer, Header, Label
 from textual.widgets.data_table import RowKey
 
 # @on(Button.Pressed, "#startstop")
@@ -24,6 +26,37 @@ from textual.widgets.data_table import RowKey
 # def logs(self, event: Button.Pressed) -> None:
 #     """Event handler called when a button is pressed."""
 #     pass
+
+
+class RestartScreen(ModalScreen[bool]):
+    """Screen with dialog to restart service."""
+
+    def __init__(self, service_name: str) -> None:
+        super().__init__()
+
+        self.service_name = service_name
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label(
+                f"Are you sure you want to restart {self.service_name}?", id="question"
+            ),
+            Button("Yes", variant="error", id="restart"),
+            Button("No", variant="primary", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "restart":
+            self.action_restart_ioc()
+        else:
+            self.action_cancel_restart()
+
+    def action_restart_ioc(self) -> None:
+        self.dismiss(True)
+
+    def action_cancel_restart(self) -> None:
+        self.dismiss(False)
 
 
 @total_ordering
@@ -73,7 +106,8 @@ class IocTable(Widget):
 
     def _get_iocs(self) -> None:
         iocs_df = self.get_services(self.all)
-        self.iocs = self._convert_df_to_list(iocs_df)
+        iocs = self._convert_df_to_list(iocs_df)
+        self.iocs = sorted(iocs, key=lambda d: d["name"])
         exclude = ["deployed", "image"]
 
         for i, ioc in enumerate(self.iocs):
@@ -164,7 +198,7 @@ class IocTable(Widget):
             table.remove_row(old_row_key)
 
         # Sort in alphabetical order using NAME column
-        table.sort("name", reverse=False)
+        # table.sort("name", reverse=False)
 
 
 class MonitorApp(App):
@@ -186,13 +220,15 @@ class MonitorApp(App):
         Binding("escape", "close_application", "Close Application"),
         Binding("up", "scroll_grid('up')", "Scroll Up"),
         Binding("down", "scroll_grid('down')", "Scroll Down"),
+        Binding("r", "restart_ioc", "Restart IOC"),
         # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
-        yield IocTable(self.get_services, self.all)
+        self.table = IocTable(self.get_services, self.all)
+        yield self.table
         yield Footer()
 
     def on_mount(self) -> None:
@@ -210,3 +246,19 @@ class MonitorApp(App):
         """Toggle pause on keypress"""
         table = self.query_one(DataTable)
         getattr(table, f"action_scroll_{direction}")()
+
+    def action_restart_ioc(self) -> None:
+        """Restart the IOC that is currently highlighted."""
+        table = self.get_widget_by_id("body_table")
+
+        assert isinstance(table, DataTable)
+        # Fetches hightlighted row ID (integer)
+        row = table.cursor_row
+        service_name = self.table.iocs[row]["name"]
+
+        def check_restart(restart: bool) -> None:
+            """Called when RestartScreen is dismissed."""
+            if restart:
+                pass
+
+        self.push_screen(RestartScreen(service_name), check_restart)
