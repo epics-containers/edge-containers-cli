@@ -242,5 +242,5 @@ class K8sCommands:
         print(services_df)
 
     def monitor(self, all: bool):
-        app = MonitorApp(self._get_services, all)
+        app = MonitorApp(self.namespace, self._get_services, all)
         app.run()

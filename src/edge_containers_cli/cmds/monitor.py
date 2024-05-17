@@ -170,9 +170,9 @@ class IocTable(Widget):
 class MonitorApp(App):
     def __init__(
         self,
+        beamline: str,
         gs: Callable[[bool], Union[polars.DataFrame, list]],
         all: bool,
-        beamline: str = "BL01T",
     ) -> None:
         super().__init__()
 
