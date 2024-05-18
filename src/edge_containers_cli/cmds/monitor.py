@@ -1,15 +1,14 @@
 """TUI monitor for containerised IOCs."""
 
-import asyncio
 from functools import total_ordering
 from threading import Thread
 from time import sleep
 from typing import Any, Union, cast
 
 import polars
-from edge_containers_cli.cmds.commands import Commands
 from rich.style import Style
 from rich.text import Text
+
 # from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -19,6 +18,8 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Button, DataTable, Footer, Header, Label
 from textual.widgets.data_table import RowKey
+
+from edge_containers_cli.cmds.commands import Commands
 
 # @on(Button.Pressed, "#startstop")
 # def startstop(self, event: Button.Pressed) -> None:
@@ -116,7 +117,7 @@ class IocTable(Widget):
             # ioc list data table update loop
             print()
             self.iocs_df = self.commands.get_services(self.all)
-            sleep(.5)
+            sleep(0.5)
 
     def stop(self):
         self._polling = False
