@@ -15,7 +15,6 @@ import tempfile
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Optional
 
 import polars
 import requests
@@ -43,7 +42,7 @@ class LocalCommands(Commands):
 
     def __init__(
         self,
-        ctx: Optional[globals.Context],
+        ctx: globals.Context,
         with_docker: bool = True,
     ):
         self.tmp = Path(tempfile.mkdtemp())
@@ -109,7 +108,7 @@ class LocalCommands(Commands):
             )
             raise typer.Exit(1)
 
-    def deploy_local(self, ioc_instance: Path, yes: bool, args: str):
+    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
         """
         Use a local copy of an ioc instance definition to deploy a temporary
         version of the IOC to the local docker instance
@@ -118,11 +117,11 @@ class LocalCommands(Commands):
         if not yes:
             typer.echo(
                 f"Deploy TEMPORARY version {version} "
-                f"from {ioc_instance} to the local docker instance"
+                f"from {svc_instance} to the local docker instance"
             )
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
-        self._do_deploy(ioc_instance, version, args)
+        self._do_deploy(svc_instance, version, args)
 
     def deploy(self, service_name: str, version: str, args: str):
         """
@@ -154,7 +153,7 @@ class LocalCommands(Commands):
     def stop(self, service_name: str):
         shell.run_command(f"{self.docker.docker} stop {service_name}")
 
-    def get_services(self, all: bool) -> list:
+    def get_services(self, all: bool) -> polars.DataFrame:
         all_arg = " --all" if all else ""
 
         # List services
@@ -200,10 +199,10 @@ class LocalCommands(Commands):
                 }
             )
         log.debug(select_data)
-        return select_data
+        return polars.DataFrame(select_data)
 
     def ps(self, all: bool, wide: bool):
-        select_data = self._get_services(all)
+        select_data = self.get_services(all)
         services_df = polars.DataFrame(select_data)
         if not wide:
             services_df.drop_in_place("image")

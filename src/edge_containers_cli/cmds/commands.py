@@ -33,7 +33,7 @@ class Commands:
     def template(self, svc_instance: Path, args: str):
         raise NotImplementedError
 
-    def deploy_local(self, service_name):
+    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
         raise NotImplementedError
 
     def deploy(self, service_name: str, version: str, args: str):
@@ -54,15 +54,14 @@ class Commands:
     def stop(self, service_name: str):
         raise NotImplementedError
 
-    def get_services(self, all: bool) -> list:
+    def get_services(self, all: bool) -> polars.DataFrame:
         raise NotImplementedError
 
     def ps(self, all: bool, wide: bool):
         select_data = self.get_services(all)
-        services_df = polars.DataFrame(select_data)
         if not wide:
-            services_df.drop_in_place("image")
-        print(services_df)
+            select_data.drop_in_place("image")
+        print(select_data)
 
     def environment(self, verbose: bool):
         """
@@ -73,7 +72,6 @@ class Commands:
         if ns == globals.LOCAL_NAMESPACE:
             typer.echo("ioc commands deploy to the local docker/podman instance")
         else:
-            self._check_namespace(ns)
             typer.echo(f"ioc commands deploy to the {ns} namespace the K8S cluster")
 
         typer.echo("\nEC environment variables:")

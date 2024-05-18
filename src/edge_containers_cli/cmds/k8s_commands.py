@@ -66,7 +66,7 @@ class K8sCommands(Commands):
 
     def __init__(
         self,
-        ctx: Optional[globals.Context],
+        ctx: globals.Context,
         # check: bool = True,
     ):
         super().__init__(ctx)
@@ -217,7 +217,7 @@ class K8sCommands(Commands):
 
     def ps(self, all: bool, wide: bool):
         """List all IOCs and Services in the current namespace"""
-        services_df = self._get_services(all)
+        services_df = self.get_services(all)
         if not wide:
             services_df.drop_in_place("image")
             log.debug(services_df)
