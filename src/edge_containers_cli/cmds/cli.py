@@ -1,4 +1,5 @@
 import tempfile
+from functools import wraps
 from pathlib import Path
 
 import polars
@@ -15,16 +16,26 @@ from edge_containers_cli.autocomplete import (
 )
 from edge_containers_cli.cmds.k8s_commands import K8sCommands
 from edge_containers_cli.cmds.local_commands import LocalCommands
+from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.git import create_version_map
 from edge_containers_cli.logging import log
 from edge_containers_cli.utils import cleanup_temp, drop_path
 
-cli = typer.Typer(pretty_exceptions_show_locals=False)
+
+class ErrorHandlingTyper(typer.Typer):
+    def __call__(self, *args, **kwargs):
+        try:
+            super().__call__(*args, **kwargs)
+        except NotImplementedError:
+            typer.echo("This function is not available for the current namespace")
+
+
+cli = ErrorHandlingTyper(pretty_exceptions_show_locals=False)
 
 
 def commands(ctx):
     """
-    Construct the appropriate commands class for the local or K8S namespace
+    Construct the appropriate Commands class for the local or K8S namespace
     """
     if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
         commands = LocalCommands(ctx.obj)
@@ -56,7 +67,9 @@ def monitor(
     ),
 ):
     """Open IOC monitor TUI."""
-    commands(ctx).monitor(all)
+    cmds = commands(ctx)
+    app = MonitorApp(cmds, all)
+    app.run()
 
 
 @cli.command()
@@ -67,7 +80,7 @@ def env(
     ),
 ):
     """List all relevant environment variables"""
-    LocalCommands(ctx.obj).environment(verbose == verbose)
+    commands(ctx).environment(verbose == verbose)
 
 
 @cli.command()
@@ -113,8 +126,7 @@ def template(
     print out the helm template generated from a local service instance
     """
     args = f"{args} --debug"
-    # always try to do helm template on a service regardless of namespace
-    K8sCommands(ctx.obj)(ctx).template(svc_instance, args)
+    commands(ctx).template(svc_instance, args)
 
 
 @cli.command()
@@ -211,14 +223,12 @@ def exec(
     ),
 ):
     """Execute a bash prompt in a running container"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).exec()
-    else:
-        K8sCommands(ctx.obj, service_name).exec()
+    commands(ctx).exec(service_name)
 
 
 @cli.command()
 def log_history(
+    ctx: typer.Context,
     service_name: str = typer.Argument(
         ...,
         help="Name of the IOC/service to inspect",
@@ -226,7 +236,7 @@ def log_history(
     ),
 ):
     """Open historical logs for an IOC/service"""
-    K8sCommands(None, service_name).log_history()
+    commands(ctx).log_history(service_name)
 
 
 @cli.command()
@@ -244,10 +254,7 @@ def logs(
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow the log stream"),
 ):
     """Show logs for current and previous instances of an IOC/service"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).logs(prev, follow)
-    else:
-        K8sCommands(ctx.obj, service_name).logs(prev, follow)
+    commands(ctx).logs(service_name, prev, follow)
 
 
 @cli.command()
@@ -258,10 +265,7 @@ def restart(
     ),
 ):
     """Restart an IOC/service"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).restart()
-    else:
-        K8sCommands(ctx.obj, service_name).restart()
+    commands(ctx).restart(service_name)
 
 
 @cli.command()
@@ -273,10 +277,7 @@ def start(
 ):
     """Start an IOC/service"""
     log.debug("Starting IOC/service with LOCAL={ctx.obj.namespace == " "}")
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).start()
-    else:
-        K8sCommands(ctx.obj, service_name).start()
+    commands(ctx).start(service_name)
 
 
 @cli.command()
@@ -289,10 +290,7 @@ def stop(
     ),
 ):
     """Stop an IOC/service"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).stop()
-    else:
-        K8sCommands(ctx.obj, service_name).stop()
+    commands(ctx).stop(service_name)
 
 
 @cli.command()

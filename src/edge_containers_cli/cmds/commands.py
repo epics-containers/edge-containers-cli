@@ -58,19 +58,12 @@ class Commands:
     def get_services(self, all: bool) -> list:
         raise NotImplementedError
 
-    def _check_namespace(ns):
-        raise NotImplementedError
-
     def ps(self, all: bool, wide: bool):
         select_data = self.get_services(all)
         services_df = polars.DataFrame(select_data)
         if not wide:
             services_df.drop_in_place("image")
         print(services_df)
-
-    def monitor(self, all: bool):
-        app = MonitorApp(self, all)
-        app.run()
 
     def environment(self, verbose: bool):
         """
@@ -87,10 +80,10 @@ class Commands:
         typer.echo("\nEC environment variables:")
         shell.run_command("env | grep '^EC_'", interactive=False, show=True)
 
-    def log_history(self):
+    def log_history(self, service_name):
         if not globals.EC_LOG_URL:
             log.error("EC_LOG_URL environment not set")
             raise typer.Exit(1)
 
-        url = globals.EC_LOG_URL.format(service_name=self.service_name)
+        url = globals.EC_LOG_URL.format(service_name=service_name)
         webbrowser.open(url)
