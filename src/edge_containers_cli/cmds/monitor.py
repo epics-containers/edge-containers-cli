@@ -2,12 +2,14 @@
 
 import asyncio
 from functools import total_ordering
+from threading import Thread
+from time import sleep
 from typing import Any, Union, cast
 
 import polars
+from edge_containers_cli.cmds.commands import Commands
 from rich.style import Style
 from rich.text import Text
-
 # from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -17,8 +19,6 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Button, DataTable, Footer, Header, Label
 from textual.widgets.data_table import RowKey
-
-from edge_containers_cli.cmds.commands import Commands
 
 # @on(Button.Pressed, "#startstop")
 # def startstop(self, event: Button.Pressed) -> None:
@@ -106,17 +106,26 @@ class IocTable(Widget):
         self.all = all
         self.iocs_df = self.commands.get_services(self.all)
 
-        asyncio.create_task(self._poll_services())
+        self._polling = True
+        self._poll_thread = Thread(target=self._poll_services)
+        self._poll_thread.start()
         self._get_iocs()
 
-    async def _poll_services(self):
-        while True:
-            # ioc list data table update loop at 1Hz
+    def _poll_services(self):
+        while self._polling:
+            # ioc list data table update loop
+            print()
             self.iocs_df = self.commands.get_services(self.all)
-            await asyncio.sleep(1)
+            sleep(.5)
+
+    def stop(self):
+        self._polling = False
+        self._poll_thread.join()
 
     def _get_iocs(self) -> None:
         iocs = self._convert_df_to_list(self.iocs_df)
+        # give up the GIL to other threads
+        sleep(0)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
         exclude = ["deployed", "image"]
 
@@ -250,6 +259,7 @@ class MonitorApp(App):
 
     def action_close_application(self) -> None:
         """Provide another way of exiting the app along with CTRL+C."""
+        self.table.stop()
         self.exit()
 
     def action_scroll_grid(self, direction: str) -> None:
