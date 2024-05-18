@@ -149,7 +149,7 @@ class K8sCommands(Commands):
         """Stop an IOC"""
         shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=0 ")
 
-    def _get_services(self, all: bool) -> polars.DataFrame:
+    def get_services(self, all: bool) -> polars.DataFrame:
         services_df = polars.DataFrame()
 
         # Gives all services (running & not running) and their image

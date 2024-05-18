@@ -1,5 +1,4 @@
 import tempfile
-from functools import wraps
 from pathlib import Path
 
 import polars
@@ -18,6 +17,7 @@ from edge_containers_cli.cmds.k8s_commands import K8sCommands
 from edge_containers_cli.cmds.local_commands import LocalCommands
 from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.git import create_version_map
+from edge_containers_cli.globals import EC_K8S_NAMESPACE
 from edge_containers_cli.logging import log
 from edge_containers_cli.utils import cleanup_temp, drop_path
 
@@ -68,7 +68,7 @@ def monitor(
 ):
     """Open IOC monitor TUI."""
     cmds = commands(ctx)
-    app = MonitorApp(cmds, all)
+    app = MonitorApp(EC_K8S_NAMESPACE, cmds, all)
     app.run()
 
 

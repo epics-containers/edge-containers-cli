@@ -1,7 +1,7 @@
 """TUI monitor for containerised IOCs."""
 
 from functools import total_ordering
-from typing import Any, Callable, Union, cast
+from typing import Any, Union, cast
 
 import polars
 from rich.style import Style
@@ -16,6 +16,8 @@ from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Button, DataTable, Footer, Header, Label
 from textual.widgets.data_table import RowKey
+
+from edge_containers_cli.cmds.commands import Commands
 
 # @on(Button.Pressed, "#startstop")
 # def startstop(self, event: Button.Pressed) -> None:
@@ -96,16 +98,16 @@ class SortableText(Text):
 class IocTable(Widget):
     """Widget to display the IOC table."""
 
-    def __init__(self, gs, all) -> None:
+    def __init__(self, commands, all) -> None:
         super().__init__()
 
-        self.get_services = gs
+        self.commands = commands
         self.all = all
 
         self._get_iocs()
 
     def _get_iocs(self) -> None:
-        iocs_df = self.get_services(self.all)
+        iocs_df = self.commands.get_services(self.all)
         iocs = self._convert_df_to_list(iocs_df)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
         exclude = ["deployed", "image"]
@@ -205,12 +207,12 @@ class MonitorApp(App):
     def __init__(
         self,
         beamline: str,
-        gs: Callable[[bool], Union[polars.DataFrame, list]],
+        commands: Commands,
         all: bool,
     ) -> None:
         super().__init__()
 
-        self.get_services = gs
+        self.commands = commands
         self.all = all
         self.beamline = beamline
 
@@ -227,7 +229,7 @@ class MonitorApp(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
-        self.table = IocTable(self.get_services, self.all)
+        self.table = IocTable(self.commands, self.all)
         yield self.table
         yield Footer()
 
@@ -259,6 +261,6 @@ class MonitorApp(App):
         def check_restart(restart: bool) -> None:
             """Called when RestartScreen is dismissed."""
             if restart:
-                pass
+                self.commands.restart(service_name)
 
         self.push_screen(RestartScreen(service_name), check_restart)

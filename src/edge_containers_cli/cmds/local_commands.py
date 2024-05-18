@@ -24,7 +24,6 @@ import typer
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
 from edge_containers_cli.cmds.commands import Commands
-from edge_containers_cli.cmds.k8s_commands import check_namespace
 from edge_containers_cli.docker import Docker
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import check_services_repo
@@ -155,7 +154,7 @@ class LocalCommands(Commands):
     def stop(self, service_name: str):
         shell.run_command(f"{self.docker.docker} stop {service_name}")
 
-    def _get_services(self, all: bool) -> list:
+    def get_services(self, all: bool) -> list:
         all_arg = " --all" if all else ""
 
         # List services
