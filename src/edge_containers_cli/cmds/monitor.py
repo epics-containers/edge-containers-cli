@@ -1,5 +1,6 @@
 """TUI monitor for containerised IOCs."""
 
+import asyncio
 from functools import total_ordering
 from typing import Any, Union, cast
 
@@ -103,12 +104,19 @@ class IocTable(Widget):
 
         self.commands = commands
         self.all = all
+        self.iocs_df = self.commands.get_services(self.all)
 
+        asyncio.create_task(self._poll_services())
         self._get_iocs()
 
+    async def _poll_services(self):
+        while True:
+            # ioc list data table update loop at 1Hz
+            self.iocs_df = self.commands.get_services(self.all)
+            await asyncio.sleep(1)
+
     def _get_iocs(self) -> None:
-        iocs_df = self.commands.get_services(self.all)
-        iocs = self._convert_df_to_list(iocs_df)
+        iocs = self._convert_df_to_list(self.iocs_df)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
         exclude = ["deployed", "image"]
 
