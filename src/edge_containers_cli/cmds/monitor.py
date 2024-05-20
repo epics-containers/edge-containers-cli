@@ -33,35 +33,62 @@ from edge_containers_cli.cmds.commands import Commands
 #     pass
 
 
-class RestartScreen(ModalScreen[bool]):
-    """Screen with dialog to restart service."""
-
+class OptionScreen(ModalScreen[bool]):
     def __init__(self, service_name: str) -> None:
         super().__init__()
 
         self.service_name = service_name
+        self.type_action = "stop"
 
     def compose(self) -> ComposeResult:
         yield Grid(
             Label(
-                f"Are you sure you want to restart {self.service_name}?", id="question"
+                f"Are you sure you want to {self.type_action} {self.service_name}?",
+                id="question",
             ),
-            Button("Yes", variant="error", id="restart"),
+            Button("Yes", variant="error", id="yes"),
             Button("No", variant="primary", id="cancel"),
             id="dialog",
         )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "restart":
-            self.action_restart_ioc()
+        if event.button.id == "yes":
+            self.action_option_yes()
         else:
-            self.action_cancel_restart()
+            self.action_option_cancel()
 
-    def action_restart_ioc(self) -> None:
+    def action_option_yes(self) -> None:
         self.dismiss(True)
 
-    def action_cancel_restart(self) -> None:
+    def action_option_cancel(self) -> None:
         self.dismiss(False)
+
+
+class StartScreen(OptionScreen):
+    """Screen with dialog to start service."""
+
+    def __init__(self, service_name: str) -> None:
+        super().__init__(service_name)
+
+        self.type_action = "start"
+
+
+class StopScreen(OptionScreen):
+    """Screen with dialog to stop service."""
+
+    def __init__(self, service_name: str) -> None:
+        super().__init__(service_name)
+
+        self.type_action = "stop"
+
+
+class RestartScreen(OptionScreen):
+    """Screen with dialog to restart service."""
+
+    def __init__(self, service_name: str) -> None:
+        super().__init__(service_name)
+
+        self.type_action = "restart"
 
 
 @total_ordering
@@ -270,6 +297,8 @@ class MonitorApp(App):
         Binding("escape", "close_application", "Exit"),
         Binding("up", "scroll_grid('up')", "Scroll Up"),
         Binding("down", "scroll_grid('down')", "Scroll Down"),
+        Binding("s", "start_ioc", "Start IOC"),
+        Binding("t", "stop_ioc", "Stop IOC"),
         Binding("r", "restart_ioc", "Restart IOC"),
         Binding("n", "sort('name')", "Sort: Name"),
         Binding("v", "sort('version')", "Sort: Version"),
@@ -302,8 +331,7 @@ class MonitorApp(App):
         table = self.query_one(DataTable)
         getattr(table, f"action_scroll_{direction}")()
 
-    def action_restart_ioc(self) -> None:
-        """Restart the IOC that is currently highlighted."""
+    def _get_service_name(self) -> str:
         table = self.get_widget_by_id("body_table")
 
         assert isinstance(table, DataTable)
@@ -312,6 +340,34 @@ class MonitorApp(App):
         ioc_row = table.ordered_rows[row]
         ioc_col = table.ordered_columns[0]
         service_name = table.get_cell(ioc_row.key, ioc_col.key)
+
+        return service_name
+
+    def action_start_ioc(self) -> None:
+        """Start the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
+
+        def check_start(restart: bool) -> None:
+            """Called when StartScreen is dismissed."""
+            if restart:
+                self.commands.start(service_name)
+
+        self.push_screen(StartScreen(service_name), check_start)
+
+    def action_stop_ioc(self) -> None:
+        """Stop the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
+
+        def check_stop(restart: bool) -> None:
+            """Called when StopScreen is dismissed."""
+            if restart:
+                self.commands.stop(service_name)
+
+        self.push_screen(StopScreen(service_name), check_stop)
+
+    def action_restart_ioc(self) -> None:
+        """Restart the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
 
         def check_restart(restart: bool) -> None:
             """Called when RestartScreen is dismissed."""
