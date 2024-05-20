@@ -275,7 +275,9 @@ class MonitorApp(App):
         assert isinstance(table, DataTable)
         # Fetches hightlighted row ID (integer)
         row = table.cursor_row
-        service_name = self.table.iocs[row]["name"]
+        ioc_row = table.ordered_rows[row]
+        ioc_col = table.ordered_columns[0]
+        service_name = table.get_cell(ioc_row.key, ioc_col.key)
 
         def check_restart(restart: bool) -> None:
             """Called when RestartScreen is dismissed."""
