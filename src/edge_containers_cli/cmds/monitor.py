@@ -14,6 +14,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Grid
+from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Button, DataTable, Footer, Header, Label
@@ -100,6 +101,10 @@ class SortableText(Text):
 class IocTable(Widget):
     """Widget to display the IOC table."""
 
+    default_sort_column_id = "name"
+    # init=False otherwise triggers table query before yielded in compose
+    sort_column_id = reactive(default_sort_column_id, init=False)
+
     def __init__(self, commands, all) -> None:
         super().__init__()
 
@@ -154,13 +159,26 @@ class IocTable(Widget):
 
         await self.populate_table()
 
+    def _get_heading(self, column_id: str):
+        sorted_style = Style(bold=True, underline=True)
+
+        if column_id == self.sort_column_id:
+            heading = Text(column_id, justify="center", style=sorted_style)
+        else:
+            heading = Text(column_id, justify="center").on(
+                click=f"screen.sort('{column_id}')"
+            )
+
+        return heading
+
     def compose(self) -> ComposeResult:
         table: DataTable[Text] = DataTable(
             id="body_table", header_height=1, show_cursor=False, zebra_stripes=True
         )
         table.focus()
+
         for column_id in self.columns:
-            heading = Text(column_id, justify="center")
+            heading = self._get_heading(column_id)
             table.add_column(heading, key=str(column_id))
 
         # Set a size for the left column
@@ -170,6 +188,18 @@ class IocTable(Widget):
         table.cursor_type = "row"
 
         yield table
+
+    def watch_sort_column_id(self, sort_column_id: str) -> None:
+        """Called when the sort_column_id attribute changes."""
+        table = self.query_one("#body_table", DataTable)
+
+        # Reformat headings based on new sorted column
+        for i, _column in enumerate(self.columns):
+            table.ordered_columns[i].label = self._get_heading(_column)
+
+        sorted_col = self.columns.index(sort_column_id)
+
+        table.sort(table.ordered_columns[sorted_col].key, reverse=False)
 
     def _get_color(self, value: str) -> Color:
         if value == "True":
@@ -217,8 +247,8 @@ class IocTable(Widget):
         for old_row_key in iocs - new_iocs:
             table.remove_row(old_row_key)
 
-        # Sort in alphabetical order using NAME column
-        # table.sort("name", reverse=False)
+        # Sort by column
+        table.sort(self.sort_column_id, reverse=False)
 
 
 class MonitorApp(App):
@@ -237,10 +267,14 @@ class MonitorApp(App):
     CSS_PATH = "monitor.tcss"
 
     BINDINGS = [
-        Binding("escape", "close_application", "Close Application"),
+        Binding("escape", "close_application", "Exit"),
         Binding("up", "scroll_grid('up')", "Scroll Up"),
         Binding("down", "scroll_grid('down')", "Scroll Down"),
         Binding("r", "restart_ioc", "Restart IOC"),
+        Binding("n", "sort('name')", "Sort: Name"),
+        Binding("v", "sort('version')", "Sort: Version"),
+        Binding("u", "sort('running')", "Sort: Running"),
+        Binding("e", "sort('restarts')", "Sort: Restarts"),
         # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
 
@@ -285,3 +319,12 @@ class MonitorApp(App):
                 self.commands.restart(service_name)
 
         self.push_screen(RestartScreen(service_name), check_restart)
+
+    def action_sort(self, col_name: str) -> None:
+        """An action to sort the table rows based on a given column attribute."""
+        self.update_sort_key(col_name)
+
+    def update_sort_key(self, col_name: str) -> None:
+        """Method called to update the table sort key attribute."""
+        table = self.query_one(IocTable)
+        table.sort_column_id = col_name
