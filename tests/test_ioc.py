@@ -62,7 +62,7 @@ def test_exec(mock_run, ioc):
 
 
 def test_log_history(mock_run, ioc):
-    mock_run.set_seq(ioc.log_history)
+    mock_run.set_seq(ioc.svc_check + ioc.log_history)
     mock_run.run_cli("log-history bl01t-ea-test-01")
 
 

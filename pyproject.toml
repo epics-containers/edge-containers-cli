@@ -20,6 +20,7 @@ dependencies = [
     "ruamel.yaml",
     "jinja2",
     "polars",
+    "textual",
 ]
 
 dynamic = ["version"]

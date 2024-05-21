@@ -15,11 +15,34 @@ from edge_containers_cli.autocomplete import (
 )
 from edge_containers_cli.cmds.k8s_commands import K8sCommands
 from edge_containers_cli.cmds.local_commands import LocalCommands
+from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.git import create_version_map
+from edge_containers_cli.globals import EC_K8S_NAMESPACE
 from edge_containers_cli.logging import log
 from edge_containers_cli.utils import cleanup_temp, drop_path
 
-cli = typer.Typer(pretty_exceptions_show_locals=False)
+
+class ErrorHandlingTyper(typer.Typer):
+    def __call__(self, *args, **kwargs):
+        try:
+            super().__call__(*args, **kwargs)
+        except NotImplementedError:
+            typer.echo("This function is not available for the current namespace")
+
+
+cli = ErrorHandlingTyper(pretty_exceptions_show_locals=False)
+
+
+def commands(ctx):
+    """
+    Construct the appropriate Commands class for the local or K8S namespace
+    """
+    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
+        commands = LocalCommands(ctx.obj)
+    else:
+        commands = K8sCommands(ctx.obj)
+
+    return commands
 
 
 @cli.command()
@@ -33,10 +56,20 @@ def ps(
     ),
 ):
     """List the IOCs/services running in the current namespace"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj).ps(all, wide)
-    else:
-        K8sCommands(ctx.obj).ps(all, wide)
+    commands(ctx).ps(all, wide)
+
+
+@cli.command()
+def monitor(
+    ctx: typer.Context,
+    all: bool = typer.Option(
+        False, "-a", "--all", help="list stopped IOCs/services as well as running ones"
+    ),
+):
+    """Open IOC monitor TUI."""
+    cmds = commands(ctx)
+    app = MonitorApp(EC_K8S_NAMESPACE, cmds, all)
+    app.run()
 
 
 @cli.command()
@@ -47,7 +80,7 @@ def env(
     ),
 ):
     """List all relevant environment variables"""
-    LocalCommands(ctx.obj).environment(verbose == verbose)
+    commands(ctx).environment(verbose == verbose)
 
 
 @cli.command()
@@ -60,10 +93,7 @@ def attach(
     """
     Attach to the console of a live service
     """
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).attach()
-    else:
-        K8sCommands(ctx.obj, service_name).attach()
+    commands(ctx).attach(service_name)
 
 
 @cli.command()
@@ -76,10 +106,7 @@ def delete(
     """
     Remove a helm deployment from the cluster
     """
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).delete()
-    else:
-        K8sCommands(ctx.obj, service_name).delete()
+    commands(ctx).delete(service_name)
 
 
 @cli.command()
@@ -99,10 +126,7 @@ def template(
     print out the helm template generated from a local service instance
     """
     args = f"{args} --debug"
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        typer.echo("Not applicable to local deployments")
-    else:
-        K8sCommands(ctx.obj).template(svc_instance, args)
+    commands(ctx).template(svc_instance, args)
 
 
 @cli.command()
@@ -123,11 +147,7 @@ def deploy_local(
     """
     Deploy a local IOC/service helm chart directly to the cluster with dated beta version
     """
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj).deploy_local(svc_instance, yes, args)
-    else:
-        args = args if not wait else args + " --wait"
-        K8sCommands(ctx.obj).deploy_local(svc_instance, yes, args)
+    commands(ctx).deploy_local(svc_instance, yes, args)
 
 
 @cli.command()
@@ -149,14 +169,9 @@ def deploy(
     """
     Pull an IOC/service helm chart version from the domain repo and deploy it to the cluster
     """
+    args = args if not wait else args + " --wait"
     service_name = drop_path(service_name)
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).deploy(service_name, version, args)
-    else:
-        args = args if not wait else args + " --wait"
-        K8sCommands(ctx.obj, service_name, check=False).deploy(
-            service_name, version, args
-        )
+    commands(ctx).deploy(service_name, version, args)
 
 
 @cli.command()
@@ -208,14 +223,12 @@ def exec(
     ),
 ):
     """Execute a bash prompt in a running container"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).exec()
-    else:
-        K8sCommands(ctx.obj, service_name).exec()
+    commands(ctx).exec(service_name)
 
 
 @cli.command()
 def log_history(
+    ctx: typer.Context,
     service_name: str = typer.Argument(
         ...,
         help="Name of the IOC/service to inspect",
@@ -223,7 +236,7 @@ def log_history(
     ),
 ):
     """Open historical logs for an IOC/service"""
-    K8sCommands(None, service_name).log_history()
+    commands(ctx).log_history(service_name)
 
 
 @cli.command()
@@ -241,10 +254,7 @@ def logs(
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow the log stream"),
 ):
     """Show logs for current and previous instances of an IOC/service"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).logs(prev, follow)
-    else:
-        K8sCommands(ctx.obj, service_name).logs(prev, follow)
+    commands(ctx).logs(service_name, prev, follow)
 
 
 @cli.command()
@@ -255,10 +265,7 @@ def restart(
     ),
 ):
     """Restart an IOC/service"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).restart()
-    else:
-        K8sCommands(ctx.obj, service_name).restart()
+    commands(ctx).restart(service_name)
 
 
 @cli.command()
@@ -270,10 +277,7 @@ def start(
 ):
     """Start an IOC/service"""
     log.debug("Starting IOC/service with LOCAL={ctx.obj.namespace == " "}")
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).start()
-    else:
-        K8sCommands(ctx.obj, service_name).start()
+    commands(ctx).start(service_name)
 
 
 @cli.command()
@@ -286,10 +290,7 @@ def stop(
     ),
 ):
     """Stop an IOC/service"""
-    if ctx.obj.namespace == globals.LOCAL_NAMESPACE:
-        LocalCommands(ctx.obj, service_name).stop()
-    else:
-        K8sCommands(ctx.obj, service_name).stop()
+    commands(ctx).stop(service_name)
 
 
 @cli.command()
