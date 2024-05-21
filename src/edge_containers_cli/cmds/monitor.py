@@ -295,8 +295,6 @@ class MonitorApp(App):
 
     BINDINGS = [
         Binding("escape", "close_application", "Exit"),
-        Binding("up", "scroll_grid('up')", "Scroll Up"),
-        Binding("down", "scroll_grid('down')", "Scroll Down"),
         Binding("s", "start_ioc", "Start IOC"),
         Binding("t", "stop_ioc", "Stop IOC"),
         Binding("r", "restart_ioc", "Restart IOC"),
@@ -326,10 +324,6 @@ class MonitorApp(App):
         self.table.stop()
         self.exit()
 
-    def action_scroll_grid(self, direction: str) -> None:
-        """Toggle pause on keypress"""
-        table = self.query_one(DataTable)
-        getattr(table, f"action_scroll_{direction}")()
 
     def _get_service_name(self) -> str:
         table = self.get_widget_by_id("body_table")
