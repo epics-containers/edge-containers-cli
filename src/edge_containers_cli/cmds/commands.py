@@ -42,7 +42,7 @@ class Commands:
     def exec(self, service_name: str):
         raise NotImplementedError
 
-    def logs(self, service_name: str, prev: bool, follow: bool):
+    def logs(self, service_name: str, prev: bool, follow: bool, stdout: bool):
         raise NotImplementedError
 
     def restart(self, service_name: str):

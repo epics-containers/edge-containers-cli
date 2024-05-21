@@ -141,8 +141,8 @@ class LocalCommands(Commands):
     def exec(self, service_name):
         self.docker.exec(service_name, "bash", args="-it")
 
-    def logs(self, service_name: str, prev: bool, follow: bool):
-        self.docker.logs(service_name, prev, follow)
+    def logs(self, service_name: str, prev: bool, follow: bool, stdout: bool = False):
+        self.docker.logs(service_name, prev, follow, stdout)
 
     def restart(self, service_name: str):
         shell.run_command(f"{self.docker.docker} restart {service_name}")

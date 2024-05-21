@@ -7,7 +7,7 @@ Relies on the Helm class for deployment aspects.
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import polars
 import typer
@@ -123,14 +123,25 @@ class K8sCommands(Commands):
         fullname = check_service(service_name, self.namespace)
         shell.run_command(f"kubectl -it -n {self.namespace} exec {fullname} -- bash")
 
-    def logs(self, service_name: str, prev: bool, follow: bool):
+    def logs(
+        self, service_name: str, prev: bool, follow: bool, stdout: bool = False
+    ) -> Optional[Union[str, bool]]:
         fullname = check_service(service_name, self.namespace)
         previous = "-p" if prev else ""
         fol = "-f" if follow else ""
 
-        shell.run_command(
-            f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}"
-        )
+        if stdout:
+            a = shell.run_command(
+                f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}",
+                interactive=False,
+                show=False,
+                error_OK=True,
+            )
+            return a
+        else:
+            shell.run_command(
+                f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}",
+            )
 
     def restart(self, service_name):
         check_service(service_name, self.namespace)

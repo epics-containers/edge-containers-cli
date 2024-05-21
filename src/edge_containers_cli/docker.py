@@ -5,6 +5,7 @@ Utility functions for working interacting with docker / podman CLI
 import re
 from pathlib import Path
 from time import sleep
+from typing import Optional, Union
 
 import typer
 
@@ -104,7 +105,13 @@ class Docker:
         # quitting the attach returns an error code so we have to ignore it
         shell.run_command(f"{self.docker} attach {container}", error_OK=True)
 
-    def logs(self, container: str, previous: bool = False, follow: bool = False):
+    def logs(
+        self,
+        container: str,
+        previous: bool = False,
+        follow: bool = False,
+        stdout: bool = False,
+    ) -> Optional[Union[str, bool]]:
         """
         show logs from a container
         """
@@ -112,7 +119,16 @@ class Docker:
         prev = " -p" if previous else ""
         fol = " -f" if follow else ""
 
-        shell.run_command(f"{self.docker} logs{prev}{fol} {container}")
+        if stdout:
+            a = shell.run_command(
+                f"{self.docker} logs{prev}{fol} {container}",
+                interactive=False,
+                show=False,
+                error_OK=True,
+            )
+            return a
+        else:
+            shell.run_command(f"{self.docker} logs{prev}{fol} {container}")
 
     def is_running(self, container: str, retry=1, error=False):
         """

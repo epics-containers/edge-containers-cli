@@ -3,13 +3,15 @@
 from functools import total_ordering
 from threading import Thread
 from time import sleep
-from typing import Any, Union, cast
+from typing import Any, Callable, Union, cast
 
 import polars
 from rich.style import Style
+from rich.syntax import Syntax
 from rich.text import Text
 
 # from textual import on
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
@@ -17,20 +19,10 @@ from textual.containers import Grid
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Button, DataTable, Footer, Header, Label
+from textual.widgets import Button, DataTable, Footer, Header, Label, RichLog
 from textual.widgets.data_table import RowKey
 
 from edge_containers_cli.cmds.commands import Commands
-
-# @on(Button.Pressed, "#startstop")
-# def startstop(self, event: Button.Pressed) -> None:
-#     """Event handler called when a button is pressed."""
-#     pass
-
-# @on(Button.Pressed, "#logs")
-# def logs(self, event: Button.Pressed) -> None:
-#     """Event handler called when a button is pressed."""
-#     pass
 
 
 class OptionScreen(ModalScreen[bool]):
@@ -91,6 +83,38 @@ class RestartScreen(OptionScreen):
         self.type_action = "restart"
 
 
+class LogsScreen(ModalScreen):
+    """Screen to display IOC logs."""
+
+    def __init__(self, fetch_log: Callable, service_name) -> None:
+        super().__init__()
+
+        self.fetch_log = fetch_log
+        self.service_name = service_name
+        self.log_text = ""
+
+    def compose(self) -> ComposeResult:
+        yield RichLog(highlight=True, id="log")
+        yield Button("Close", id="close")
+
+    def on_mount(self) -> None:
+        log = self.query_one(RichLog)
+        log.loading = True
+        self.load_logs(log)
+
+    @work
+    async def load_logs(self, log: RichLog) -> None:
+        self.log_text = self.fetch_log(
+            self.service_name, prev=False, follow=False, stdout=True
+        )
+        log.loading = False
+        log.write(Syntax(self.log_text, "bash", line_numbers=True), scroll_end=True)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "close":
+            self.app.pop_screen()
+
+
 @total_ordering
 class SortableText(Text):
     __slots__ = ("value",)
@@ -132,12 +156,12 @@ class IocTable(Widget):
     # init=False otherwise triggers table query before yielded in compose
     sort_column_id = reactive(default_sort_column_id, init=False)
 
-    def __init__(self, commands, all) -> None:
+    def __init__(self, commands, running_only: bool) -> None:
         super().__init__()
 
         self.commands = commands
-        self.all = all
-        self.iocs_df = self.commands.get_services(self.all)
+        self.running_only = running_only
+        self.iocs_df = self.commands.get_services(self.running_only)
 
         self._polling = True
         self._poll_thread = Thread(target=self._poll_services)
@@ -148,7 +172,7 @@ class IocTable(Widget):
         while self._polling:
             # ioc list data table update loop
             print()
-            self.iocs_df = self.commands.get_services(self.all)
+            self.iocs_df = self.commands.get_services(self.running_only)
             sleep(2.0)
 
     def stop(self):
@@ -284,12 +308,12 @@ class MonitorApp(App):
         self,
         beamline: str,
         commands: Commands,
-        all: bool,
+        running_only: bool,
     ) -> None:
         super().__init__()
 
         self.commands = commands
-        self.all = all
+        self.running_only = running_only
         self.beamline = beamline
 
     CSS_PATH = "monitor.tcss"
@@ -299,6 +323,7 @@ class MonitorApp(App):
         Binding("s", "start_ioc", "Start IOC"),
         Binding("t", "stop_ioc", "Stop IOC"),
         Binding("r", "restart_ioc", "Restart IOC"),
+        Binding("l", "ioc_logs", "IOC Logs"),
         Binding("o", "sort", "Sort"),
         # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
@@ -306,7 +331,7 @@ class MonitorApp(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
-        self.table = IocTable(self.commands, self.all)
+        self.table = IocTable(self.commands, self.running_only)
         yield self.table
         yield Footer()
 
@@ -371,6 +396,14 @@ class MonitorApp(App):
                 self.commands.restart(service_name)
 
         self.push_screen(RestartScreen(service_name), check_restart)
+
+    def action_ioc_logs(self) -> None:
+        """Display the logs of the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
+
+        command = self.commands.logs
+
+        self.push_screen(LogsScreen(command, service_name))
 
     def action_sort(self, col_name: str = "") -> None:
         """An action to sort the table rows by column heading."""
