@@ -192,6 +192,7 @@ class IocTable(Widget):
         if column_id == self.sort_column_id:
             heading = Text(column_id, justify="center", style=sorted_style)
         else:
+            # screen.sort() is referring to the screen action function
             heading = Text(column_id, justify="center").on(
                 click=f"screen.sort('{column_id}')"
             )
@@ -298,10 +299,7 @@ class MonitorApp(App):
         Binding("s", "start_ioc", "Start IOC"),
         Binding("t", "stop_ioc", "Stop IOC"),
         Binding("r", "restart_ioc", "Restart IOC"),
-        Binding("n", "sort('name')", "Sort: Name"),
-        Binding("v", "sort('version')", "Sort: Version"),
-        Binding("u", "sort('running')", "Sort: Running"),
-        Binding("e", "sort('restarts')", "Sort: Restarts"),
+        Binding("o", "sort", "Sort"),
         # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
 
@@ -374,9 +372,21 @@ class MonitorApp(App):
 
         self.push_screen(RestartScreen(service_name), check_restart)
 
-    def action_sort(self, col_name: str) -> None:
-        """An action to sort the table rows based on a given column attribute."""
-        self.update_sort_key(col_name)
+    def action_sort(self, col_name: str = "") -> None:
+        """An action to sort the table rows by column heading."""
+        if col_name != "":
+            # If col_name is provided, sort by that column
+            # e.g. if a column heading is clicked
+            new_col = col_name
+        else:
+            # If no column name is provided (e.g. by pressing the key bind),
+            # then just cycle to the next column
+            table = self.query_one(IocTable)
+            col_name = table.sort_column_id
+            cols = table.columns
+            col_index = cols.index(col_name)
+            new_col = cols[0 if col_index + 1 > 3 else col_index + 1]
+        self.update_sort_key(new_col)
 
     def update_sort_key(self, col_name: str) -> None:
         """Method called to update the table sort key attribute."""
