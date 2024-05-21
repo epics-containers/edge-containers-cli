@@ -315,13 +315,17 @@ class MonitorApp(App):
     def on_mount(self) -> None:
         self.title = f"{self.beamline} IOC Monitor"
 
+    def on_unmount(self) -> None:
+        """Executes when the app is closed."""
+        # Makes sure the thread is stopped even if the App crashes
+        self.table.stop()
+
     # def action_toggle_dark(self) -> None:
     #     """An action to toggle dark mode."""
     #     self.dark = not self.dark
 
     def action_close_application(self) -> None:
         """Provide another way of exiting the app along with CTRL+C."""
-        self.table.stop()
         self.exit()
 
 
