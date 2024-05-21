@@ -149,7 +149,7 @@ class IocTable(Widget):
             # ioc list data table update loop
             print()
             self.iocs_df = self.commands.get_services(self.all)
-            sleep(0.5)
+            sleep(2.0)
 
     def stop(self):
         self._polling = False
@@ -177,7 +177,7 @@ class IocTable(Widget):
 
     def on_mount(self) -> None:
         """Provides a loop after generating the app for updating the data."""
-        self.set_interval(1, self.update_iocs)
+        self.set_interval(1.0, self.update_iocs)
 
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
