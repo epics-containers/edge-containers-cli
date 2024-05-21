@@ -4,6 +4,10 @@ checks:
   - cmd: kubectl get statefulset -o name -n bl01t bl01t-ea-test-01 --ignore-not-found
     rsp: statefulset/bl01t-ea-test-01
 
+svc_check:
+  - cmd: kubectl get namespace bl01t -o name
+    rsp: namespace/bl01t
+
 attach:
   - cmd: kubectl -it -n bl01t attach statefulset/bl01t-ea-test-01
     rsp: True
@@ -66,8 +70,7 @@ exec2:
     rsp: True
 
 log_history:
-  - cmd:
-      "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message\
+  - cmd: "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message\
       %2Csource&width=1489&highlightMessage=&relative=172800&q=pod_name%3A\
       bl01t-ea-test-01*"
     rsp: True
