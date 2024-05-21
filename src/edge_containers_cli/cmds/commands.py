@@ -54,11 +54,11 @@ class Commands:
     def stop(self, service_name: str):
         raise NotImplementedError
 
-    def get_services(self, all: bool) -> polars.DataFrame:
+    def get_services(self, running_only: bool) -> polars.DataFrame:
         raise NotImplementedError
 
-    def ps(self, all: bool, wide: bool):
-        select_data = self.get_services(all)
+    def ps(self, running_only: bool, wide: bool):
+        select_data = self.get_services(running_only)
         if not wide:
             select_data.drop_in_place("image")
         print(select_data)

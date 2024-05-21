@@ -149,7 +149,7 @@ class K8sCommands(Commands):
         """Stop an IOC"""
         shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=0 ")
 
-    def get_services(self, all: bool) -> polars.DataFrame:
+    def get_services(self, running_only: bool) -> polars.DataFrame:
         services_df = polars.DataFrame()
 
         # Gives all services (running & not running) and their image
@@ -188,7 +188,7 @@ class K8sCommands(Commands):
                 polars.col("running").replace({"Running": True}, default=False),
                 polars.col("restarts").fill_null(0),
             )
-        elif all:
+        elif not running_only:
             services_df = services_df.with_columns(
                 running=polars.lit(False), restarts=polars.lit(0)
             )
@@ -210,14 +210,14 @@ class K8sCommands(Commands):
         services_df = services_df.select(
             ["name", "version", "running", "restarts", "deployed", "image"]
         )
-        if not all:
+        if running_only:
             services_df = services_df.filter(polars.col("running").eq(True))
             log.debug(services_df)
         return services_df
 
-    def ps(self, all: bool, wide: bool):
+    def ps(self, running_only: bool, wide: bool):
         """List all IOCs and Services in the current namespace"""
-        services_df = self.get_services(all)
+        services_df = self.get_services(running_only)
         if not wide:
             services_df.drop_in_place("image")
             log.debug(services_df)
