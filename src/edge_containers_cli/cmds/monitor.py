@@ -83,8 +83,19 @@ class RestartScreen(OptionScreen):
         self.type_action = "restart"
 
 
-class LogsScreen(ModalScreen):
+class LogsScreen(ModalScreen, inherit_bindings=False):
     """Screen to display IOC logs."""
+
+    BINDINGS = [
+        Binding("up,w,k", "scroll_up", "Scroll Up", show=False),
+        Binding("down,s,j", "scroll_down", "Scroll Down", show=False),
+        Binding("left,h", "scroll_left", "Scroll Left", show=False),
+        Binding("right,l", "scroll_right", "Scroll Right", show=False),
+        Binding("home,G", "scroll_home", "Scroll Home", show=False),
+        Binding("end,g", "scroll_end", "Scroll End", show=False),
+        Binding("pageup,b", "page_up", "Page Up", show=False),
+        Binding("pagedown,space", "page_down", "Page Down", show=False),
+    ]
 
     def __init__(self, fetch_log: Callable, service_name) -> None:
         super().__init__()
@@ -113,6 +124,30 @@ class LogsScreen(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close":
             self.app.pop_screen()
+
+    def action_scroll_up(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_up()
+
+    def action_scroll_down(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_down()
+
+    def action_scroll_home(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_home()
+
+    def action_scroll_end(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_end()
+
+    def action_page_down(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_page_down()
+
+    def action_page_up(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_page_up()
 
 
 @total_ordering
