@@ -122,11 +122,19 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
 
     @work
     async def load_logs(self, log: RichLog) -> None:
-        self.log_text = self.fetch_log(
+        self.log_text: str = self.fetch_log(
             self.service_name, prev=False, follow=False, stdout=True
         )
         log.loading = False
-        log.write(Syntax(self.log_text, "bash", line_numbers=True), scroll_end=True)
+        width = max(len(line) for line in self.log_text.split("\n"))
+        log.write(
+            Syntax(self.log_text, "bash", line_numbers=True),
+            width=width + 10,
+            expand=True,
+            shrink=False,
+            scroll_end=True,
+        )
+        log.focus()
 
     def action_close_screen(self) -> None:
         self.app.pop_screen()
