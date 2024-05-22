@@ -392,16 +392,19 @@ class MonitorApp(App):
         """Provide another way of exiting the app along with CTRL+C."""
         self.exit()
 
-    def _get_service_name(self) -> str:
+    def _get_highlighted_cell(self, col_key: str) -> str:
         table = self.get_widget_by_id("body_table")
-
         assert isinstance(table, DataTable)
         # Fetches hightlighted row ID (integer)
         row = table.cursor_row
         ioc_row = table.ordered_rows[row]
-        ioc_col = table.ordered_columns[0]
-        service_name = table.get_cell(ioc_row.key, ioc_col.key)
+        col_keys = [ord_col.key.value for ord_col in table.ordered_columns]
+        col_i = col_keys.index(col_key)
+        ioc_col = table.ordered_columns[col_i]
+        return table.get_cell(ioc_row.key, ioc_col.key)
 
+    def _get_service_name(self) -> str:
+        service_name = self._get_highlighted_cell("name")
         return service_name
 
     def action_start_ioc(self) -> None:
@@ -441,14 +444,8 @@ class MonitorApp(App):
         """Display the logs of the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        table = self.query_one(IocTable).query_one(DataTable)
-
-        row = table.cursor_row
-        ioc_row = table.ordered_rows[row]
-        # Assumes 'running' is always column 3
-        ioc_col = table.ordered_columns[2]
         # Has class SortableText so to fetch value use .value
-        running = table.get_cell(ioc_row.key, ioc_col.key).value
+        running = self._get_highlighted_cell("running").value
 
         if running:
             command = self.commands.logs
