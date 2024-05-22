@@ -110,11 +110,11 @@ stop:
     rsp: True
 
 ps:
-  - cmd: docker ps -q --filter label=is_IOC=true
+  - cmd: docker ps --all -q --filter label=is_IOC=true
     rsp: |
       0
       1
-  - cmd: docker inspect $(docker ps -q --filter label=is_IOC=true)
+  - cmd: docker inspect $(docker ps --all -q --filter label=is_IOC=true)
     rsp: >
       [
           {

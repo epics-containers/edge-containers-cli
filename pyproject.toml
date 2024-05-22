@@ -75,10 +75,14 @@ testpaths = "src tests"
 
 [tool.coverage.run]
 data_file = "/tmp/edge_containers_cli.coverage"
+omit = ["src/edge_containers_cli/cmds/monitor.py"]
 
 [tool.coverage.paths]
 # Tests are run from installed location, map back to the src directory
 source = ["src", "**/site-packages/"]
+
+[tool.coverage.report]
+omit = ["src/edge_containers_cli/cmds/monitor.py"]
 
 # tox must currently be configured via an embedded ini string
 # See: https://github.com/tox-dev/tox/issues/999

@@ -7,7 +7,7 @@ Relies on the Helm class for deployment aspects.
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import polars
 import typer
@@ -123,14 +123,25 @@ class K8sCommands(Commands):
         fullname = check_service(service_name, self.namespace)
         shell.run_command(f"kubectl -it -n {self.namespace} exec {fullname} -- bash")
 
-    def logs(self, service_name: str, prev: bool, follow: bool):
+    def logs(
+        self, service_name: str, prev: bool, follow: bool, stdout: bool = False
+    ) -> Optional[Union[str, bool]]:
         fullname = check_service(service_name, self.namespace)
         previous = "-p" if prev else ""
         fol = "-f" if follow else ""
 
-        shell.run_command(
-            f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}"
-        )
+        if stdout:
+            a = shell.run_command(
+                f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}",
+                interactive=False,
+                show=False,
+                error_OK=True,
+            )
+            return a
+        else:
+            shell.run_command(
+                f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}",
+            )
 
     def restart(self, service_name):
         check_service(service_name, self.namespace)
@@ -149,7 +160,7 @@ class K8sCommands(Commands):
         """Stop an IOC"""
         shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=0 ")
 
-    def get_services(self, all: bool) -> polars.DataFrame:
+    def get_services(self, running_only: bool) -> polars.DataFrame:
         services_df = polars.DataFrame()
 
         # Gives all services (running & not running) and their image
@@ -188,7 +199,7 @@ class K8sCommands(Commands):
                 polars.col("running").replace({"Running": True}, default=False),
                 polars.col("restarts").fill_null(0),
             )
-        elif all:
+        elif not running_only:
             services_df = services_df.with_columns(
                 running=polars.lit(False), restarts=polars.lit(0)
             )
@@ -210,14 +221,14 @@ class K8sCommands(Commands):
         services_df = services_df.select(
             ["name", "version", "running", "restarts", "deployed", "image"]
         )
-        if not all:
+        if running_only:
             services_df = services_df.filter(polars.col("running").eq(True))
             log.debug(services_df)
         return services_df
 
-    def ps(self, all: bool, wide: bool):
+    def ps(self, running_only: bool, wide: bool):
         """List all IOCs and Services in the current namespace"""
-        services_df = self.get_services(all)
+        services_df = self.get_services(running_only)
         if not wide:
             services_df.drop_in_place("image")
             log.debug(services_df)
