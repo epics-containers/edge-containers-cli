@@ -409,7 +409,9 @@ class MonitorApp(App):
         col_keys = [ord_col.key.value for ord_col in table.ordered_columns]
         col_i = col_keys.index(col_key)
         ioc_col = table.ordered_columns[col_i]
-        return table.get_cell(ioc_row.key, ioc_col.key)
+        cell: Union[str, SortableText] = table.get_cell(ioc_row.key, ioc_col.key)
+        # SortableText inherits __str__() from Text
+        return str(cell)
 
     def _get_service_name(self) -> str:
         service_name = self._get_highlighted_cell("name")
@@ -452,8 +454,8 @@ class MonitorApp(App):
         """Display the logs of the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        # Has class SortableText so to fetch value use .value
-        running = self._get_highlighted_cell("running").value
+        # Convert to corresponding bool
+        running = self._get_highlighted_cell("running") == "True"
 
         if running:
             command = self.commands.logs
