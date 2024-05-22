@@ -392,7 +392,6 @@ class MonitorApp(App):
         """Provide another way of exiting the app along with CTRL+C."""
         self.exit()
 
-
     def _get_service_name(self) -> str:
         table = self.get_widget_by_id("body_table")
 
