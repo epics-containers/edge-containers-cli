@@ -49,11 +49,3 @@ LogsScreen {
   height: auto;
   width: auto;
 }
-
-#close {
-  padding: 0;
-  margin: 0;
-  width: 5%;
-  height: auto;
-  align: right bottom;
-}

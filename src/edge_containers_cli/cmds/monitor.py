@@ -25,7 +25,12 @@ from textual.widgets.data_table import RowKey
 from edge_containers_cli.cmds.commands import Commands
 
 
-class OptionScreen(ModalScreen[bool]):
+class OptionScreen(ModalScreen[bool], inherit_bindings=False):
+    BINDINGS = [
+        Binding("y,enter", "option_yes", "Yes"),
+        Binding("n,c,escape", "option_cancel", "Cancel"),
+    ]
+
     def __init__(self, service_name: str) -> None:
         super().__init__()
 
@@ -42,6 +47,7 @@ class OptionScreen(ModalScreen[bool]):
             Button("No", variant="primary", id="cancel"),
             id="dialog",
         )
+        yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "yes":
@@ -87,6 +93,7 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
     """Screen to display IOC logs."""
 
     BINDINGS = [
+        Binding("q", "close_screen", "Close"),
         Binding("up,w,k", "scroll_up", "Scroll Up", show=False),
         Binding("down,s,j", "scroll_down", "Scroll Down", show=False),
         Binding("left,h", "scroll_left", "Scroll Left", show=False),
@@ -106,7 +113,7 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
 
     def compose(self) -> ComposeResult:
         yield RichLog(highlight=True, id="log")
-        yield Button("Close", id="close")
+        yield Footer()
 
     def on_mount(self) -> None:
         log = self.query_one(RichLog)
@@ -121,9 +128,8 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         log.loading = False
         log.write(Syntax(self.log_text, "bash", line_numbers=True), scroll_end=True)
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "close":
-            self.app.pop_screen()
+    def action_close_screen(self) -> None:
+        self.app.pop_screen()
 
     def action_scroll_up(self) -> None:
         log = self.query_one(RichLog)
