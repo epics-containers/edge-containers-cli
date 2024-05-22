@@ -48,27 +48,27 @@ def commands(ctx):
 @cli.command()
 def ps(
     ctx: typer.Context,
-    all: bool = typer.Option(
-        False, "-a", "--all", help="list stopped IOCs/services as well as running ones"
+    running_only: bool = typer.Option(
+        False, "-r", "--running-only", help="list only IOCs/services that are running"
     ),
     wide: bool = typer.Option(
         False, "--wide", "-w", help="use a wide format with additional fields"
     ),
 ):
     """List the IOCs/services running in the current namespace"""
-    commands(ctx).ps(all, wide)
+    commands(ctx).ps(running_only, wide)
 
 
 @cli.command()
 def monitor(
     ctx: typer.Context,
-    all: bool = typer.Option(
-        False, "-a", "--all", help="list stopped IOCs/services as well as running ones"
+    running_only: bool = typer.Option(
+        False, "-r", "--running-only", help="list only IOCs/services that are running"
     ),
 ):
     """Open IOC monitor TUI."""
     cmds = commands(ctx)
-    app = MonitorApp(EC_K8S_NAMESPACE, cmds, all)
+    app = MonitorApp(EC_K8S_NAMESPACE, cmds, running_only)
     app.run()
 
 

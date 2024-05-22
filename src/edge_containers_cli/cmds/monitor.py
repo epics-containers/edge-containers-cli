@@ -3,64 +3,165 @@
 from functools import total_ordering
 from threading import Thread
 from time import sleep
-from typing import Any, Union, cast
+from typing import Any, Callable, Union, cast
 
 import polars
 from rich.style import Style
+from rich.syntax import Syntax
 from rich.text import Text
 
 # from textual import on
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Grid
+from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Button, DataTable, Footer, Header, Label
+from textual.widgets import Button, DataTable, Footer, Header, Label, RichLog
 from textual.widgets.data_table import RowKey
 
 from edge_containers_cli.cmds.commands import Commands
 
-# @on(Button.Pressed, "#startstop")
-# def startstop(self, event: Button.Pressed) -> None:
-#     """Event handler called when a button is pressed."""
-#     pass
 
-# @on(Button.Pressed, "#logs")
-# def logs(self, event: Button.Pressed) -> None:
-#     """Event handler called when a button is pressed."""
-#     pass
-
-
-class RestartScreen(ModalScreen[bool]):
-    """Screen with dialog to restart service."""
+class OptionScreen(ModalScreen[bool], inherit_bindings=False):
+    BINDINGS = [
+        Binding("y,enter", "option_yes", "Yes"),
+        Binding("n,c,escape", "option_cancel", "Cancel"),
+    ]
 
     def __init__(self, service_name: str) -> None:
         super().__init__()
 
         self.service_name = service_name
+        self.type_action = "stop"
 
     def compose(self) -> ComposeResult:
         yield Grid(
             Label(
-                f"Are you sure you want to restart {self.service_name}?", id="question"
+                f"Are you sure you want to {self.type_action} {self.service_name}?",
+                id="question",
             ),
-            Button("Yes", variant="error", id="restart"),
+            Button("Yes", variant="error", id="yes"),
             Button("No", variant="primary", id="cancel"),
             id="dialog",
         )
+        yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "restart":
-            self.action_restart_ioc()
+        if event.button.id == "yes":
+            self.action_option_yes()
         else:
-            self.action_cancel_restart()
+            self.action_option_cancel()
 
-    def action_restart_ioc(self) -> None:
+    def action_option_yes(self) -> None:
         self.dismiss(True)
 
-    def action_cancel_restart(self) -> None:
+    def action_option_cancel(self) -> None:
         self.dismiss(False)
+
+
+class StartScreen(OptionScreen):
+    """Screen with dialog to start service."""
+
+    def __init__(self, service_name: str) -> None:
+        super().__init__(service_name)
+
+        self.type_action = "start"
+
+
+class StopScreen(OptionScreen):
+    """Screen with dialog to stop service."""
+
+    def __init__(self, service_name: str) -> None:
+        super().__init__(service_name)
+
+        self.type_action = "stop"
+
+
+class RestartScreen(OptionScreen):
+    """Screen with dialog to restart service."""
+
+    def __init__(self, service_name: str) -> None:
+        super().__init__(service_name)
+
+        self.type_action = "restart"
+
+
+class LogsScreen(ModalScreen, inherit_bindings=False):
+    """Screen to display IOC logs."""
+
+    BINDINGS = [
+        Binding("q", "close_screen", "Close"),
+        Binding("up,w,k", "scroll_up", "Scroll Up", show=False),
+        Binding("down,s,j", "scroll_down", "Scroll Down", show=False),
+        Binding("left,h", "scroll_left", "Scroll Left", show=False),
+        Binding("right,l", "scroll_right", "Scroll Right", show=False),
+        Binding("home,G", "scroll_home", "Scroll Home", show=False),
+        Binding("end,g", "scroll_end", "Scroll End", show=False),
+        Binding("pageup,b", "page_up", "Page Up", show=False),
+        Binding("pagedown,space", "page_down", "Page Down", show=False),
+    ]
+
+    def __init__(self, fetch_log: Callable, service_name) -> None:
+        super().__init__()
+
+        self.fetch_log = fetch_log
+        self.service_name = service_name
+        self.log_text = ""
+
+    def compose(self) -> ComposeResult:
+        yield RichLog(highlight=True, id="log")
+        yield Footer()
+
+    def on_mount(self) -> None:
+        log = self.query_one(RichLog)
+        log.loading = True
+        self.load_logs(log)
+
+    @work
+    async def load_logs(self, log: RichLog) -> None:
+        self.log_text: str = self.fetch_log(
+            self.service_name, prev=False, follow=False, stdout=True
+        )
+        log.loading = False
+        width = max(len(line) for line in self.log_text.split("\n"))
+        log.write(
+            Syntax(self.log_text, "bash", line_numbers=True),
+            width=width + 10,
+            expand=True,
+            shrink=False,
+            scroll_end=True,
+        )
+        log.focus()
+
+    def action_close_screen(self) -> None:
+        self.app.pop_screen()
+
+    def action_scroll_up(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_up()
+
+    def action_scroll_down(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_down()
+
+    def action_scroll_home(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_home()
+
+    def action_scroll_end(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_scroll_end()
+
+    def action_page_down(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_page_down()
+
+    def action_page_up(self) -> None:
+        log = self.query_one(RichLog)
+        log.action_page_up()
 
 
 @total_ordering
@@ -100,12 +201,16 @@ class SortableText(Text):
 class IocTable(Widget):
     """Widget to display the IOC table."""
 
-    def __init__(self, commands, all) -> None:
+    default_sort_column_id = "name"
+    # init=False otherwise triggers table query before yielded in compose
+    sort_column_id = reactive(default_sort_column_id, init=False)
+
+    def __init__(self, commands, running_only: bool) -> None:
         super().__init__()
 
         self.commands = commands
-        self.all = all
-        self.iocs_df = self.commands.get_services(self.all)
+        self.running_only = running_only
+        self.iocs_df = self.commands.get_services(self.running_only)
 
         self._polling = True
         self._poll_thread = Thread(target=self._poll_services)
@@ -116,8 +221,8 @@ class IocTable(Widget):
         while self._polling:
             # ioc list data table update loop
             print()
-            self.iocs_df = self.commands.get_services(self.all)
-            sleep(0.5)
+            self.iocs_df = self.commands.get_services(self.running_only)
+            sleep(2.0)
 
     def stop(self):
         self._polling = False
@@ -145,7 +250,7 @@ class IocTable(Widget):
 
     def on_mount(self) -> None:
         """Provides a loop after generating the app for updating the data."""
-        self.set_interval(1, self.update_iocs)
+        self.set_interval(1.0, self.update_iocs)
 
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
@@ -154,13 +259,27 @@ class IocTable(Widget):
 
         await self.populate_table()
 
+    def _get_heading(self, column_id: str):
+        sorted_style = Style(bold=True, underline=True)
+
+        if column_id == self.sort_column_id:
+            heading = Text(column_id, justify="center", style=sorted_style)
+        else:
+            # screen.sort() is referring to the screen action function
+            heading = Text(column_id, justify="center").on(
+                click=f"screen.sort('{column_id}')"
+            )
+
+        return heading
+
     def compose(self) -> ComposeResult:
         table: DataTable[Text] = DataTable(
             id="body_table", header_height=1, show_cursor=False, zebra_stripes=True
         )
         table.focus()
+
         for column_id in self.columns:
-            heading = Text(column_id, justify="center")
+            heading = self._get_heading(column_id)
             table.add_column(heading, key=str(column_id))
 
         # Set a size for the left column
@@ -170,6 +289,18 @@ class IocTable(Widget):
         table.cursor_type = "row"
 
         yield table
+
+    def watch_sort_column_id(self, sort_column_id: str) -> None:
+        """Called when the sort_column_id attribute changes."""
+        table = self.query_one("#body_table", DataTable)
+
+        # Reformat headings based on new sorted column
+        for i, _column in enumerate(self.columns):
+            table.ordered_columns[i].label = self._get_heading(_column)
+
+        sorted_col = self.columns.index(sort_column_id)
+
+        table.sort(table.ordered_columns[sorted_col].key, reverse=False)
 
     def _get_color(self, value: str) -> Color:
         if value == "True":
@@ -217,8 +348,8 @@ class IocTable(Widget):
         for old_row_key in iocs - new_iocs:
             table.remove_row(old_row_key)
 
-        # Sort in alphabetical order using NAME column
-        # table.sort("name", reverse=False)
+        # Sort by column
+        table.sort(self.sort_column_id, reverse=False)
 
 
 class MonitorApp(App):
@@ -226,33 +357,40 @@ class MonitorApp(App):
         self,
         beamline: str,
         commands: Commands,
-        all: bool,
+        running_only: bool,
     ) -> None:
         super().__init__()
 
         self.commands = commands
-        self.all = all
+        self.running_only = running_only
         self.beamline = beamline
 
     CSS_PATH = "monitor.tcss"
 
     BINDINGS = [
-        Binding("escape", "close_application", "Close Application"),
-        Binding("up", "scroll_grid('up')", "Scroll Up"),
-        Binding("down", "scroll_grid('down')", "Scroll Down"),
+        Binding("escape", "close_application", "Exit"),
+        Binding("s", "start_ioc", "Start IOC"),
+        Binding("t", "stop_ioc", "Stop IOC"),
         Binding("r", "restart_ioc", "Restart IOC"),
+        Binding("l", "ioc_logs", "IOC Logs"),
+        Binding("o", "sort", "Sort"),
         # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
-        self.table = IocTable(self.commands, self.all)
+        self.table = IocTable(self.commands, self.running_only)
         yield self.table
         yield Footer()
 
     def on_mount(self) -> None:
         self.title = f"{self.beamline} IOC Monitor"
+
+    def on_unmount(self) -> None:
+        """Executes when the app is closed."""
+        # Makes sure the thread is stopped even if the App crashes
+        self.table.stop()
 
     # def action_toggle_dark(self) -> None:
     #     """An action to toggle dark mode."""
@@ -260,22 +398,50 @@ class MonitorApp(App):
 
     def action_close_application(self) -> None:
         """Provide another way of exiting the app along with CTRL+C."""
-        self.table.stop()
         self.exit()
 
-    def action_scroll_grid(self, direction: str) -> None:
-        """Toggle pause on keypress"""
-        table = self.query_one(DataTable)
-        getattr(table, f"action_scroll_{direction}")()
-
-    def action_restart_ioc(self) -> None:
-        """Restart the IOC that is currently highlighted."""
+    def _get_highlighted_cell(self, col_key: str) -> str:
         table = self.get_widget_by_id("body_table")
-
         assert isinstance(table, DataTable)
         # Fetches hightlighted row ID (integer)
         row = table.cursor_row
-        service_name = self.table.iocs[row]["name"]
+        ioc_row = table.ordered_rows[row]
+        col_keys = [ord_col.key.value for ord_col in table.ordered_columns]
+        col_i = col_keys.index(col_key)
+        ioc_col = table.ordered_columns[col_i]
+        cell: Union[str, SortableText] = table.get_cell(ioc_row.key, ioc_col.key)
+        # SortableText inherits __str__() from Text
+        return str(cell)
+
+    def _get_service_name(self) -> str:
+        service_name = self._get_highlighted_cell("name")
+        return service_name
+
+    def action_start_ioc(self) -> None:
+        """Start the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
+
+        def check_start(restart: bool) -> None:
+            """Called when StartScreen is dismissed."""
+            if restart:
+                self.commands.start(service_name)
+
+        self.push_screen(StartScreen(service_name), check_start)
+
+    def action_stop_ioc(self) -> None:
+        """Stop the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
+
+        def check_stop(restart: bool) -> None:
+            """Called when StopScreen is dismissed."""
+            if restart:
+                self.commands.stop(service_name)
+
+        self.push_screen(StopScreen(service_name), check_stop)
+
+    def action_restart_ioc(self) -> None:
+        """Restart the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
 
         def check_restart(restart: bool) -> None:
             """Called when RestartScreen is dismissed."""
@@ -283,3 +449,35 @@ class MonitorApp(App):
                 self.commands.restart(service_name)
 
         self.push_screen(RestartScreen(service_name), check_restart)
+
+    def action_ioc_logs(self) -> None:
+        """Display the logs of the IOC that is currently highlighted."""
+        service_name = self._get_service_name()
+
+        # Convert to corresponding bool
+        running = self._get_highlighted_cell("running") == "True"
+
+        if running:
+            command = self.commands.logs
+            self.push_screen(LogsScreen(command, service_name))
+
+    def action_sort(self, col_name: str = "") -> None:
+        """An action to sort the table rows by column heading."""
+        if col_name != "":
+            # If col_name is provided, sort by that column
+            # e.g. if a column heading is clicked
+            new_col = col_name
+        else:
+            # If no column name is provided (e.g. by pressing the key bind),
+            # then just cycle to the next column
+            table = self.query_one(IocTable)
+            col_name = table.sort_column_id
+            cols = table.columns
+            col_index = cols.index(col_name)
+            new_col = cols[0 if col_index + 1 > 3 else col_index + 1]
+        self.update_sort_key(new_col)
+
+    def update_sort_key(self, col_name: str) -> None:
+        """Method called to update the table sort key attribute."""
+        table = self.query_one(IocTable)
+        table.sort_column_id = col_name
