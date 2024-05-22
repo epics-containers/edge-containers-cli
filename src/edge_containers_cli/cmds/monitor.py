@@ -441,9 +441,18 @@ class MonitorApp(App):
         """Display the logs of the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        command = self.commands.logs
+        table = self.query_one(IocTable).query_one(DataTable)
 
-        self.push_screen(LogsScreen(command, service_name))
+        row = table.cursor_row
+        ioc_row = table.ordered_rows[row]
+        # Assumes 'running' is always column 3
+        ioc_col = table.ordered_columns[2]
+        # Has class SortableText so to fetch value use .value
+        running = table.get_cell(ioc_row.key, ioc_col.key).value
+
+        if running:
+            command = self.commands.logs
+            self.push_screen(LogsScreen(command, service_name))
 
     def action_sort(self, col_name: str = "") -> None:
         """An action to sort the table rows by column heading."""
