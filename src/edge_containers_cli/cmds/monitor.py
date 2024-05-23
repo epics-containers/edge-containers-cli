@@ -267,7 +267,7 @@ class IocTable(Widget):
         else:
             # screen.sort() is referring to the screen action function
             heading = Text(column_id, justify="center").on(
-                click=f"screen.sort('{column_id}')"
+                click=f"app.sort('{column_id}')"
             )
 
         return heading
