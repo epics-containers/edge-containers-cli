@@ -186,17 +186,41 @@ class SortableText(Text):
     def __lt__(self, other: Any) -> bool:
         if type(other) != SortableText:
             return NotImplemented
-        return cast(bool, self.value < other.value)
+
+        # Handle None as values
+        match self.value, other.value:
+            case (None, None) | (None, _):
+                return False
+            case (_, None):
+                return True
+            case _:
+                return cast(bool, self.value < other.value)
 
     def __gt__(self, other: Any) -> bool:
         if type(other) != SortableText:
             return NotImplemented
-        return cast(bool, self.value > other.value)
+
+        # Handle None as values
+        match self.value, other.value:
+            case (None, None) | (_, None):
+                return False
+            case (None, _):
+                return True
+            case _:
+                return cast(bool, self.value > other.value)
 
     def __eq__(self, other: Any) -> bool:
         if type(other) != SortableText:
             return NotImplemented
-        return cast(bool, self.value == other.value)
+
+        # Handle None as values
+        match self.value, other.value:
+            case (None, _) | (_, None):
+                return False
+            case (None, None):
+                return True
+            case _:
+                return cast(bool, self.value == other.value)
 
 
 class IocTable(Widget):
@@ -354,18 +378,6 @@ class IocTable(Widget):
 
 
 class MonitorApp(App):
-    def __init__(
-        self,
-        beamline: str,
-        commands: Commands,
-        running_only: bool,
-    ) -> None:
-        super().__init__()
-
-        self.commands = commands
-        self.running_only = running_only
-        self.beamline = beamline
-
     CSS_PATH = "monitor.tcss"
 
     BINDINGS = [
@@ -377,6 +389,18 @@ class MonitorApp(App):
         Binding("o", "sort", "Sort"),
         # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
+
+    def __init__(
+        self,
+        beamline: str,
+        commands: Commands,
+        running_only: bool,
+    ) -> None:
+        super().__init__()
+
+        self.commands = commands
+        self.running_only = running_only
+        self.beamline = beamline
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
