@@ -7,6 +7,7 @@ Relies on the Helm class for deployment aspects.
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
+from typing import Optional
 
 import polars
 import typer
@@ -124,7 +125,7 @@ class K8sCommands(Commands):
 
     def logs(
         self, service_name: str, prev: bool, follow: bool, stdout: bool = False
-    ) -> str | bool | None:
+    ) -> Optional[str | bool]:
         fullname = check_service(service_name, self.namespace)
         previous = "-p" if prev else ""
         fol = "-f" if follow else ""
