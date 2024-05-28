@@ -1,5 +1,3 @@
-from typing import Optional
-
 import typer
 
 import edge_containers_cli.globals as globals
@@ -20,7 +18,7 @@ def version_callback(value: bool):
 @cli.callback()
 def main(
     ctx: typer.Context,
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         callback=version_callback,

@@ -1,9 +1,10 @@
 """TUI monitor for containerised IOCs."""
 
+from collections.abc import Callable
 from functools import total_ordering
 from threading import Thread
 from time import sleep
-from typing import Any, Callable, Union, cast
+from typing import Any, cast
 
 import polars
 from rich.style import Style
@@ -240,7 +241,7 @@ class IocTable(Widget):
             self.iocs[i] = ioc
         self.columns = [key for key in self.iocs[0].keys() if key not in exclude]
 
-    def _convert_df_to_list(self, iocs_df: Union[polars.DataFrame, list]) -> list[dict]:
+    def _convert_df_to_list(self, iocs_df: polars.DataFrame | list) -> list[dict]:
         if isinstance(iocs_df, polars.DataFrame):
             iocs = iocs_df.to_dicts()
         else:
@@ -409,7 +410,7 @@ class MonitorApp(App):
         col_keys = [ord_col.key.value for ord_col in table.ordered_columns]
         col_i = col_keys.index(col_key)
         ioc_col = table.ordered_columns[col_i]
-        cell: Union[str, SortableText] = table.get_cell(ioc_row.key, ioc_col.key)
+        cell: str | SortableText = table.get_cell(ioc_row.key, ioc_col.key)
         # SortableText inherits __str__() from Text
         return str(cell)
 

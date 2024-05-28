@@ -1,6 +1,5 @@
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 import typer
 from ruamel.yaml import YAML
@@ -26,9 +25,9 @@ class Helm:
         namespace: str,
         service_name: str,
         args: str = "",
-        version: Optional[str] = None,
+        version: str | None = None,
         template: bool = False,
-        repo: Optional[str] = None,
+        repo: str | None = None,
     ):
         """
         Create a helm chart from a local or a remote repo

@@ -8,7 +8,6 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import typer
 from ruamel.yaml import YAML
@@ -17,7 +16,7 @@ import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
 
 
-def get_instance_image_name(svc_instance: Path, tag: Optional[str] = None) -> str:
+def get_instance_image_name(svc_instance: Path, tag: str | None = None) -> str:
     svc_instance = svc_instance.resolve()
     values = svc_instance / "values.yaml"
     if not values.exists():

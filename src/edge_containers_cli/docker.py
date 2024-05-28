@@ -5,7 +5,6 @@ Utility functions for working interacting with docker / podman CLI
 import re
 from pathlib import Path
 from time import sleep
-from typing import Optional, Union
 
 import typer
 
@@ -111,7 +110,7 @@ class Docker:
         previous: bool = False,
         follow: bool = False,
         stdout: bool = False,
-    ) -> Optional[Union[str, bool]]:
+    ) -> str | bool | None:
         """
         show logs from a container
         """
