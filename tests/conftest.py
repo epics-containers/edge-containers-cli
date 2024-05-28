@@ -1,8 +1,8 @@
 import re
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, Union
 
 from pytest import fixture
 from ruamel.yaml import YAML
@@ -73,7 +73,7 @@ class MockRun:
 
         return rsp
 
-    def set_seq(self, cmd_rsp: list[dict[str, Union[str, bool]]]):
+    def set_seq(self, cmd_rsp: list[dict[str, str | bool]]):
         """
         Set up the expected sequence of commands that we expect to see come
         through the mock of run_command. Also supplies the response to

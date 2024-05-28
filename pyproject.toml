@@ -7,9 +7,9 @@ name = "edge-containers-cli"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 description = "CLI for deploying and managing epics containers IOCs and services"
 
@@ -26,7 +26,7 @@ dependencies = [
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = [
@@ -109,9 +109,10 @@ commands =
 src = ["src", "tests"]
 line-length = 88
 lint.ignore = [
-    "C408", # Unnecessary collection call - e.g. list(...) instead of [...]
-    "E501", # Line too long, should be fixed by black.
-    "B008", # Do not perform function calls in argument defaults.
+    "C408",  # Unnecessary collection call - e.g. list(...) instead of [...]
+    "E501",  # Line too long, should be fixed by black.
+    "B008",  # Do not perform function calls in argument defaults.
+    "UP007", # Do not complain about Optional[] (TODO: remove once typer is patched)
 ]
 lint.select = [
     "B",  # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b

@@ -3,7 +3,6 @@ functions for executing commands and querying environment in the linux shell
 """
 
 import subprocess
-from typing import Union
 
 import typer
 from rich.console import Console
@@ -39,7 +38,7 @@ def echo_output(output: str):
 
 def run_command(
     command: str, interactive=True, error_OK=False, show=False
-) -> Union[str, bool]:
+) -> str | bool:
     """
     Run a command and return the output
 
@@ -65,7 +64,7 @@ def run_command(
         error_out = p_result.stderr.decode()
 
     if interactive:
-        result: Union[str, bool] = p_result.returncode == 0
+        result: str | bool = p_result.returncode == 0
     else:
         result = output + error_out
 

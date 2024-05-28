@@ -7,7 +7,7 @@ Relies on the Helm class for deployment aspects.
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 import polars
 import typer
@@ -39,7 +39,7 @@ def check_service(service_name: str, namespace: str) -> str:
     return str(result).strip()
 
 
-def check_namespace(namespace: Optional[str]):
+def check_namespace(namespace: str | None):
     """
     Verify we have a good namespace that exists in the cluster
     """
@@ -125,7 +125,7 @@ class K8sCommands(Commands):
 
     def logs(
         self, service_name: str, prev: bool, follow: bool, stdout: bool = False
-    ) -> Optional[Union[str, bool]]:
+    ) -> Optional[str | bool]:
         fullname = check_service(service_name, self.namespace)
         previous = "-p" if prev else ""
         fol = "-f" if follow else ""
