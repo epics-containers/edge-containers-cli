@@ -36,9 +36,13 @@ class Helm:
         self.service_name = service_name
         self.beamline_repo = repo
         self.namespace = namespace
-        self.args = args
         self.version = version or local_version()
         self.template = template
+
+        if template:
+            self.args = args
+        else:
+            self.args = f"{args} --reset-values"  # Helm persists --set values
 
         self.tmp = Path(tempfile.mkdtemp())
 
@@ -97,15 +101,8 @@ class Helm:
                 interactive=False,
             )
 
-            # Determine package name
-            with open("Chart.yaml") as fp:
-                chart_yaml = YAML(typ="safe").load(fp)
-            package_path = (
-                service_folder / f'{chart_yaml["name"]}-{chart_yaml["version"]}.tgz'
-            )
-
         # use helm to install the chart
-        self._install(package_path)
+        self._install(service_folder / get_package(service_folder))
 
     def _install(self, helm_chart: Path):
         """
@@ -118,10 +115,24 @@ class Helm:
             f"bash -c "
             f'"'
             f"helm {helm_cmd} {self.service_name} {helm_chart} "
-            f"--namespace {self.namespace} {self.args}"
-            f" 2> >(grep -v 'found symbolic link' >&2) "
+            f"--namespace {self.namespace} {self.args} "
+            f"2> >(grep -v 'found symbolic link' >&2) "
             f'"'
         )
 
         output = shell.run_command(cmd, interactive=False)
         typer.echo(output)
+
+
+def get_package(chart: Path) -> str:
+    with open(chart / "Chart.yaml") as fp:
+        chart_yaml = YAML(typ="safe").load(fp)
+    package_name = f'{chart_yaml["name"]}-{chart_yaml["version"]}.tgz'
+    return package_name
+
+
+def get_image(chart: Path) -> str:
+    with open(chart / "values.yaml") as fp:
+        chart_yaml = YAML(typ="safe").load(fp)
+    image_spec = chart_yaml["shared"]["ioc-instance"]["image"]
+    return image_spec

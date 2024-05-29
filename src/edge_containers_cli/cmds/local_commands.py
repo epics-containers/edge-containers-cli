@@ -65,10 +65,14 @@ class LocalCommands(Commands):
             raise typer.Abort()
         self.docker.remove(service_name)
 
-    def _do_deploy(self, ioc_instance: Path, version: str, args: str):
+    def _do_deploy(
+        self, ioc_instance: Path, version: str, args: str, developer: bool = False
+    ):
         service_name, _ = check_instance_path(ioc_instance)
 
         image = get_instance_image_name(ioc_instance)
+        if developer:
+            image = re.sub("-runtime:", "-developer:", image)
         log.debug(f"deploying {ioc_instance} with image {image}")
         config = ioc_instance / globals.CONFIG_FOLDER
         service_name = ioc_instance.name
@@ -108,7 +112,7 @@ class LocalCommands(Commands):
             )
             raise typer.Exit(1)
 
-    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
+    def deploy_local(self, svc_instance: Path, yes: bool, args: str, developer: bool):
         """
         Use a local copy of an ioc instance definition to deploy a temporary
         version of the IOC to the local docker instance
@@ -121,7 +125,7 @@ class LocalCommands(Commands):
             )
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
-        self._do_deploy(svc_instance, version, args)
+        self._do_deploy(svc_instance, version, args, developer=developer)
 
     def deploy(self, service_name: str, version: str, args: str):
         """

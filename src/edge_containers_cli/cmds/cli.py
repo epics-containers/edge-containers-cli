@@ -140,6 +140,9 @@ def deploy_local(
         resolve_path=True,
         autocompletion=force_plain_completion,
     ),
+    developer: bool = typer.Option(
+        False, "--developer", help="Deploy ioc developer image"
+    ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
@@ -147,7 +150,7 @@ def deploy_local(
     """
     Deploy a local IOC/service helm chart directly to the cluster with dated beta version
     """
-    commands(ctx).deploy_local(svc_instance, yes, args)
+    commands(ctx).deploy_local(svc_instance, yes, args, developer)
 
 
 @cli.command()

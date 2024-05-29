@@ -4,6 +4,7 @@ implements commands for deploying and managing service instances in the k8s clus
 Relies on the Helm class for deployment aspects.
 """
 
+import re
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
@@ -15,7 +16,7 @@ import typer
 import edge_containers_cli.globals as globals
 import edge_containers_cli.shell as shell
 from edge_containers_cli.cmds.commands import Commands
-from edge_containers_cli.cmds.helm import Helm
+from edge_containers_cli.cmds.helm import Helm, get_image
 from edge_containers_cli.cmds.kubectl import jsonpath_deploy_info, jsonpath_pod_info
 from edge_containers_cli.logging import log
 
@@ -103,10 +104,22 @@ class K8sCommands(Commands):
         )
         chart.deploy_local(svc_instance)
 
-    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
+    def deploy_local(
+        self,
+        svc_instance: Path,
+        yes: bool,
+        args: str,
+        developer: bool,
+    ):
         service_name = svc_instance.name.lower()
 
         chart = Helm(self.namespace, service_name, args=args)
+
+        if developer:
+            image_spec = get_image(svc_instance)
+            dev_image = re.sub("-runtime:", "-developer:", image_spec)
+            chart.args = f"{chart.args} --set shared.ioc-instance.image={dev_image}"
+
         chart.deploy_local(svc_instance, yes)
 
     def deploy(self, service_name: str, version: str, args: str):
