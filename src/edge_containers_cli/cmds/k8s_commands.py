@@ -103,10 +103,18 @@ class K8sCommands(Commands):
         )
         chart.deploy_local(svc_instance)
 
-    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
+    def deploy_local(self, svc_instance: Path, yes: bool, args: str, sleep: bool):
         service_name = svc_instance.name.lower()
 
         chart = Helm(self.namespace, service_name, args=args)
+
+        if sleep:
+            chart.args = (
+                f"{chart.args} "
+                f"--set shared.ioc-instance.startCommand=sleep "
+                f"--set shared.ioc-instance.start=infinity"
+            )
+
         chart.deploy_local(svc_instance, yes)
 
     def deploy(self, service_name: str, version: str, args: str):

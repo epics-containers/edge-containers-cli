@@ -65,7 +65,13 @@ class LocalCommands(Commands):
             raise typer.Abort()
         self.docker.remove(service_name)
 
-    def _do_deploy(self, ioc_instance: Path, version: str, args: str):
+    def _do_deploy(
+        self,
+        ioc_instance: Path,
+        version: str,
+        args: str,
+        sleep: bool = False,
+    ):
         service_name, _ = check_instance_path(ioc_instance)
 
         image = get_instance_image_name(ioc_instance)
@@ -101,14 +107,21 @@ class LocalCommands(Commands):
         shell.run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
 
         # launch the ioc container with mounted config volume
-        shell.run_command(f"{self.docker.docker} {cmd} --name {service_name} {image}")
+        if sleep:
+            cmnd = (
+                f"{self.docker.docker} {cmd} --name {service_name} "
+                f"--entrypoint sleep {image} infinity"
+            )
+        else:
+            cmnd = f"{self.docker.docker} {cmd} --name {service_name} {image}"
+        shell.run_command(cmnd)
         if not self.docker.is_running(service_name, retry=5):
             typer.echo(
                 f"Failed to start {service_name} please try 'ec ioc logs {service_name}'"
             )
             raise typer.Exit(1)
 
-    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
+    def deploy_local(self, svc_instance: Path, yes: bool, args: str, sleep: bool):
         """
         Use a local copy of an ioc instance definition to deploy a temporary
         version of the IOC to the local docker instance
@@ -121,7 +134,7 @@ class LocalCommands(Commands):
             )
             if not typer.confirm("Are you sure ?"):
                 raise typer.Abort()
-        self._do_deploy(svc_instance, version, args)
+        self._do_deploy(svc_instance, version, args, sleep=sleep)
 
     def deploy(self, service_name: str, version: str, args: str):
         """

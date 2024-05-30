@@ -33,7 +33,7 @@ class Commands:
     def template(self, svc_instance: Path, args: str):
         raise NotImplementedError
 
-    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
+    def deploy_local(self, svc_instance: Path, yes: bool, args: str, sleep: bool):
         raise NotImplementedError
 
     def deploy(self, service_name: str, version: str, args: str):
