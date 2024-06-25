@@ -96,12 +96,13 @@ class LocalCommands(Commands):
             vol = vol + f" -v {opi_folder}:/epics/opi"
 
         user_id = os.getenv("EC_LOCAL_USER_ID")
-        ids = f" -u {user_id}" if user_id else ""
+        ids = f"-u {user_id}" if user_id else ""
         group_id = os.getenv("EC_LOCAL_GROUP_ID")
         if group_id:
             cmd = f"{ids} -g {group_id}"
 
-        cmd = f"run -dit --net host --restart unless-stopped {ids} {label} {vol} {args}"
+        cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args} {ids}"
+        cmd = cmd.strip()
 
         # get the config into the volume before launching the IOC container
         shell.run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
