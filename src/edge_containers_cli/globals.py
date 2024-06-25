@@ -21,6 +21,8 @@ SHARED_CHARTS_FOLDER = "../../helm"
 CONFIG_FOLDER = "config"
 # location of IOC Instance configuration inside a Generic IOC container
 IOC_CONFIG_FOLDER = "/epics/ioc/config/"
+# location of IOC Instance configuration inside a Generic IOC container
+IOC_RUNTIME_FOLDER = "/epics/runtime/"
 # file name of IOC Instance ibek configuration inside a Generic IOC container
 CONFIG_FILE_GLOB = "*.yaml"
 # namespace name for deploying IOC instances into the local podman/docker

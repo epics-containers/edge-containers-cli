@@ -66,16 +66,7 @@ class LocalCommands(Commands):
             raise typer.Abort()
         self.docker.remove(service_name)
 
-    def _do_deploy(self, ioc_instance: Path, version: str, args: str):
-        service_name, _ = check_instance_path(ioc_instance)
-
-        image = get_instance_image_name(ioc_instance)
-        log.debug(f"deploying {ioc_instance} with image {image}")
-        config = ioc_instance / globals.CONFIG_FOLDER
-        service_name = ioc_instance.name
-        volume = f"{service_name}_config"
-
-        self.docker.remove(service_name)
+    def make_volume(self, volume: str):
         shell.run_command(
             f"{self.docker.docker} volume rm -f {volume}", interactive=False
         )
@@ -83,7 +74,22 @@ class LocalCommands(Commands):
             f"{self.docker.docker} volume create {volume}", interactive=False
         )
 
-        vol = f"-v {volume}:{globals.IOC_CONFIG_FOLDER}"
+    def _do_deploy(self, ioc_instance: Path, version: str, args: str):
+        service_name, _ = check_instance_path(ioc_instance)
+
+        image = get_instance_image_name(ioc_instance)
+        log.debug(f"deploying {ioc_instance} with image {image}")
+        config = ioc_instance / globals.CONFIG_FOLDER
+        service_name = ioc_instance.name
+        config_volume = f"{service_name}_config"
+        runtime_volume = f"{service_name}_runtime"
+
+        self.docker.remove(service_name)
+        self.make_volume(config_volume)
+        self.make_volume(runtime_volume)
+
+        vol = f"-v {config_volume}:{globals.IOC_CONFIG_FOLDER}"
+        vol = vol + f" -v {runtime_volume}:{globals.IOC_RUNTIME_FOLDER}"
         label = f"-l is_IOC=true -l version={version}"
         dest = "busybox:copyto"
 
@@ -108,7 +114,7 @@ class LocalCommands(Commands):
         shell.run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
         shell.run_command(
             f"{self.docker.docker} container create --name busybox "
-            f"-v {volume}:/copyto busybox",
+            f"-v {config_volume}:/copyto busybox",
             interactive=False,
         )
         for file in config.glob("*"):
