@@ -37,7 +37,7 @@ deploy_local:
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
-  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=.* -v bl01t-ea-test-01_config:\/epics\/ioc\/config\/  --name bl01t-ea-test-01 ghcr.io\/epics-containers\/ioc-adsimdetector-runtime:2024.4.1
+  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=.* -v bl01t-ea-test-01_config:\/epics\/ioc\/config\/ --name bl01t-ea-test-01 ghcr.io\/epics-containers\/ioc-adsimdetector-runtime:2024.4.1
     rsp: True
   - cmd: docker ps -f name=bl01t-ea-test-01 --format .*
     rsp: bl01t-ea-test-01
@@ -64,7 +64,7 @@ deploy:
     rsp: ""
   - cmd: docker rm -f busybox
     rsp: ""
-  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=2.0 -v bl01t-ea-test-01_config:/epics/ioc/config/  --name bl01t-ea-test-01 ghcr.io/epics-containers/ioc-adsimdetector-runtime:2024.4.1
+  - cmd: docker run -dit --net host --restart unless-stopped -l is_IOC=true -l version=2.0 -v bl01t-ea-test-01_config:/epics/ioc/config/ --name bl01t-ea-test-01 ghcr.io/epics-containers/ioc-adsimdetector-runtime:2024.4.1
     rsp: True
   - cmd: docker ps -f name=bl01t-ea-test-01 --format .*
     rsp: bl01t-ea-test-01

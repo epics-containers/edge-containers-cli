@@ -194,7 +194,9 @@ class K8sCommands(Commands):
                 has_header=False,
                 new_columns=["name", "running", "restarts"],
             )
-            services_df = services_df.join(gtpo_df, on="name", how="left")
+            services_df = services_df.join(
+                gtpo_df, on="name", how="left", coalesce=True
+            )
             services_df = services_df.with_columns(
                 polars.col("running").replace({"Running": True}, default=False),
                 polars.col("restarts").fill_null(0),
@@ -214,7 +216,7 @@ class K8sCommands(Commands):
         helm_df = polars.read_json(StringIO(str(helm_out)))
         helm_df = helm_df.rename({"app_version": "version", "updated": "deployed"})
         helm_df = helm_df.with_columns(polars.col("deployed").str.slice(0, 19))
-        services_df = services_df.join(helm_df, on="name", how="left")
+        services_df = services_df.join(helm_df, on="name", how="left", coalesce=True)
         log.debug(services_df)
 
         # Arrange columns

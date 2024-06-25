@@ -10,6 +10,7 @@ tool like Portainer is a decent workflow.
 """
 
 import json
+import os
 import re
 import tempfile
 from datetime import datetime
@@ -84,8 +85,24 @@ class LocalCommands(Commands):
 
         vol = f"-v {volume}:{globals.IOC_CONFIG_FOLDER}"
         label = f"-l is_IOC=true -l version={version}"
-        cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args}"
         dest = "busybox:copyto"
+
+        # use environment to configure volumes and user id
+        data_folder = os.getenv("EC_LOCAL_DATA_FOLDER")
+        if data_folder:
+            vol = vol + f" -v {data_folder}:{data_folder}"
+        opi_folder = os.getenv("EC_LOCAL_OPI_FOLDER")
+        if opi_folder:
+            vol = vol + f" -v {opi_folder}:/epics/opi"
+
+        user_id = os.getenv("EC_LOCAL_USER_ID")
+        ids = f"-u {user_id}" if user_id else ""
+        group_id = os.getenv("EC_LOCAL_GROUP_ID")
+        if group_id:
+            cmd = f"{ids} -g {group_id}"
+
+        cmd = f"run -dit --net host --restart unless-stopped {label} {vol} {args} {ids}"
+        cmd = cmd.strip()
 
         # get the config into the volume before launching the IOC container
         shell.run_command(f"{self.docker.docker} rm -f busybox", interactive=False)
