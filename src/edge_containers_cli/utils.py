@@ -3,88 +3,22 @@ utility functions
 """
 
 import contextlib
+import json
 import os
-import re
 import shutil
+import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, TypeVar
 
-import typer
 from ruamel.yaml import YAML
 
 import edge_containers_cli.globals as globals
+from edge_containers_cli.definitions import ENV
 from edge_containers_cli.logging import log
 
-
-def get_instance_image_name(svc_instance: Path, tag: Optional[str] = None) -> str:
-    svc_instance = svc_instance.resolve()
-    values = svc_instance / "values.yaml"
-    if not values.exists():
-        log.error(f"values.yaml not found in {svc_instance}")
-        raise typer.Exit(1)
-
-    with open(values) as fp:
-        yaml = YAML(typ="safe").load(fp)
-
-    try:
-        read_image = yaml["shared"]["ioc-instance"]["image"] + f":{tag}"
-        base_image, base_tag = read_image.split(":")[:2]
-    except KeyError:
-        log.error(f"shared.ioc-instance.image not found in {values}")
-        raise typer.Exit(1) from None
-
-    tag = tag or base_tag
-    full_image = base_image + f":{tag}"
-
-    return full_image
-
-
-def check_instance_path(service_path: Path):
-    """
-    verify that the service instance path is valid
-    """
-    service_path = service_path.absolute()
-    service_name = service_path.name.lower()
-
-    log.info(f"checking instance {service_name} at {service_path}")
-    if service_path.is_dir():
-        if not (service_path / "Chart.yaml").exists():
-            log.error("A Service instance requires Chart.yaml")
-            raise typer.Exit(1)
-    else:
-        log.error(f"instance path {service_path} does not exist")
-        raise typer.Exit(1)
-
-    return service_name, service_path
-
-
-def generic_ioc_from_image(image_name: str) -> str:
-    """
-    return the generic IOC name from an image name
-    """
-    match = re.findall(r".*\/(.*)-.*-(?:runtime|developer)", image_name)
-    if not match:
-        log.error(f"cannot extract generic IOC name from {image_name}")
-        raise typer.Exit(1)
-
-    return match[0]
-
-
-def drop_path(raw_input: str):
-    """
-    Extracts the Service name if is a path through services
-    """
-    match = re.findall(
-        r"services\/(.*?)(?:/|\s|$)", raw_input
-    )  # https://regex101.com/r/L3GUvk/1
-    if not match:
-        return raw_input
-
-    extracted_svc = match[0]
-    typer.echo(f"Extracted service name {extracted_svc} from input: {raw_input}")
-
-    return extracted_svc
+T = TypeVar("T")
 
 
 @contextlib.contextmanager
@@ -101,22 +35,34 @@ def chdir(path):
         os.chdir(curdir)
 
 
-def cleanup_temp(folder_path: Path) -> None:
-    # keep the tmp folder if debug is enabled for inspection
-    if not globals.EC_DEBUG:
-        shutil.rmtree(folder_path, ignore_errors=True)
-    else:
-        log.debug(f"Temporary directory {folder_path} retained")
+class TempDirManager:
+    def __init__(self):
+        self.debug = False
+        self.dir = None
+
+    def create(self) -> Path:
+        self.dir = Path(tempfile.mkdtemp())
+        return self.dir
+
+    def cleanup(self) -> None:
+        # keep the tmp folder if debug is enabled for inspection
+        if not self.debug:
+            shutil.rmtree(self.dir, ignore_errors=True)
+        else:
+            log.debug(f"Temporary directory {self.dir} retained")
+
+    def __enter__(self):
+        return self.create()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self.cleanup()
 
 
-def normalize_tag(tag: str) -> str:
-    """
-    normalize a tag to be lowercase and replace any '/'
-    this is needed in CI because dependabot tags
-    """
-    tag = tag.lower()
-    tag = tag.replace("/", "-")
-    return tag
+tmpdir = TempDirManager()
+
+
+def init_cleanup(debug: bool = False):
+    tmpdir.debug = debug
 
 
 def local_version() -> str:
@@ -129,3 +75,113 @@ def local_version() -> str:
     elapsed = (time_now - time_month).seconds
     elapsed_base = hex(elapsed)[2:]
     return datetime.strftime(time_now, f"%Y.%-m.{elapsed_base}-b")
+
+
+def public_methods(object: callable) -> list:
+    public_list = []
+    method_list = [func for func in dir(object) if callable(getattr(object, func))]
+    for method in method_list:
+        if method.startswith("_"):
+            pass
+        else:
+            public_list.append(method)
+    return public_list
+
+
+def cache_dict(cache_dir: Path, cache_file: str, data_struc: dict) -> None:
+    cache = cache_dir / cache_file
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache, "w") as f:
+        f.write(json.dumps(data_struc, indent=4))
+
+
+def read_cached_dict(cache_folder: Path, cache_file: str) -> dict:
+    cache = cache_folder / cache_file
+    read_dict = {}
+
+    # Check cache if available
+    if cache.exists():
+        # Read from cache if not stale
+        if (time.time() - os.path.getmtime(cache)) < globals.CACHE_EXPIRY:
+            with open(cache) as f:
+                read_dict = json.load(f)
+
+    return read_dict
+
+
+class ConfigController:
+    def __init__(self, config_file: Path):
+        self.config_file = config_file
+        self._variables: dict[str, Any] = {}
+        self._yml = YAML(typ="safe")
+        self._yml.indent()
+
+    def _read_config(self) -> dict:
+        if self.config_file.exists():
+            with open(self.config_file) as fp:
+                config_yaml = YAML(typ="safe").load(fp)
+        else:
+            config_yaml = {}
+        return config_yaml
+
+    def read_config(self):
+        config = self._read_config()
+        if config:  # Skip if empty
+            for var in ENV:
+                if var.value in config.keys():
+                    read_var = config[var.value]
+                    self._variables[var.value] = read_var
+
+    def get_var(self, variable: ENV, default: T) -> T:
+        if variable.value in self._variables.keys():
+            return self._variables[variable]
+        else:
+            return default
+
+    def store_config(self, context_name: str, input: dict[str, Any]):
+        config = self._read_config()
+
+        store = {}
+        for var in ENV:
+            if var.name in input.keys():
+                store[var.value] = input[var.name]
+        config[context_name] = store
+
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.config_file, "w") as fp:
+            YAML(typ="safe").dump(config, fp)
+
+    def load_config(self, context_name: str):
+        config = self._read_config()
+
+        new_config = {}
+        if context_name in config.keys():
+            for key in config.keys():
+                if type(config[key]) is dict:
+                    new_config[key] = config[key]
+
+            for var in ENV:
+                if var.value in config[context_name].keys():
+                    new_config[var.value] = config[context_name][var.value]
+
+        with open(self.config_file, "w") as fp:
+            YAML(typ="safe").dump(new_config, fp)
+
+    def clear_config(self):
+        config = self._read_config()
+
+        new_config = {}
+        for key in config.keys():
+            if type(config[key]) is dict:
+                new_config[key] = config[key]
+
+        with open(self.config_file, "w") as fp:
+            YAML(typ="safe").dump(new_config, fp)
+
+    def get_contexts(self) -> list[str]:
+        config = self._read_config()
+        context_list = []
+        for key in config.keys():
+            if type(config[key]) is dict:
+                context_list.append(key)
+        return context_list

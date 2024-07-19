@@ -1,28 +1,54 @@
-import webbrowser
 from pathlib import Path
+from typing import Optional
 
 import polars
-import typer
 
-import edge_containers_cli.globals as globals
-import edge_containers_cli.shell as shell
+from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.logging import log
+
+
+class CommandError(Exception):
+    pass
 
 
 class Commands:
     """
-    A base class for K8SCommands and LocalCommands
-
-    Implements the common functionality but defers specialist functions to
-    the subclasss
-
-    Allows the CLI or the TUI to call functions without worrying about local
-    vs Kubernetes containers
+    A base class for ec commands
+    Implements the common functionality but defers specialist functions
+    Allows the CLI or the TUI to call functions without worrying about backend
     """
 
-    def __init__(self, ctx: globals.Context):
-        self.namespace = ctx.namespace
-        self.beamline_repo = ctx.beamline_repo
+    def __init__(self, ctx: ECContext):
+        self._namespace = ctx.namespace
+        self._namespace_valid = False
+        self._repo = ctx.repo
+        self._log_url = ctx.log_url
+
+    @property
+    def namespace(self):
+        if not self._namespace_valid:  # Only validate once
+            if self._namespace == ECContext().namespace:
+                raise CommandError(
+                    f"Please set {ENV.namespace.value} or pass --namespace"
+                )
+            else:
+                self._validate_namespace()
+                self._namespace_valid = True
+        return self._namespace
+
+    @property
+    def repo(self):
+        if self._repo == ECContext().repo:
+            raise CommandError(f"Please set {ENV.repo.value} or pass --repo")
+        else:
+            return self._repo
+
+    @property
+    def log_url(self):
+        if self._log_url == ECContext().log_url:
+            raise CommandError(f"Please set {ENV.log_url.value} or pass --log_url")
+        else:
+            return self._log_url
 
     def attach(self, service_name):
         raise NotImplementedError
@@ -30,19 +56,21 @@ class Commands:
     def delete(self, service_name):
         raise NotImplementedError
 
-    def template(self, svc_instance: Path, args: str):
-        raise NotImplementedError
-
-    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
-        raise NotImplementedError
-
     def deploy(self, service_name: str, version: str, args: str):
+        raise NotImplementedError
+
+    def deploy_local(self, svc_instance: Path, args: str):
         raise NotImplementedError
 
     def exec(self, service_name: str):
         raise NotImplementedError
 
-    def logs(self, service_name: str, prev: bool, follow: bool, stdout: bool):
+    def logs(
+        self, service_name: str, prev: bool, follow: bool, stdout: bool
+    ) -> Optional[str | bool]:
+        raise NotImplementedError
+
+    def ps(self, running_only: bool, wide: bool):
         raise NotImplementedError
 
     def restart(self, service_name: str):
@@ -54,33 +82,25 @@ class Commands:
     def stop(self, service_name: str):
         raise NotImplementedError
 
-    def get_services(self, running_only: bool) -> polars.DataFrame:
+    def template(self, svc_instance: Path, args: str):
         raise NotImplementedError
 
-    def ps(self, running_only: bool, wide: bool):
-        select_data = self.get_services(running_only)
+    def _get_services(self, running_only: bool) -> polars.DataFrame:
+        raise NotImplementedError
+
+    def _ps(self, running_only: bool, wide: bool):
+        """List all services in the current namespace"""
+        services_df = self._get_services(running_only)
         if not wide:
-            select_data.drop_in_place("image")
-        print(select_data)
+            services_df.drop_in_place("image")
+            log.debug(services_df)
+        print(services_df)
 
-    def environment(self, verbose: bool):
-        """
-        declare the environment settings for ec
-        """
-        ns = self.namespace
+    def _validate_namespace(self):
+        pass
 
-        if ns == globals.LOCAL_NAMESPACE:
-            typer.echo("ioc commands deploy to the local docker/podman instance")
-        else:
-            typer.echo(f"ioc commands deploy to the {ns} namespace the K8S cluster")
+    def _all_services(self) -> list[str]:
+        return []
 
-        typer.echo("\nEC environment variables:")
-        shell.run_command("env | grep '^EC_'", interactive=False, show=True)
-
-    def log_history(self, service_name):
-        if not globals.EC_LOG_URL:
-            log.error("EC_LOG_URL environment not set")
-            raise typer.Exit(1)
-
-        url = globals.EC_LOG_URL.format(service_name=service_name)
-        webbrowser.open(url)
+    def _running_services(self) -> list[str]:
+        return []

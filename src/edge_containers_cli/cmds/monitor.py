@@ -235,7 +235,7 @@ class IocTable(Widget):
 
         self.commands = commands
         self.running_only = running_only
-        self.iocs_df = self.commands.get_services(self.running_only)
+        self.iocs_df = self.commands._get_services(self.running_only)
 
         self._polling = True
         self._poll_thread = Thread(target=self._poll_services)
@@ -246,7 +246,7 @@ class IocTable(Widget):
         while self._polling:
             # ioc list data table update loop
             print()
-            self.iocs_df = self.commands.get_services(self.running_only)
+            self.iocs_df = self.commands._get_services(self.running_only)
             sleep(2.0)
 
     def stop(self):
@@ -392,7 +392,6 @@ class MonitorApp(App):
 
     def __init__(
         self,
-        beamline: str,
         commands: Commands,
         running_only: bool,
     ) -> None:
@@ -400,7 +399,7 @@ class MonitorApp(App):
 
         self.commands = commands
         self.running_only = running_only
-        self.beamline = beamline
+        self.beamline = commands.namespace
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -410,7 +409,7 @@ class MonitorApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.title = f"{self.beamline} IOC Monitor"
+        self.title = f"{self.beamline} Ser Monitor"
 
     def on_unmount(self) -> None:
         """Executes when the app is closed."""

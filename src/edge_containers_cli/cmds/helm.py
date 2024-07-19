@@ -1,18 +1,15 @@
-import tempfile
 from pathlib import Path
 from typing import Optional
 
-import typer
 from ruamel.yaml import YAML
 
-import edge_containers_cli.globals as globals
-import edge_containers_cli.shell as shell
+from edge_containers_cli.cmds.commands import CommandError
+from edge_containers_cli.shell import shell
 from edge_containers_cli.utils import (
     chdir,
-    check_instance_path,
-    cleanup_temp,
     local_version,
     log,
+    tmpdir,
 )
 
 
@@ -34,33 +31,30 @@ class Helm:
         Create a helm chart from a local or a remote repo
         """
         self.service_name = service_name
-        self.beamline_repo = repo
+        self.repo = repo
         self.namespace = namespace
         self.args = args
         self.version = version or local_version()
         self.template = template
 
-        self.tmp = Path(tempfile.mkdtemp())
+        self.tmp = tmpdir.create()
 
     def __del__(self):
         if hasattr(self, "tmp"):
-            cleanup_temp(self.tmp)
+            tmpdir.cleanup()
 
-    def deploy_local(self, service_path: Path, yes: bool = False):
+    def cleanup_chart(self, service_path: Path):
+        (service_path / "Chart.lock").unlink(missing_ok=True)
+        for package in service_path.glob("*.tgz"):
+            package.unlink(missing_ok=True)
+
+    def deploy_local(self, service_path: Path):
         """
         Deploy a local helm chart directly to the cluster with dated beta version
         """
 
-        service_name, service_path = check_instance_path(service_path)
-
-        if not yes and not self.template:
-            typer.echo(
-                f"Deploy {service_name} TEMPORARY version {self.version} "
-                f"from {service_path} to domain {self.namespace}"
-            )
-            if not typer.confirm("Are you sure ?"):
-                raise typer.Abort()
-
+        validate_instance_path(service_path)
+        self.cleanup_chart(service_path)
         self._do_deploy(service_path)
 
     def deploy(self):
@@ -68,11 +62,10 @@ class Helm:
         Generate an IOC helm chart and deploy it to the cluster
         """
         if not self.version:
-            log.error("Version not found")
-            raise typer.Exit(1)
+            raise CommandError("Version not found")
 
         shell.run_command(
-            f"git clone {self.beamline_repo} {self.tmp} --depth=1 "
+            f"git clone {self.repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
             interactive=False,
         )
@@ -84,12 +77,9 @@ class Helm:
         Generate an on the fly chart using beamline chart with config folder.
         Deploy the resulting helm chart to the cluster.
         """
-
-        chart_paths = list(service_folder.glob(f"{globals.SHARED_CHARTS_FOLDER}/*"))
-
+        print(f"Deploying {self.service_name}:{self.version}")
         # package up the charts to get the appVersion set
-        for chart in chart_paths:
-            shell.run_command(f"helm dependency update {chart}", interactive=False)
+        shell.run_command(f"helm dependency update {service_folder}", interactive=False)
 
         with chdir(service_folder):
             shell.run_command(
@@ -107,21 +97,33 @@ class Helm:
         # use helm to install the chart
         self._install(package_path)
 
+
     def _install(self, helm_chart: Path):
         """
         Execute helm install command
         """
 
         helm_cmd = "template" if self.template else "upgrade --install"
-        # complicated stderr filter to suppress helm symlink warnings
         cmd = (
             f"bash -c "
             f'"'
             f"helm {helm_cmd} {self.service_name} {helm_chart} "
-            f"--namespace {self.namespace} {self.args}"
-            f" 2> >(grep -v 'found symbolic link' >&2) "
+            f"--values {helm_chart.parent.parent}/beamline_values.yaml "
+            f"--values {helm_chart.parent}/values.yaml "
+            f"--namespace {self.namespace} "
+            f"{self.args} "
             f'"'
         )
 
         output = shell.run_command(cmd, interactive=False)
-        typer.echo(output)
+        print(output)
+
+
+def validate_instance_path(service_path: Path):
+    """
+    verify that the service instance path is valid
+    """
+    log.info(f"checking {service_path}")
+    if not (service_path / "Chart.yaml").exists():
+        raise CommandError("A service chart requires Chart.yaml")
+    log.info("Chart.yaml found")

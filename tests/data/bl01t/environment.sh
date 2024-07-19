@@ -13,13 +13,6 @@ echo "Loading environment for beamline bl01t IOC Instances and Services ..."
 
 #### SECTION 1. Environment variables ##########################################
 
-# a mapping between generic IOC repo roots and the related container registry
-# use spaces or line breaks to separate multiple mappings by default this
-# inlcudes mappings for github and DLS gitlab, add your own here.
-export EC_REGISTRY_MAPPING_REGEX='
-.*github.com:(.*)\/(.*) ghcr.io/\1/\2
-.*gitlab.diamond.ac.uk.*\/(.*) gcr.io/diamond-privreg/controls/prod/ioc/\1
-'
 # the namespace to use for kubernetes deployments - use local for local docker/podman
 export EC_K8S_NAMESPACE=local
 # the git repo for this project
