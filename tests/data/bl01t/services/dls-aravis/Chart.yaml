@@ -1,0 +1,7 @@
+# A Helm Chart for an IOC instance
+apiVersion: v2
+name: dls-aravis
+
+version: 1.0.0
+
+type: application

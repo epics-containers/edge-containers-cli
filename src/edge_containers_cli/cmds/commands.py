@@ -1,86 +1,143 @@
-import webbrowser
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 import polars
-import typer
 
-import edge_containers_cli.globals as globals
-import edge_containers_cli.shell as shell
+from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.logging import log
 
 
-class Commands:
+class CommandError(Exception):
+    pass
+
+
+ServicesSchema = polars.Schema(
+    {
+        "name": polars.String,  # type: ignore
+        "version": polars.String,
+        "ready": polars.Boolean,
+        "deployed": polars.String,
+    }
+)
+
+
+class ServicesDataFrame(polars.DataFrame):
+    def __init__(self, data: polars.DataFrame):
+        super().__init__(data)
+        expected_schema = ServicesSchema
+        if self.schema != expected_schema:
+            raise ValueError(
+                f"DataFrame schema: {self.schema} does not match expected schema: {expected_schema}"
+            )
+
+
+class Commands(ABC):
     """
-    A base class for K8SCommands and LocalCommands
-
-    Implements the common functionality but defers specialist functions to
-    the subclasss
-
-    Allows the CLI or the TUI to call functions without worrying about local
-    vs Kubernetes containers
+    A base class for ec commands
+    Implements the common functionality but defers specialist functions
+    Allows the CLI or the TUI to call functions without worrying about backend
+    Methods not exposed to the CLI should be private
     """
 
-    def __init__(self, ctx: globals.Context):
-        self.namespace = ctx.namespace
-        self.beamline_repo = ctx.beamline_repo
+    def __init__(self, ctx: ECContext):
+        self._target = ctx.target
+        self._target_valid = False
+        self._repo = ctx.repo
+        self._log_url = ctx.log_url
 
-    def attach(self, service_name):
+    @property
+    def target(self):
+        if not self._target_valid:  # Only validate once
+            if self._target == ECContext().target:
+                raise CommandError(f"Please set {ENV.target.value} or pass --target")
+            else:
+                self._validate_target()
+                self._target_valid = True
+        log.debug("target = %s", self._target)
+        return self._target
+
+    @property
+    def repo(self):
+        if self._repo == ECContext().repo:
+            raise CommandError(f"Please set {ENV.repo.value} or pass --repo")
+        else:
+            log.debug("repo = %s", self._repo)
+            return self._repo
+
+    @property
+    def log_url(self):
+        if self._log_url == ECContext().log_url:
+            raise CommandError(f"Please set {ENV.log_url.value} or pass --log_url")
+        else:
+            log.debug("log_url = %s", self._log_url)
+            return self._log_url
+
+    def attach(self, service_name: str):
         raise NotImplementedError
 
-    def delete(self, service_name):
-        raise NotImplementedError
-
-    def template(self, svc_instance: Path, args: str):
-        raise NotImplementedError
-
-    def deploy_local(self, svc_instance: Path, yes: bool, args: str):
+    def delete(self, service_name: str):
         raise NotImplementedError
 
     def deploy(self, service_name: str, version: str, args: str):
         raise NotImplementedError
 
+    def deploy_local(self, svc_instance: Path, args: str):
+        raise NotImplementedError
+
     def exec(self, service_name: str):
         raise NotImplementedError
 
-    def logs(self, service_name: str, prev: bool, follow: bool, stdout: bool):
+    def logs(self, service_name: str, prev: bool):
         raise NotImplementedError
 
+    def log_history(self, service_name: str):
+        raise NotImplementedError
+
+    def ps(self, running_only: bool):
+        raise NotImplementedError
+
+    @abstractmethod
     def restart(self, service_name: str):
         raise NotImplementedError
 
+    @abstractmethod
     def start(self, service_name: str):
         raise NotImplementedError
 
+    @abstractmethod
     def stop(self, service_name: str):
         raise NotImplementedError
 
-    def get_services(self, running_only: bool) -> polars.DataFrame:
+    def template(self, svc_instance: Path, args: str):
         raise NotImplementedError
 
-    def ps(self, running_only: bool, wide: bool):
-        select_data = self.get_services(running_only)
-        if not wide:
-            select_data.drop_in_place("image")
-        print(select_data)
+    @abstractmethod
+    def _get_services(self, running_only: bool) -> ServicesDataFrame:
+        raise NotImplementedError
 
-    def environment(self, verbose: bool):
-        """
-        declare the environment settings for ec
-        """
-        ns = self.namespace
+    def _ps(self, running_only: bool):
+        services_df = self._get_services(running_only)
+        print(services_df)
 
-        if ns == globals.LOCAL_NAMESPACE:
-            typer.echo("ioc commands deploy to the local docker/podman instance")
+    @abstractmethod
+    def _get_logs(self, service_name: str, prev: bool) -> str:
+        raise NotImplementedError
+
+    def _logs(self, service_name: str, prev: bool):
+        print(self._get_logs(service_name, prev))
+
+    def _validate_target(self):
+        raise NotImplementedError
+
+    def _running_services(self):
+        return self._get_services(running_only=True)["name"].to_list()
+
+    def _all_services(self):
+        return self._get_services(running_only=False)["name"].to_list()
+
+    def _check_service(self, service_name: str):
+        services_list = self._get_services(running_only=False)["name"]
+        if service_name in services_list:
+            pass
         else:
-            typer.echo(f"ioc commands deploy to the {ns} namespace the K8S cluster")
-
-        typer.echo("\nEC environment variables:")
-        shell.run_command("env | grep '^EC_'", interactive=False, show=True)
-
-    def log_history(self, service_name):
-        if not globals.EC_LOG_URL:
-            log.error("EC_LOG_URL environment not set")
-            raise typer.Exit(1)
-
-        url = globals.EC_LOG_URL.format(service_name=service_name)
-        webbrowser.open(url)
+            raise CommandError(f"Service '{service_name}' not found in {self.target}")

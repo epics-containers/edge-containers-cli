@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name:  {{ .Release.Name }}-config
+  labels:
+    app: {{ .Release.Name }}
+# configure an Aravis Camera with the Standard set of Plugins
+data:
+  ioc.yaml: >
+  {{ tpl (.Files.Get "config/ioc.yaml") . | nindent 4 | replace "[[" "{{" | replace "]]" "}}" }}

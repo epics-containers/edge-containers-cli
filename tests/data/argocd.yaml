@@ -1,0 +1,45 @@
+checks:
+  - cmd: argocd app get project/bl01t
+    rsp: ""
+  - cmd: argocd app list -l "ec_service=true" --project project -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app manifests project/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        creationTimestamp: "2024-07-12T13:52:35Z"
+      status:
+        readyReplicas: 1
+
+logs:
+  - cmd: argocd app logs project/bl01t-ea-test-01
+    rsp: ""
+
+log_history:
+  - cmd: https://graylog2.diamond.ac.uk/bl01t-ea-test-01*
+    rsp: True
+
+restart:
+  - cmd: argocd app delete-resource project/bl01t-ea-test-01 --kind StatefulSet
+    rsp: ""
+
+start:
+  - cmd: argocd app set project/bl01t-ea-test-01 -p global.enabled=true
+    rsp: ""
+
+stop:
+  - cmd: argocd app set project/bl01t-ea-test-01 -p global.enabled=false
+    rsp: ""

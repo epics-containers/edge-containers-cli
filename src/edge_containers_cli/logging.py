@@ -4,16 +4,14 @@ Setup logging for the project
 
 import logging
 
-import edge_containers_cli.globals as globals
+from edge_containers_cli.definitions import ECLogLevels
 
 log = logging.getLogger("edge-containers-cli")
 handler = logging.StreamHandler()
 
 
-def init_logging(level: str):
-    log.setLevel(level)
-    if globals.EC_DEBUG:
-        log.setLevel(logging.DEBUG)
+def init_logging(level: ECLogLevels) -> None:
+    log.setLevel(level.value)
     if log.level == logging.DEBUG:
         formatter = logging.Formatter(
             "%(levelname)s: %(pathname)s:%(lineno)d %(funcName)s " "\n\t%(message)s"

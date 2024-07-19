@@ -1,0 +1,79 @@
+checks:
+  - cmd: kubectl get namespace bl01t
+    rsp: ""
+  - cmd: kubectl get statefulset -l "is_ioc==true" -n bl01t -o yaml
+    rsp: |
+      apiVersion: v1
+      items:
+      - apiVersion: apps/v1
+        kind: StatefulSet
+        metadata:
+          creationTimestamp: "2024-07-26T08:16:07Z"
+          name: bl01t-ea-test-01
+        status:
+          readyReplicas: 1
+      kind: List
+      metadata:
+        resourceVersion: ""
+  - cmd: helm list -n bl01t -o json
+    rsp: |
+      [{ "name": "bl01t-ea-test-01", "app_version": "2024.7.824f-b" }]
+
+attach:
+  - cmd: kubectl -it -n bl01t attach statefulset bl01t-ea-test-01
+    rsp: True
+
+delete:
+  - cmd: helm delete -n bl01t bl01t-ea-test-01
+    rsp: ""
+
+template:
+  - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
+    rsp: ""
+  - cmd: 'helm template bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml   --debug *'
+    rsp: |
+      # Source: bl01t-ea-test-01/templates/configmap.yaml
+      apiVersion: v1
+      ...
+
+deploy_local:
+  - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
+    rsp: ""
+  - cmd: 'helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml --namespace bl01t *'
+    rsp: ""
+
+deploy:
+  - cmd: kubectl get namespace bl01t
+    rsp: ""
+  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/ec_tests --depth=1 --single-branch --branch=2.0
+    rsp: ""
+  - cmd: helm package /tmp/ec_tests/services/bl01t-ea-test-01 -u --app-version 2.0
+    rsp: ""
+  - cmd: helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml --namespace bl01t
+    rsp: ""
+
+exec:
+  - cmd: kubectl -it -n bl01t exec statefulset/bl01t-ea-test-01 -- bash
+    rsp: True
+
+logs:
+  - cmd: kubectl -n bl01t logs statefulset/bl01t-ea-test-01
+    rsp: ""
+
+log_history:
+  - cmd: https://graylog2.diamond.ac.uk/bl01t-ea-test-01*
+    rsp: True
+
+restart:
+  - cmd: kubectl get -n bl01t pod -l app=bl01t-ea-test-01 -o name
+    rsp: pod/bl01t-ea-test-01-0
+  - cmd: kubectl delete -n bl01t pod/bl01t-ea-test-01-0
+    rsp: pod "bl01c-ea-test-01-0" deleted
+
+start:
+  - cmd: kubectl scale -n bl01t statefulset bl01t-ea-test-01 --replicas=1
+    rsp: statefulset.apps/bl01t-ea-test-01 scaled
+
+stop:
+  - cmd: kubectl scale -n bl01t statefulset bl01t-ea-test-01 --replicas=0
+    rsp: statefulset.apps/bl01t-ea-test-01 scaled

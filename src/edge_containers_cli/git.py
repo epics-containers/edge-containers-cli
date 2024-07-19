@@ -5,36 +5,43 @@ Utility functions for working with git
 import os
 from pathlib import Path
 
-import edge_containers_cli.shell as shell
+import polars
+from natsort import natsorted
+
 from edge_containers_cli.logging import log
-from edge_containers_cli.shell import check_services_repo
-from edge_containers_cli.utils import chdir
+from edge_containers_cli.shell import shell
+from edge_containers_cli.utils import chdir, new_workdir
 
 
-def create_version_map(repo: str, folder: Path) -> dict:
+class GitError(Exception):
+    pass
+
+
+def create_version_map(
+    repo: str, root_dir: Path, working_dir: Path, shared: list[str] | None = None
+) -> dict[str, list[str]]:
     """
-    return a dictionary of the available IOCs (by discovering the children
-    to the services/ folder in the beamline repo) as well as a list of the corresponding
-    available versions for each IOC (by discovering the tags in the beamline repo at
-    which changes to the instance were made since the last tag) and the respective
-    list of available versions
+    return a dictionary of each subdirectory in a chosen root directory in a git
+    repository with a list of tags which represent changes. Symlinks are resolved.
     """
-    check_services_repo(repo)
-    shell.run_command(f"git clone {repo} {folder}", interactive=False)
-    path_list = os.listdir(os.path.join(folder, "services"))
+    shell.run_command(f"git clone {repo} {working_dir}")
+    try:
+        path_list = os.listdir(os.path.join(working_dir, root_dir))
+    except FileNotFoundError as e:
+        raise GitError(f"No {root_dir} directory found") from e
     service_list = [
         path
         for path in path_list
-        if os.path.isdir(os.path.join(folder, "services", path))
+        if os.path.isdir(os.path.join(working_dir, root_dir, path))
     ]
     log.debug(f"service_list = {service_list}")
 
-    version_map = {service_item: [] for service_item in service_list}
+    version_map = {}
 
-    with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
-        result_tags = str(
-            shell.run_command("git tag --sort=committerdate", interactive=False)
-        )
+    with chdir(working_dir):  # From python 3.11 can use contextlib.chdir(working_dir)
+        result_tags = str(shell.run_command("git tag --sort=committerdate"))
+        if not result_tags:
+            raise GitError("No tags found in repo")
         tags_list = result_tags.rstrip().split("\n")
         log.debug(f"tags_list = {tags_list}")
 
@@ -44,23 +51,17 @@ def create_version_map(repo: str, folder: Path) -> dict:
             # Check initial configuration
             if not tag_no:
                 cmd = f"git ls-tree -r {tags_list[tag_no]} --name-only"
-                changed_files = str(
-                    shell.run_command(cmd, interactive=False, error_OK=True)
-                )
+                changed_files = str(shell.run_command(cmd))
 
             # Check repo changes between tags
             else:
                 cmd = f"git diff --name-only {tags_list[tag_no-1]} {tags_list[tag_no]}"
-                changed_files = str(
-                    shell.run_command(cmd, interactive=False, error_OK=True)
-                )
+                changed_files = str(shell.run_command(cmd))
 
                 # Propagate changes through symlink target to source
                 ## Find symlink source mapping to git object
                 cmd = f"git ls-tree {tags_list[tag_no]} -r | grep 120000"
-                result_symlink_obj = str(
-                    shell.run_command(cmd, interactive=False, error_OK=True)
-                )
+                result_symlink_obj = str(shell.run_command(cmd, error_OK=True))
                 if not result_symlink_obj:
                     pass
                 else:
@@ -80,9 +81,7 @@ def create_version_map(repo: str, folder: Path) -> dict:
                         # Else retrieve git object
                         else:
                             cmd = f"git cat-file -p {symlink_object_map[symlink]}"
-                            result_symlinks = str(
-                                shell.run_command(cmd, interactive=False, error_OK=True)
-                            )
+                            result_symlinks = str(shell.run_command(cmd))
                             symlink_map[symlink] = result_symlinks
                             cached_git_obj[symlink_object_map[symlink]] = (
                                 result_symlinks
@@ -110,7 +109,46 @@ def create_version_map(repo: str, folder: Path) -> dict:
 
             # Test each service for changes
             for service_name in service_list:
-                if service_name in changed_files:
-                    version_map[service_name].append(tags_list[tag_no])
+                shared_change_found = False
+                if shared:
+                    if service_name in version_map:  # Consider shared once added
+                        for item in shared:
+                            if item in changed_files:
+                                version_map[service_name].append(tags_list[tag_no])
+                                shared_change_found = True
+                if not shared_change_found:
+                    if service_name not in version_map:
+                        version_map[service_name] = []
+                    if os.path.join(root_dir, service_name) in changed_files:
+                        version_map[service_name].append(tags_list[tag_no])
 
     return version_map
+
+
+def list_all(
+    repo: str, root_dir: Path, shared: list[str] | None = None
+) -> polars.DataFrame:
+    """List all services available in the service repository"""
+    with new_workdir() as path:
+        version_map = create_version_map(repo, root_dir, path, shared=shared)
+        svc_list = natsorted(version_map.keys())
+        log.debug(f"version_map = {version_map}")
+
+        versions = [natsorted(version_map[svc])[-1] for svc in svc_list]
+        services_df = polars.from_dict({"name": svc_list, "version": versions})
+        return services_df
+
+
+def list_instances(
+    service_name: str, repo: str, root_dir: Path, shared: list[str] | None = None
+) -> polars.DataFrame:
+    with new_workdir() as path:
+        version_map = create_version_map(repo, root_dir, path, shared=shared)
+        try:
+            svc_list = version_map[service_name]
+        except KeyError:
+            svc_list = []
+
+        sorted_list = natsorted(svc_list)[::-1]
+        services_df = polars.from_dict({"version": sorted_list})
+        return services_df
