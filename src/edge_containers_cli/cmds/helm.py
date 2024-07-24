@@ -108,7 +108,7 @@ class Helm:
             f"bash -c "
             f'"'
             f"helm {helm_cmd} {self.service_name} {helm_chart} "
-            f"--values {helm_chart.parent.parent}/beamline_values.yaml "
+            f"--values {helm_chart.parent.parent}/beamline_values.yaml "  # Only if exists?
             f"--values {helm_chart.parent}/values.yaml "
             f"--namespace {self.namespace} "
             f"{self.args} "
