@@ -3,10 +3,8 @@ from typing import Optional
 
 import typer
 
-import edge_containers_cli.globals as globals
 from edge_containers_cli.cli import cli
 from edge_containers_cli.definitions import ENV, ECBackends, ECContext, ECLogLevels
-from edge_containers_cli.utils import ConfigController
 
 from . import __version__
 from .backend import backend as ec_backend
@@ -36,10 +34,6 @@ def backend_callback(ctx: typer.Context, backend: ECBackends):
             typer_commands.pop(command)
 
     return backend.value
-
-
-args = ConfigController(globals.CONFIG_ROOT / globals.ENV_CONFIG)
-args.read_config()
 
 
 @cli.callback()

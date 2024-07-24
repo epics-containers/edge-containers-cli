@@ -10,7 +10,7 @@ from edge_containers_cli.definitions import ECContext
 # from edge_containers_cli.cmds.k8s_commands import check_namespace
 from edge_containers_cli.git import create_version_map
 from edge_containers_cli.shell import ShellError
-from edge_containers_cli.utils import cache_dict, read_cached_dict, tmpdir, ConfigController
+from edge_containers_cli.utils import cache_dict, read_cached_dict, tmpdir
 
 
 def url_encode(in_string: str) -> str:
@@ -95,8 +95,3 @@ def all_svc(ctx: typer.Context) -> list[str]:
     except CommandError as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
-
-
-def all_contexts(ctx: typer.Context) -> list[str]:
-    args = ConfigController(globals.CONFIG_ROOT / globals.ENV_CONFIG)
-    return args.get_contexts()
