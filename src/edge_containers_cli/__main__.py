@@ -114,3 +114,4 @@ def main(
         log_url=log_url,
     )
     ec_backend.set_context(context)
+    ec_backend.check_deps()
