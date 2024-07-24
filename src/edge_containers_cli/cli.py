@@ -6,14 +6,12 @@ import polars
 import typer
 from natsort import natsorted
 
-import edge_containers_cli.globals as globals
 from edge_containers_cli.autocomplete import (
     all_svc,
     avail_services,
     avail_versions,
     force_plain_completion,
     running_svc,
-    all_contexts,
 )
 from edge_containers_cli.backend import backend
 from edge_containers_cli.cmds.commands import CommandError
@@ -21,7 +19,7 @@ from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.definitions import ENV
 from edge_containers_cli.git import create_version_map
 from edge_containers_cli.logging import log
-from edge_containers_cli.utils import ConfigController, tmpdir
+from edge_containers_cli.utils import tmpdir
 
 
 class ErrorHandlingTyper(typer.Typer):

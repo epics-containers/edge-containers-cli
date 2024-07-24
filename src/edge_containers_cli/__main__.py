@@ -47,21 +47,21 @@ def main(
         help="Log the version of ec and exit",
     ),
     repo: str = typer.Option(
-        args.get_var(ENV.repo, ECContext().repo),
+        ECContext().repo,
         "-r",
         "--repo",
         help="Service instances repository",
         envvar=ENV.repo.value,
     ),
     namespace: str = typer.Option(
-        args.get_var(ENV.namespace, ECContext().namespace),
+        ECContext().namespace,
         "-n",
         "--namespace",
         help="Kubernetes namespace to use",
         envvar=ENV.namespace.value,
     ),
     backend: ECBackends = typer.Option(
-        args.get_var(ENV.backend, ECBackends.K8S),
+        ECBackends.K8S,
         "-b",
         "--backend",
         callback=backend_callback,
@@ -71,7 +71,7 @@ def main(
         expose_value=True,
     ),
     verbose: bool = typer.Option(
-        args.get_var(ENV.verbose, False),
+        False,
         "-v",
         "--verbose",
         help="Print the commands we run",
@@ -79,7 +79,7 @@ def main(
         show_default=True,
     ),
     debug: bool = typer.Option(
-        args.get_var(ENV.debug, False),
+        False,
         "-d",
         "--debug",
         help="Enable debug logging, retain temp files",
@@ -87,12 +87,12 @@ def main(
         show_default=True,
     ),
     log_level: ECLogLevels = typer.Option(
-        args.get_var(ENV.log_level, ECLogLevels.WARNING),
+        ECLogLevels.WARNING,
         help="Log level",
         envvar=ENV.log_level.value,
     ),
     log_url: str = typer.Option(
-        args.get_var(ENV.log_url, ECContext().log_url),
+        ECContext().log_url,
         help="Log url",
         envvar=ENV.log_url.value,
     ),
