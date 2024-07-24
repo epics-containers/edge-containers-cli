@@ -111,7 +111,7 @@ def deploy_local(
 
 
 @cli.command()
-def environment():
+def env():
     """List all relevant environment variables"""
     for var in ENV:
         print(f"{var.value}={os.environ.get(var.value, 'Not Defined')}")
