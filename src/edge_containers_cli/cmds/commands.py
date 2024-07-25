@@ -1,7 +1,6 @@
 from pathlib import Path
 from abc import ABC, abstractmethod
 import polars
-import polars.schema
 
 from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.logging import log
