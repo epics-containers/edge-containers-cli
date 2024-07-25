@@ -2,7 +2,6 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 import polars
 import polars.schema
-from polars.type_aliases import SchemaDict
 
 from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.logging import log
@@ -12,7 +11,7 @@ class CommandError(Exception):
     pass
 
 
-ServicesSchema: SchemaDict = polars.Schema({
+ServicesSchema = polars.Schema({
     'name': polars.String,
     'version': polars.String,
     'running': polars.Boolean,

@@ -12,10 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
-from ruamel.yaml import YAML
 
 import edge_containers_cli.globals as globals
-from edge_containers_cli.definitions import ENV
 from edge_containers_cli.logging import log
 
 T = TypeVar("T")
