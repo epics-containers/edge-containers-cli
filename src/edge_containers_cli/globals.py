@@ -16,6 +16,8 @@ SERVICE_CACHE = "service.json"
 CACHE_EXPIRY = 15
 # services directory
 SERVICES_DIR = "services"
+# Shared values
+SHARED_VALUES = "beamline_values.yaml"
 
 # Set formatting of polars tables
 polars.Config.set_tbl_hide_column_data_types(True)
