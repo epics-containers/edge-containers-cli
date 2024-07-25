@@ -78,6 +78,13 @@ def main(
         envvar=ENV.verbose.value,
         show_default=True,
     ),
+    dryrun: bool = typer.Option(
+        False,
+        "--dryrun",
+        help="Print the commands we run without execution",
+        envvar=ENV.dryrun.value,
+        show_default=True,
+    ),
     debug: bool = typer.Option(
         False,
         "-d",
@@ -99,7 +106,7 @@ def main(
 ):
     """Edge Containers assistant CLI"""
     init_logging(ECLogLevels.DEBUG if debug else log_level)
-    init_shell(verbose)
+    init_shell(verbose, dryrun)
     init_cleanup(debug)
 
     context = ECContext(
@@ -108,4 +115,3 @@ def main(
         log_url=log_url,
     )
     ec_backend.set_context(context)
-    ec_backend.check_deps()

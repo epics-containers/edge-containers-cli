@@ -17,7 +17,7 @@ def create_version_map(repo: str, folder: Path) -> dict:
     available versions for each IOC (by discovering the tags in the beamline repo at
     which changes to the instance were made since the last tag)
     """
-    shell.run_command(f"git clone {repo} {folder}", interactive=False)
+    shell.run_command(f"git clone {repo} {folder}")
     path_list = os.listdir(os.path.join(folder, "services"))
     service_list = [
         path
@@ -30,7 +30,7 @@ def create_version_map(repo: str, folder: Path) -> dict:
 
     with chdir(folder):  # From python 3.11 can use contextlib.chdir(folder)
         result_tags = str(
-            shell.run_command("git tag --sort=committerdate", interactive=False)
+            shell.run_command("git tag --sort=committerdate")
         )
         tags_list = result_tags.rstrip().split("\n")
         log.debug(f"tags_list = {tags_list}")
@@ -40,14 +40,14 @@ def create_version_map(repo: str, folder: Path) -> dict:
             if not tag_no:
                 cmd = f"git ls-tree -r {tags_list[tag_no]} --name-only"
                 changed_files = str(
-                    shell.run_command(cmd, interactive=False, error_OK=True)
+                    shell.run_command(cmd, error_OK=True)
                 )
 
             # Check repo changes between tags
             else:
                 cmd = f"git diff --name-only {tags_list[tag_no-1]} {tags_list[tag_no]}"
                 changed_files = str(
-                    shell.run_command(cmd, interactive=False, error_OK=True)
+                    shell.run_command(cmd, error_OK=True)
                 )
 
             # Test each service for changes

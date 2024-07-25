@@ -34,9 +34,6 @@ class Backend:
         elif backend == ECBackends.ARGOCD:
             self._Commands = ArgoCommands
 
-    def check_deps(self):
-        pass
-
     def set_context(self, context: ECContext):
         """
         Construct the appropriate Commands class

@@ -67,7 +67,6 @@ class Helm:
         shell.run_command(
             f"git clone {self.repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
-            interactive=False,
         )
 
         self._do_deploy(self.tmp / "services" / self.service_name)
@@ -79,12 +78,11 @@ class Helm:
         """
         print(f"Deploying {self.service_name}:{self.version}")
         # package up the charts to get the appVersion set
-        shell.run_command(f"helm dependency update {service_folder}", interactive=False)
+        shell.run_command(f"helm dependency update {service_folder}")
 
         with chdir(service_folder):
             shell.run_command(
                 f"helm package {service_folder} -u --app-version {self.version}",
-                interactive=False,
             )
 
             # Determine package name
@@ -105,18 +103,13 @@ class Helm:
 
         helm_cmd = "template" if self.template else "upgrade --install"
         cmd = (
-            f"bash -c "
-            f'"'
             f"helm {helm_cmd} {self.service_name} {helm_chart} "
             f"--values {helm_chart.parent.parent}/beamline_values.yaml "  # Only if exists?
             f"--values {helm_chart.parent}/values.yaml "
             f"--namespace {self.namespace} "
             f"{self.args} "
-            f'"'
         )
-
-        output = shell.run_command(cmd, interactive=False)
-        print(output)
+        shell.run_command(cmd, show=True, skip_on_dryrun=True)
 
 
 def validate_instance_path(service_path: Path):

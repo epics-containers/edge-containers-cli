@@ -20,6 +20,7 @@ class ENV(str, Enum):
     namespace = "EC_NAMESPACE"
     backend = "EC_CLI_BACKEND"
     verbose = "EC_VERBOSE"
+    dryrun = "EC_DRYRUN"
     debug = "EC_DEBUG"
     log_level = "EC_LOG_LEVEL"
     log_url = "EC_LOG_URL"

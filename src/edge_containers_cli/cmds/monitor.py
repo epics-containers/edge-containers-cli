@@ -124,7 +124,7 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
     @work
     async def load_logs(self, log: RichLog) -> None:
         self.log_text: str = self.fetch_log(
-            self.service_name, prev=False, follow=False, stdout=True
+            self.service_name, prev=False
         )
         log.loading = False
         width = max(len(line) for line in self.log_text.split("\n"))
@@ -482,7 +482,7 @@ class MonitorApp(App):
         running = self._get_highlighted_cell("running") == "True"
 
         if running:
-            command = self.commands.logs
+            command = self.commands._get_logs
             self.push_screen(LogsScreen(command, service_name))
 
     def action_sort(self, col_name: str = "") -> None:

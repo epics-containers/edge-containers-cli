@@ -86,6 +86,9 @@ def running_svc(ctx: typer.Context) -> list[str]:
     except CommandError as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
+    except ShellError as e:
+        typer.echo(f"\n{e}", nl=False, err=True)
+        return []
 
 
 def all_svc(ctx: typer.Context) -> list[str]:
@@ -93,5 +96,8 @@ def all_svc(ctx: typer.Context) -> list[str]:
     try:
         return ec_backend.commands._all_services()
     except CommandError as e:
+        typer.echo(f"\n{e}", nl=False, err=True)
+        return []
+    except ShellError as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []

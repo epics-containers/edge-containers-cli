@@ -7,16 +7,14 @@ Relies on the Helm class for deployment aspects.
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Optional
 
 import polars
 
-from edge_containers_cli.cmds.commands import CommandError, Commands
+from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
 from edge_containers_cli.cmds.helm import Helm
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import shell
-
 
 def check_service(service_name: str, namespace: str) -> str:
     """
@@ -25,11 +23,11 @@ def check_service(service_name: str, namespace: str) -> str:
     """
     cmd = f"kubectl get {{t}} -o name -n {namespace} {service_name} --ignore-not-found"
     for t in ["statefulset", "deployment"]:
-        result = shell.run_command(cmd.format(t=t), interactive=False, error_OK=True)
+        result = shell.run_command(cmd.format(t=t), error_OK=True)
         if result:
             break
     else:
-        raise CommandError(f"{service_name} does not exist in domain {namespace}")
+        raise CommandError(f"'{service_name}' does not exist in namespace '{namespace}'")
 
     # return statefulset/name or deployment/name
     log.debug(f"fullname = {result}")
@@ -47,18 +45,15 @@ class K8sCommands(Commands):
     ):
         super().__init__(ctx)
 
-        # Check backend is available?
-
     def attach(self, service_name):
         fullname = check_service(service_name, self.namespace)
-        shell.run_command(
-            f"kubectl -it -n {self.namespace} attach {fullname}",
-            interactive=True,
+        shell.run_interactive(
+            f"kubectl -it -n {self.namespace} attach {fullname}", skip_on_dryrun=True
         )
 
     def delete(self, service_name):
         check_service(service_name, self.namespace)
-        shell.run_command(f"helm delete -n {self.namespace} {service_name}")
+        shell.run_command(f"helm delete -n {self.namespace} {service_name}", skip_on_dryrun=True)
 
     def deploy(self, service_name: str, version: str, args: str):
         chart = Helm(
@@ -77,49 +72,28 @@ class K8sCommands(Commands):
 
     def exec(self, service_name):
         fullname = check_service(service_name, self.namespace)
-        shell.run_command(f"kubectl -it -n {self.namespace} exec {fullname} -- bash")
+        shell.run_command(f"kubectl -it -n {self.namespace} exec {fullname} -- bash", skip_on_dryrun=True)
 
-    def logs(
-        self, service_name: str, prev: bool, follow: bool, stdout: bool = False
-    ) -> Optional[str | bool]:
-        fullname = check_service(service_name, self.namespace)
-        previous = "-p" if prev else ""
-        fol = "-f" if follow else ""
-
-        if stdout:
-            a = shell.run_command(
-                f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}",
-                interactive=False,
-                show=False,
-                error_OK=True,
-            )
-            return a
-        else:
-            shell.run_command(
-                f"kubectl -n {self.namespace} logs {fullname} {previous} {fol}",
-            )
-            return None
+    def logs(self, service_name: str, prev: bool):
+        self._logs(service_name, prev)
 
     def ps(self, running_only: bool, wide: bool):
-        """List all IOCs and Services in the current namespace"""
         self._ps(running_only, wide)
 
     def restart(self, service_name):
         check_service(service_name, self.namespace)
         pod_name = shell.run_command(
             f"kubectl get -n {self.namespace} pod -l app={service_name} -o name",
-            interactive=False,
         )
-        shell.run_command(f"kubectl delete -n {self.namespace} {pod_name}")
+        shell.run_command(f"kubectl delete -n {self.namespace} {pod_name}", skip_on_dryrun=True)
 
     def start(self, service_name):
         fullname = check_service(service_name, self.namespace)
-        shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=1")
+        shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=1", skip_on_dryrun=True)
 
     def stop(self, service_name):
         fullname = check_service(service_name, self.namespace)
-        """Stop an IOC"""
-        shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=0 ")
+        shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=0 ", skip_on_dryrun=True)
 
     def template(self, svc_instance: Path, args: str):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
@@ -135,14 +109,13 @@ class K8sCommands(Commands):
         )
         chart.deploy_local(svc_instance)
 
-    def _get_services(self, running_only: bool) -> polars.DataFrame:
+    def _get_services(self, running_only: bool) -> ServicesDataFrame:
         services_df = polars.DataFrame()
 
         # Gives all services (running & not running) and their image
         for resource in ["deployment", "statefulset"]:
             kubectl_res = shell.run_command(
                 f"kubectl get {resource} -n {self.namespace} {jsonpath_deploy_info}",
-                interactive=False,
             )
             if kubectl_res:
                 res_df = polars.read_csv(
@@ -160,7 +133,6 @@ class K8sCommands(Commands):
         # Gives the status, restarts for running services
         kubectl_gtpo = shell.run_command(
             f"kubectl get pods -n {self.namespace} {jsonpath_pod_info}",
-            interactive=False,
         )
         if kubectl_gtpo:
             gtpo_df = polars.read_csv(
@@ -185,7 +157,7 @@ class K8sCommands(Commands):
 
         # Adds the version, deployment time for all services
         helm_out = shell.run_command(
-            f"helm list -n {self.namespace} -o json", interactive=False
+            f"helm list -n {self.namespace} -o json"
         )
         helm_df = polars.read_json(StringIO(str(helm_out)))
         helm_df = helm_df.rename({"app_version": "version", "updated": "deployed"})
@@ -200,14 +172,24 @@ class K8sCommands(Commands):
         if running_only:
             services_df = services_df.filter(polars.col("running").eq(True))
             log.debug(services_df)
-        return services_df
+        return ServicesDataFrame(services_df)
+
+    def _get_logs(self, service_name: str, prev: bool) -> str:
+        fullname = check_service(service_name, self.namespace)
+        previous = "-p" if prev else ""
+
+        logs = shell.run_command(
+                f"kubectl -n {self.namespace} logs {fullname} {previous}",
+                error_OK=True,
+            )
+        return logs
 
     def _validate_namespace(self):
         """
         Verify we have a good namespace that exists in the cluster
         """
         cmd = f"kubectl get namespace {self._namespace} -o name"
-        result = shell.run_command(cmd, interactive=False, error_OK=True)
+        result = shell.run_command(cmd, error_OK=True)
         if "NotFound" in str(result):
             raise CommandError(f"Namespace '{self._namespace}' not found")
         log.info("domain = %s", self._namespace)
@@ -217,7 +199,7 @@ class K8sCommands(Commands):
         namespace = f"-n {self.namespace}"
         labels = "-l is_ioc==true"
         command = f"kubectl {namespace} {labels} get statefulset {columns}"
-        all_list = str(shell.run_command(command, interactive=False)).split()[1:]
+        all_list = shell.run_command(command).split()[1:]
 
         return all_list
 
@@ -229,7 +211,7 @@ class K8sCommands(Commands):
         labels = "-l is_ioc==true"
         selector = "--field-selector=status.phase==Running"
         command = f"kubectl {namespace} {labels} get pod {selector} {columns}"
-        running_list = str(shell.run_command(command, interactive=False))
+        running_list = shell.run_command(command)
         for svc in all:
             if svc in running_list:
                 pass

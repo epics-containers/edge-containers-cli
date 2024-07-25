@@ -15,6 +15,7 @@ from edge_containers_cli.autocomplete import (
 )
 from edge_containers_cli.backend import backend
 from edge_containers_cli.cmds.commands import CommandError
+from edge_containers_cli.shell import ShellError
 from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.definitions import ENV
 from edge_containers_cli.git import create_version_map
@@ -27,6 +28,9 @@ class ErrorHandlingTyper(typer.Typer):
         try:
             super().__call__(*args, **kwargs)
         except CommandError as e:
+            log.error(e)
+            typer.Exit(1)
+        except ShellError as e:
             log.error(e)
             typer.Exit(1)
 
@@ -185,10 +189,9 @@ def logs(
         "-p",
         help="Show log from the previous instance of the service",
     ),
-    follow: bool = typer.Option(False, "--follow", "-f", help="Follow the log stream"),
 ):
     """Show logs for current and previous instances of an service"""
-    backend.commands.logs(service_name, prev, follow)
+    backend.commands.logs(service_name, prev)
 
 
 @cli.command()
