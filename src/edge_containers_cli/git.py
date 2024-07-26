@@ -9,7 +9,6 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import shell
 from edge_containers_cli.utils import chdir
 
-
 def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str=None) -> dict[str: list[str]]:
     """
     return a dictionary of each subdirectory in a chosen root directory in a git
@@ -22,9 +21,10 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
         for path in path_list
         if os.path.isdir(os.path.join(working_dir, root_dir, path))
     ]
+    shared_path = os.path.join(working_dir, root_dir, shared)
     log.debug(f"service_list = {service_list}")
 
-    version_map = {}
+    version_map = {service_item: [] for service_item in service_list}
 
     with chdir(working_dir):  # From python 3.11 can use contextlib.chdir(working_dir)
         result_tags = str(
@@ -40,21 +40,21 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
             if not tag_no:
                 cmd = f"git ls-tree -r {tags_list[tag_no]} --name-only"
                 changed_files = str(
-                    shell.run_command(cmd, error_OK=True)
+                    shell.run_command(cmd)
                 )
 
             # Check repo changes between tags
             else:
                 cmd = f"git diff --name-only {tags_list[tag_no-1]} {tags_list[tag_no]}"
                 changed_files = str(
-                    shell.run_command(cmd, error_OK=True)
+                    shell.run_command(cmd)
                 )
 
                 # Propagate changes through symlink target to source
                 ## Find symlink source mapping to git object
                 cmd = f"git ls-tree {tags_list[tag_no]} -r | grep 120000"
                 result_symlink_obj = str(
-                    shell.run_command(cmd, error_OK=True)
+                    shell.run_command(cmd)
                 )
                 if not result_symlink_obj:
                     pass
@@ -76,7 +76,7 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
                         else:
                             cmd = f"git cat-file -p {symlink_object_map[symlink]}"
                             result_symlinks = str(
-                                shell.run_command(cmd, error_OK=True)
+                                shell.run_command(cmd)
                             )
                             symlink_map[symlink] = result_symlinks
                             cached_git_obj[symlink_object_map[symlink]] = (
@@ -105,11 +105,9 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
 
             # Test each service for changes
             for service_name in service_list:
-                version_map[service_name] = []
-                if shared in changed_files:
+                if shared_path in changed_files:
                     version_map[service_name].append(tags_list[tag_no])
-                elif service_name in changed_files:
+                elif os.path.join(root_dir, service_name) in changed_files:
                     version_map[service_name].append(tags_list[tag_no])
 
     return version_map
-
