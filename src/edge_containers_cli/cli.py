@@ -2,9 +2,8 @@ import os
 import webbrowser
 from pathlib import Path
 
-import polars
 import typer
-from natsort import natsorted
+
 
 from edge_containers_cli.autocomplete import (
     all_svc,
@@ -18,11 +17,15 @@ from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.shell import ShellError
 from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.definitions import ENV
-from edge_containers_cli.git import create_version_map
+from edge_containers_cli.git import list_all, list_instances
 from edge_containers_cli.logging import log
-from edge_containers_cli.utils import new_workdir
 import edge_containers_cli.globals as globals
 
+
+def confirmation(message: str, yes: bool):
+    typer.echo(message)
+    if not (yes or typer.confirm("Are you sure?")):
+        raise typer.Abort()
 
 class ErrorHandlingTyper(typer.Typer):
     def __call__(self, *args, **kwargs):
@@ -56,15 +59,15 @@ def delete(
     service_name: str = typer.Argument(
         ..., help="Name of the service to delete", autocompletion=all_svc
     ),
+    yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
 ):
     """
     Remove a helm deployment from the cluster
     """
-    if not typer.confirm(
-        f"This will remove all versions of {service_name} "
-        "from the cluster. Are you sure ?"
-    ):
-        raise typer.Abort()
+    confirmation(
+        f"Remove all versions of {service_name} from the namespace `{backend.commands.namespace}`",
+        yes,
+        )
     backend.commands.delete(service_name)
 
 
@@ -79,6 +82,7 @@ def deploy(
         autocompletion=avail_versions,
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
+    yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     args: str = typer.Option(
         "", help="Additional args for helm or docker, 'must be quoted'"
     ),
@@ -86,6 +90,11 @@ def deploy(
     """
     Pull an service helm chart version from the domain repo and deploy it to the cluster
     """
+    confirmation(
+        f"Deploy {service_name.lower()} "
+        f"of version `{version}` to namespace `{backend.commands.namespace}`",
+        yes,
+    )
     args = args if not wait else args + " --wait"
     backend.commands.deploy(service_name, version, args)
 
@@ -106,12 +115,11 @@ def deploy_local(
     """
     Deploy a local service helm chart directly to the cluster with dated beta version
     """
-    typer.echo(
+    confirmation(
         f"Deploy local {svc_instance.name.lower()} "
-        f"from {svc_instance} to domain {backend.commands.namespace}"
+        f"from {svc_instance} to namespace `{backend.commands.namespace}`",
+        yes,
     )
-    if not (yes or typer.confirm("Are you sure ?")):
-        raise typer.Abort()
     backend.commands.deploy_local(svc_instance, args)
 
 
@@ -141,32 +149,13 @@ def instances(
     ),
 ):
     """List all versions of the specified service in the repository"""
-    with new_workdir() as path:
-        version_map = create_version_map(backend.commands.repo, globals.SERVICES_DIR, path, shared=globals.SHARED_VALUES)
-        try:
-            svc_list = version_map[service_name]
-        except KeyError:
-            svc_list = []
-
-        sorted_list = natsorted(svc_list)[::-1]
-        services_df = polars.from_dict({"version": sorted_list})
-        print(services_df)
+    print(list_instances(service_name, backend.commands.repo, globals.SERVICES_DIR, shared=globals.SHARED_VALUES))
 
 
 @cli.command()
-def list(    
-    version: str = typer.Option("",
-        help="List only services that have changed for a given version",
-    ),):
+def list():
     """List all services available in the service repository"""
-    with new_workdir() as path:
-        version_map = create_version_map(backend.commands.repo, globals.SERVICES_DIR, path, shared=globals.SHARED_VALUES)
-        svc_list = natsorted(version_map.keys())
-        log.debug(f"version_map = {version_map}")
-
-        versions = [natsorted(version_map[svc])[-1] for svc in svc_list]
-        services_df = polars.from_dict({"name": svc_list, "version": versions})
-        print(services_df)
+    print(list_all(backend.commands.repo, globals.SERVICES_DIR, shared=globals.SHARED_VALUES))
 
 
 @cli.command()

@@ -5,7 +5,6 @@ import polars
 from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.logging import log
 
-
 class CommandError(Exception):
     pass
 
@@ -66,11 +65,10 @@ class Commands(ABC):
         else:
             return self._log_url
 
-    def attach(self, service_name):
+    def attach(self, service_name: str):
         raise NotImplementedError
 
-    @abstractmethod
-    def delete(self, service_name):
+    def delete(self, service_name: str):
         raise NotImplementedError
 
     def deploy(self, service_name: str, version: str, args: str):

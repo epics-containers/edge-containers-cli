@@ -4,10 +4,12 @@ Utility functions for working with git
 
 import os
 from pathlib import Path
+from natsort import natsorted
+import polars
 
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import shell
-from edge_containers_cli.utils import chdir
+from edge_containers_cli.utils import chdir, new_workdir
 
 def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str=None) -> dict[str: list[str]]:
     """
@@ -111,3 +113,28 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
                     version_map[service_name].append(tags_list[tag_no])
 
     return version_map
+
+def list_all(repo: str, root_dir: Path, shared: str=None) -> polars.DataFrame:
+
+    """List all services available in the service repository"""
+    with new_workdir() as path:
+        version_map = create_version_map(repo, root_dir, path, shared=shared)
+        svc_list = natsorted(version_map.keys())
+        log.debug(f"version_map = {version_map}")
+
+        versions = [natsorted(version_map[svc])[-1] for svc in svc_list]
+        services_df = polars.from_dict({"name": svc_list, "version": versions})
+        return services_df
+    
+
+def list_instances(service_name: str, repo: str, root_dir: Path, shared: str=None) -> polars.DataFrame:
+    with new_workdir() as path:
+        version_map = create_version_map(repo, root_dir, path, shared)
+        try:
+            svc_list = version_map[service_name]
+        except KeyError:
+            svc_list = []
+
+        sorted_list = natsorted(svc_list)[::-1]
+        services_df = polars.from_dict({"version": sorted_list})
+        return services_df
