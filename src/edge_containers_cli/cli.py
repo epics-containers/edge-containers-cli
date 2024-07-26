@@ -4,7 +4,6 @@ from pathlib import Path
 
 import typer
 
-
 from edge_containers_cli.autocomplete import (
     all_svc,
     avail_services,
@@ -15,7 +14,6 @@ from edge_containers_cli.autocomplete import (
 from edge_containers_cli.backend import backend
 from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.shell import ShellError
-from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.definitions import ENV
 from edge_containers_cli.git import list_all, list_instances, GitError
 from edge_containers_cli.logging import log
@@ -197,6 +195,7 @@ def monitor(
     ),
 ):
     """Open monitor TUI."""
+    from edge_containers_cli.cmds.monitor import MonitorApp  # Lazy import for performace
     app = MonitorApp(backend.commands, running_only)
     app.run()
 
