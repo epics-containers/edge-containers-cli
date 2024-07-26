@@ -103,10 +103,14 @@ class Helm:
         Execute helm install command
         """
 
+        shared_vals = ""
+        if (helm_chart.parent.parent / globals.SHARED_VALUES).exists():
+            shared_vals =  f"--values {helm_chart.parent.parent}/beamline_values.yaml "
+
         helm_cmd = "template" if self.template else "upgrade --install"
         cmd = (
             f"helm {helm_cmd} {self.service_name} {helm_chart} "
-            f"--values {helm_chart.parent.parent}/beamline_values.yaml "  # Only if exists?
+            f"{shared_vals} "
             f"--values {helm_chart.parent}/values.yaml "
             f"--namespace {self.namespace} "
             f"{self.args} "
