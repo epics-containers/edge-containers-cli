@@ -33,9 +33,9 @@ def chdir(path):
         os.chdir(curdir)
 
 
-class TempDirManager:
-    def __init__(self):
-        self.debug = False
+class WorkingDir:
+    def __init__(self, debug: bool):
+        self.debug = debug
         self.dir = None
 
     def create(self) -> Path:
@@ -56,11 +56,19 @@ class TempDirManager:
         return self.cleanup()
 
 
-tmpdir = TempDirManager()
+class NewWorkingDir():
+    def __init__(self):
+        self.debug = False
+    
+    def __call__(self):
+        return WorkingDir(self.debug)
+
+new_workdir = NewWorkingDir()
+
 
 
 def init_cleanup(debug: bool = False):
-    tmpdir.debug = debug
+    new_workdir.debug = debug
 
 
 def local_version() -> str:

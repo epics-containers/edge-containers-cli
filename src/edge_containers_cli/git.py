@@ -12,7 +12,7 @@ from edge_containers_cli.utils import chdir
 
 def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str=None) -> dict[str: list[str]]:
     """
-    return a dictionary of each subdirectory in a chosen directory of a git 
+    return a dictionary of each subdirectory in a chosen root directory in a git
     repository with a list of tags which represent changes. Symlinks are resolved.
     """
     shell.run_command(f"git clone {repo} {working_dir}")
@@ -24,7 +24,7 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
     ]
     log.debug(f"service_list = {service_list}")
 
-    version_map = {service_item: [] for service_item in service_list}
+    version_map = {}
 
     with chdir(working_dir):  # From python 3.11 can use contextlib.chdir(working_dir)
         result_tags = str(
@@ -105,6 +105,7 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
 
             # Test each service for changes
             for service_name in service_list:
+                version_map[service_name] = []
                 if shared in changed_files:
                     version_map[service_name].append(tags_list[tag_no])
                 elif service_name in changed_files:

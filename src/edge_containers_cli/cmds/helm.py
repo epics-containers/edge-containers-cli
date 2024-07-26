@@ -4,12 +4,13 @@ from typing import Optional
 from ruamel.yaml import YAML
 
 from edge_containers_cli.cmds.commands import CommandError
+import edge_containers_cli.globals as globals
 from edge_containers_cli.shell import shell
 from edge_containers_cli.utils import (
     chdir,
     local_version,
     log,
-    tmpdir,
+    new_workdir,
 )
 
 
@@ -37,11 +38,12 @@ class Helm:
         self.version = version or local_version()
         self.template = template
 
-        self.tmp = tmpdir.create()
+        self._work_dir = new_workdir()
+        self.tmp = self._work_dir.create()
 
     def __del__(self):
         if hasattr(self, "tmp"):
-            tmpdir.cleanup()
+            self._work_dir.cleanup()
 
     def cleanup_chart(self, service_path: Path):
         (service_path / "Chart.lock").unlink(missing_ok=True)

@@ -20,7 +20,7 @@ from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.definitions import ENV
 from edge_containers_cli.git import create_version_map
 from edge_containers_cli.logging import log
-from edge_containers_cli.utils import tmpdir
+from edge_containers_cli.utils import new_workdir
 import edge_containers_cli.globals as globals
 
 
@@ -141,7 +141,7 @@ def instances(
     ),
 ):
     """List all versions of the specified service in the repository"""
-    with tmpdir as path:
+    with new_workdir() as path:
         version_map = create_version_map(backend.commands.repo, globals.SERVICES_DIR, path, shared=globals.SHARED_VALUES)
         try:
             svc_list = version_map[service_name]
@@ -154,9 +154,12 @@ def instances(
 
 
 @cli.command()
-def list():
+def list(    
+    version: str = typer.Option("",
+        help="List only services that have changed for a given version",
+    ),):
     """List all services available in the service repository"""
-    with tmpdir as path:
+    with new_workdir() as path:
         version_map = create_version_map(backend.commands.repo, globals.SERVICES_DIR, path, shared=globals.SHARED_VALUES)
         svc_list = natsorted(version_map.keys())
         log.debug(f"version_map = {version_map}")

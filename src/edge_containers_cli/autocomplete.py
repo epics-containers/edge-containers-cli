@@ -9,7 +9,7 @@ from edge_containers_cli.definitions import ECContext
 
 from edge_containers_cli.git import create_version_map
 from edge_containers_cli.shell import ShellError
-from edge_containers_cli.utils import cache_dict, read_cached_dict, tmpdir
+from edge_containers_cli.utils import cache_dict, read_cached_dict, new_workdir
 
 def url_encode(in_string: str) -> str:
     return urllib.parse.quote(in_string, safe="")  # type: ignore
@@ -30,7 +30,7 @@ def fetch_service_graph(repo: str) -> dict:
         globals.CACHE_ROOT / url_encode(repo), globals.SERVICE_CACHE
     )
     if not version_map:
-        with tmpdir as path:
+        with new_workdir() as path:
             version_map = create_version_map(repo, globals.SERVICES_DIR, path, shared=globals.SHARED_VALUES)
             cache_dict(
                 globals.CACHE_ROOT / url_encode(repo),
