@@ -7,7 +7,7 @@ from edge_containers_cli.backend import backend as ec_backend
 from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.definitions import ECContext
 
-from edge_containers_cli.git import create_version_map
+from edge_containers_cli.git import create_version_map, GitError
 from edge_containers_cli.shell import ShellError
 from edge_containers_cli.utils import cache_dict, read_cached_dict, new_workdir
 
@@ -68,6 +68,9 @@ def avail_versions(ctx: typer.Context) -> list[str]:
         typer.echo(f"\n{service_name} not found", nl=False, err=True)
         return []
     except ShellError as e:
+        typer.echo(f"\n{e}", nl=False, err=True)
+        return []
+    except GitError as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
 

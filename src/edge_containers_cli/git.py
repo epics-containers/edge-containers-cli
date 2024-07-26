@@ -11,13 +11,19 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import shell
 from edge_containers_cli.utils import chdir, new_workdir
 
+class GitError(Exception):
+    pass
+
 def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str=None) -> dict[str: list[str]]:
     """
     return a dictionary of each subdirectory in a chosen root directory in a git
     repository with a list of tags which represent changes. Symlinks are resolved.
     """
     shell.run_command(f"git clone {repo} {working_dir}")
-    path_list = os.listdir(os.path.join(working_dir, root_dir))
+    try:
+        path_list = os.listdir(os.path.join(working_dir, root_dir))
+    except FileNotFoundError as e:
+        raise GitError(f"No {root_dir} directory found")
     service_list = [
         path
         for path in path_list
@@ -56,7 +62,7 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
                 ## Find symlink source mapping to git object
                 cmd = f"git ls-tree {tags_list[tag_no]} -r | grep 120000"
                 result_symlink_obj = str(
-                    shell.run_command(cmd)
+                    shell.run_command(cmd, error_OK=True)
                 )
                 if not result_symlink_obj:
                     pass

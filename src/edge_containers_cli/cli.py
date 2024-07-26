@@ -17,7 +17,7 @@ from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.shell import ShellError
 from edge_containers_cli.cmds.monitor import MonitorApp
 from edge_containers_cli.definitions import ENV
-from edge_containers_cli.git import list_all, list_instances
+from edge_containers_cli.git import list_all, list_instances, GitError
 from edge_containers_cli.logging import log
 import edge_containers_cli.globals as globals
 
@@ -35,6 +35,9 @@ class ErrorHandlingTyper(typer.Typer):
             log.error(e)
             typer.Exit(1)
         except ShellError as e:
+            log.error(e)
+            typer.Exit(1)
+        except GitError as e:
             log.error(e)
             typer.Exit(1)
 
