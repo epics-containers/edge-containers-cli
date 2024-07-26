@@ -114,3 +114,8 @@ def main(
         log_url=log_url,
     )
     ec_backend.set_context(context)
+
+# test with:
+#     python -m edge_containers_cli
+if __name__ == "__main__":
+    cli()
