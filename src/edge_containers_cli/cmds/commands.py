@@ -54,14 +54,18 @@ class Commands(ABC):
     @property
     def repo(self):
         if self._repo == ECContext().repo:
-            raise CommandError(f"Please set {ENV.repo.value} or pass --repo")
+            raise CommandError(
+                f"Please set {ENV.repo.value} or pass --repo"
+                )
         else:
             return self._repo
 
     @property
     def log_url(self):
         if self._log_url == ECContext().log_url:
-            raise CommandError(f"Please set {ENV.log_url.value} or pass --log_url")
+            raise CommandError(
+                f"Please set {ENV.log_url.value} or pass --log_url"
+                )
         else:
             return self._log_url
 

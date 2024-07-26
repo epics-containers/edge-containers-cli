@@ -42,32 +42,36 @@ def fetch_service_graph(repo: str) -> dict:
 
 
 def avail_services(ctx: typer.Context) -> list[str]:
-    params = ctx.parent.params  # type: ignore
-    services_repo = params["repo"]
+    autocomplete_backend_init(ctx)
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        services_graph = fetch_service_graph(services_repo)
+        services_graph = fetch_service_graph(ec_backend.commands.repo)
         return list(services_graph.keys())
     except ShellError as e:
+        typer.echo(f"\n{e}", nl=False, err=True)
+        return []
+    except CommandError as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
 
 
 def avail_versions(ctx: typer.Context) -> list[str]:
-    params = ctx.parent.params  # type: ignore
-    repo = params["repo"]
+    autocomplete_backend_init(ctx)
     service_name = ctx.params["service_name"]
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        version_map = fetch_service_graph(repo)
+        version_map = fetch_service_graph(ec_backend.commands.repo)
         svc_versions = version_map[service_name]
         return svc_versions
     except KeyError:
         typer.echo(f"\n{service_name} not found", nl=False, err=True)
         return []
     except ShellError as e:
+        typer.echo(f"\n{e}", nl=False, err=True)
+        return []
+    except CommandError as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
     except GitError as e:
