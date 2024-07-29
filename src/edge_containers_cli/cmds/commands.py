@@ -86,6 +86,9 @@ class Commands(ABC):
 
     def logs(self, service_name: str, prev: bool):
         raise NotImplementedError
+    
+    def log_history(self, service_name: str):
+        raise NotImplementedError
 
     def ps(self, running_only: bool, wide: bool):
         raise NotImplementedError

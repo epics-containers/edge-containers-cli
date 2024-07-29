@@ -1,5 +1,4 @@
 import os
-import webbrowser
 from pathlib import Path
 
 import typer
@@ -168,8 +167,7 @@ def log_history(
     ),
 ):
     """Open historical logs for an service"""
-    url = backend.commands.log_url.format(service_name=service_name)
-    webbrowser.open(url)
+    backend.commands.log_history(service_name)
 
 
 @cli.command()

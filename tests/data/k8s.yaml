@@ -2,14 +2,14 @@ checks:
   - cmd: kubectl get namespace bl01t -o name
     rsp: namespace/bl01t
   - cmd: kubectl get statefulset -o name -n bl01t bl01t-ea-test-01 --ignore-not-found
-    rsp: statefulset/bl01t-ea-test-01
+    rsp: statefulset.apps/bl01t-ea-test-01
 
 svc_check:
   - cmd: kubectl get namespace bl01t -o name
     rsp: namespace/bl01t
 
 attach:
-  - cmd: kubectl -it -n bl01t attach statefulset/bl01t-ea-test-01
+  - cmd: kubectl -it -n bl01t attach statefulset.apps/bl01t-ea-test-01
     rsp: True
 
 delete:
@@ -62,36 +62,30 @@ instances:
     rsp: ../../include/iocs/templates
 
 exec:
-  - cmd: kubectl -it -n bl01t exec statefulset/bl01t-ea-test-01 -- bash
-    rsp: True
-
-exec2:
-  - cmd: kubectl -it -n bl01t exec statefulset/bl01t-ea-test-01 -- bash
-    rsp: True
-
-log_history:
-  - cmd: "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields=message\
-      %2Csource&width=1489&highlightMessage=&relative=172800&q=pod_name%3A\
-      bl01t-ea-test-01*"
+  - cmd: kubectl -it -n bl01t exec statefulset.apps/bl01t-ea-test-01 -- bash
     rsp: True
 
 logs:
-  - cmd: kubectl -n bl01t logs statefulset/bl01t-ea-test-01
+  - cmd: kubectl -n bl01t logs statefulset.apps/bl01t-ea-test-01
+    rsp: ""
+
+log_history:
+  - cmd: https://graylog2.diamond.ac.uk/bl01t-ea-test-01*
     rsp: True
 
 restart:
   - cmd: kubectl get -n bl01t pod -l app=bl01t-ea-test-01 -o name
-    rsp: bl01t-ea-test-01-xxxx
-  - cmd: kubectl delete -n bl01t bl01t-ea-test-01-xxxx
-    rsp: True
+    rsp: pod/bl01t-ea-test-01-0
+  - cmd: kubectl delete -n bl01t pod/bl01t-ea-test-01-0
+    rsp: pod "bl01c-ea-test-01-0" deleted
 
 start:
-  - cmd: kubectl scale -n bl01t statefulset/bl01t-ea-test-01 --replicas=1
-    rsp: True
+  - cmd: kubectl scale -n bl01t statefulset.apps/bl01t-ea-test-01 --replicas=1
+    rsp: statefulset.apps/bl01t-ea-test-01 scaled
 
 stop:
-  - cmd: kubectl scale -n bl01t statefulset/bl01t-ea-test-01 --replicas=0
-    rsp: True
+  - cmd: kubectl scale -n bl01t statefulset.apps/bl01t-ea-test-01 --replicas=0
+    rsp: statefulset.apps/bl01t-ea-test-01 scaled
 
 ps:
   - cmd: kubectl get namespace bl01t -o name

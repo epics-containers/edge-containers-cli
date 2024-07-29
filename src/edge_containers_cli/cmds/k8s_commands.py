@@ -7,6 +7,7 @@ Relies on the Helm class for deployment aspects.
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
+import webbrowser
 
 import polars
 
@@ -72,10 +73,15 @@ class K8sCommands(Commands):
 
     def exec(self, service_name):
         fullname = check_service(service_name, self.namespace)
-        shell.run_command(f"kubectl -it -n {self.namespace} exec {fullname} -- bash", skip_on_dryrun=True)
+        shell.run_interactive(f"kubectl -it -n {self.namespace} exec {fullname} -- bash", skip_on_dryrun=True)
 
     def logs(self, service_name: str, prev: bool):
         self._logs(service_name, prev)
+
+    def log_history(self, service_name: str):
+        check_service(service_name, self.namespace)
+        url = self.log_url.format(service_name=service_name)
+        webbrowser.open(url)
 
     def ps(self, running_only: bool, wide: bool):
         self._ps(running_only, wide)
@@ -145,7 +151,7 @@ class K8sCommands(Commands):
                 gtpo_df, on="name", how="left", coalesce=True
             )
             services_df = services_df.with_columns(
-                polars.col("running").replace({"Running": True}, default=False),
+                polars.col("running").replace_strict({"Running": True}, default=False),
                 polars.col("restarts").fill_null(0),
             )
         elif not running_only:

@@ -3,6 +3,11 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
+import os
+from edge_containers_cli.backend import init_backend
+from edge_containers_cli.logging import init_logging
+from edge_containers_cli.shell import init_shell
+from edge_containers_cli.utils import init_cleanup
 
 from pytest import fixture
 from ruamel.yaml import YAML
@@ -39,26 +44,21 @@ class MockRun:
         self.params: list[str] = []
 
     def _str_command(
-        self, command: str, interactive: bool = True, error_OK: bool = False
+        self, command: str, error_OK: bool = False
     ):
-        """
-        A function to replace shell.run_command that verifies the command
-        against the expected sequence of commands and returns the test
-        response.
-        """
         self.log += f"\n\nFNC: ec {' '.join(self.params)}"
         self.log += f"\nCMD: {command}"
 
         try:
             cmd_rsp = self.cmd_rsp.pop(0)
         except IndexError as e:
-            raise IndexError("No test command response to return") from e
+            raise IndexError("Depleted command-responce list") from e
 
         cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]
 
         self.log += f"\nTST: {cmd}"
-        self.log += f"\nARG: interactive:{interactive}, error_OK:{error_OK}"
+        self.log += f"\nARG: error_OK:{error_OK}"
         self.log += f"\nRET: {rsp}\n"
 
         # try a raw match first then use the test value as a regex
@@ -66,10 +66,32 @@ class MockRun:
             matches = re.match(cmd, command)
             assert matches is not None, f"command mismatch: {cmd} != {command}"
 
-        if interactive:
-            assert isinstance(rsp, bool), "interactive commands must return bool"
-        else:
-            assert isinstance(rsp, str), "non-interactive commands must return str"
+        return rsp
+
+
+    def run_command(
+        self, command: str, error_OK: bool = False, skip_on_dryrun=False
+    ):
+        """
+        A function to replace shell.run_command that verifies the command
+        against the expected sequence of commands and returns the test
+        response.
+        """
+        rsp = self._str_command(command,error_OK)
+        assert isinstance(rsp, str), "non-interactive commands must return str"
+
+        return rsp
+    
+    def run_interactive(
+        self, command: str, error_OK: bool = False, skip_on_dryrun=False
+    ):
+        """
+        A function to replace shell.run_interactive that verifies the command
+        against the expected sequence of commands and returns the test
+        response.
+        """
+        rsp = self._str_command(command,error_OK)
+        assert isinstance(rsp, bool), "non-interactive commands must return bool"
 
         return rsp
 
@@ -128,24 +150,23 @@ def mktempdir(_1=None, _2=None, _3=None):
 @fixture
 def mock_run(mocker):
     # Patch globals
-    mocker.patch(
-        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
-        "bl01t",
-    )
-    mocker.patch(
-        "edge_containers_cli.globals.EC_SERVICES_REPO",
-        "https://github.com/epics-containers/bl01t",
-    )
-    mocker.patch(
-        "edge_containers_cli.globals.EC_LOG_URL",
-        "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields="
-        "message%2Csource&width=1489&highlightMessage=&relative=172800&q="
-        "pod_name%3A{service_name}*",
-    )
-    mocker.patch(
-        "edge_containers_cli.globals.EC_DEBUG",
-        "1",
-    )
+    # mocker.patch(
+    #     "edge_containers_cli.globals.EC_K8S_NAMESPACE",
+    #     "bl01t",
+    # )
+    # mocker.patch(
+    #     "edge_containers_cli.globals.EC_SERVICES_REPO",
+    #     "https://github.com/epics-containers/bl01t",
+    # )
+    mocker.patch.dict(os.environ, 
+        {
+            "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
+            "EC_NAMESPACE": "bl01t",
+            })
+    # mocker.patch(
+    #     "edge_containers_cli.globals.EC_DEBUG",
+    #     "1",
+    # )
     mocker.patch(
         "edge_containers_cli.globals.CACHE_ROOT",
         TMPDIR,
@@ -156,10 +177,11 @@ def mock_run(mocker):
     )
 
     # Patch functions
-    mocker.patch("webbrowser.open", MOCKRUN._str_command)
-    mocker.patch("typer.confirm", return_value=True)
-    mocker.patch("tempfile.mkdtemp", mktempdir)
-    mocker.patch("edge_containers_cli.shell.run_command", MOCKRUN._str_command)
+    mocker.patch("webbrowser.open", MOCKRUN.run_interactive)
+    #mocker.patch("typer.confirm", return_value=True)
+    #mocker.patch("tempfile.mkdtemp", mktempdir)
+    mocker.patch("edge_containers_cli.shell.shell.run_command", MOCKRUN.run_command)
+    mocker.patch("edge_containers_cli.shell.shell.run_interactive", MOCKRUN.run_interactive)
     return MOCKRUN
 
 
@@ -177,11 +199,16 @@ def ctx():
 
 
 @fixture()
-def ioc(data):
-    file = Path(__file__).parent / "data" / "ioc.yaml"
+def K8S(data):
+    file = Path(__file__).parent / "data" / "k8s.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
 
+@fixture()
+def ec_cli(data):
+    file = Path(__file__).parent / "data" / "cli.yaml"
+    yaml = YAML(typ="safe").load(file)
+    return SimpleNamespace(**yaml)
 
 @fixture()
 def local(data, mocker):
