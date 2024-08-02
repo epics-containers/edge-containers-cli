@@ -65,7 +65,7 @@ def delete(
     Remove a helm deployment from the cluster
     """
     confirmation(
-        f"Remove all versions of {service_name} from the namespace `{backend.commands.namespace}`",
+        f"Remove all versions of {service_name} from the target `{backend.commands.target}`",
         yes,
         )
     backend.commands.delete(service_name)
@@ -92,7 +92,7 @@ def deploy(
     """
     confirmation(
         f"Deploy {service_name.lower()} "
-        f"of version `{version}` to namespace `{backend.commands.namespace}`",
+        f"of version `{version}` to target `{backend.commands.target}`",
         yes,
     )
     args = args if not wait else args + " --wait"
@@ -117,7 +117,7 @@ def deploy_local(
     """
     confirmation(
         f"Deploy local {svc_instance.name.lower()} "
-        f"from {svc_instance} to namespace `{backend.commands.namespace}`",
+        f"from {svc_instance} to target `{backend.commands.target}`",
         yes,
     )
     backend.commands.deploy_local(svc_instance, args)
@@ -207,7 +207,7 @@ def ps(
         False, "--wide", "-w", help="use a wide format with additional fields"
     ),
 ):
-    """List the services running in the current namespace"""
+    """List the services running in the current target"""
     backend.commands.ps(running_only, wide)
 
 

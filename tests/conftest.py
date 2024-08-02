@@ -68,10 +68,9 @@ class MockRun:
 
         return rsp
 
-
     def run_command(
-        self, command: str, error_OK: bool = False, skip_on_dryrun=False
-    ):
+        self, command: str, error_OK=False, show=False, skip_on_dryrun=False,
+    ) -> str:
         """
         A function to replace shell.run_command that verifies the command
         against the expected sequence of commands and returns the test
@@ -83,8 +82,8 @@ class MockRun:
         return rsp
     
     def run_interactive(
-        self, command: str, error_OK: bool = False, skip_on_dryrun=False
-    ):
+        self, command: str, error_OK=False, skip_on_dryrun=False,
+    ) -> bool:
         """
         A function to replace shell.run_interactive that verifies the command
         against the expected sequence of commands and returns the test
@@ -142,9 +141,9 @@ class MockRun:
 MOCKRUN = MockRun()
 
 
-def mktempdir(_1=None, _2=None, _3=None):
+def mktempdir() -> Path:
     TMPDIR.mkdir(parents=True, exist_ok=True)
-    return str(TMPDIR)
+    return TMPDIR
 
 
 @fixture
@@ -158,11 +157,6 @@ def mock_run(mocker):
     #     "edge_containers_cli.globals.EC_SERVICES_REPO",
     #     "https://github.com/epics-containers/bl01t",
     # )
-    mocker.patch.dict(os.environ, 
-        {
-            "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
-            "EC_NAMESPACE": "bl01t",
-            })
     # mocker.patch(
     #     "edge_containers_cli.globals.EC_DEBUG",
     #     "1",
@@ -178,12 +172,11 @@ def mock_run(mocker):
 
     # Patch functions
     mocker.patch("webbrowser.open", MOCKRUN.run_interactive)
-    #mocker.patch("typer.confirm", return_value=True)
-    #mocker.patch("tempfile.mkdtemp", mktempdir)
+    mocker.patch("typer.confirm", return_value=True)
+    mocker.patch("tempfile.mkdtemp", mktempdir)
     mocker.patch("edge_containers_cli.shell.shell.run_command", MOCKRUN.run_command)
     mocker.patch("edge_containers_cli.shell.shell.run_interactive", MOCKRUN.run_interactive)
     return MOCKRUN
-
 
 @fixture
 def data() -> Path:
@@ -199,7 +192,27 @@ def ctx():
 
 
 @fixture()
-def K8S(data):
+def K8S(mocker, data):
+    mocker.patch.dict(os.environ, 
+        {
+            "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
+            "EC_TARGET": "bl01t",
+            "EC_CLI_BACKEND": "K8S",
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
+            })
+    file = Path(__file__).parent / "data" / "k8s.yaml"
+    yaml = YAML(typ="safe").load(file)
+    return SimpleNamespace(**yaml)
+
+@fixture()
+def ARGOCD(mocker, data):
+
+    mocker.patch.dict(os.environ, 
+        {
+            "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
+            "EC_TARGET": "bl01t",
+            "EC_CLI_BACKEND": "ARGOCD",
+            })
     file = Path(__file__).parent / "data" / "k8s.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)

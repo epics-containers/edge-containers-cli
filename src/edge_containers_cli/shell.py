@@ -78,7 +78,7 @@ class ECShell:
         return result
 
     def run_interactive(
-        self, command: str, error_OK=False, skip_on_dryrun=False
+        self, command: str, error_OK=False, skip_on_dryrun=False,
     ) -> bool:
         """
         Run a command and allow stdin and stdout, returns True on success

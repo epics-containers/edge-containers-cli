@@ -14,25 +14,21 @@ attach:
 
 delete:
   - cmd: helm delete -n bl01t bl01t-ea-test-01
-    rsp: True
+    rsp: ""
 
 template:
-  - cmd: 'helm dependency update .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01\/..\/..\/helm\/shared'
-    rsp: ""
   - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
-  - cmd: 'bash -c "helm template bl01t-ea-test-01 .*\.tgz --namespace bl01t  --debug *'
+  - cmd: 'helm template bl01t-ea-test-01 .*\.tgz --values .*beamline_values.yaml  --values .*values.yaml   --debug *'
     rsp: |
       # Source: bl01t-ea-test-01/templates/configmap.yaml
       apiVersion: v1
       ...
 
 deploy_local:
-  - cmd: 'helm dependency update .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01\/..\/..\/helm\/shared'
-    rsp: ""
   - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
-  - cmd: 'bash -c "helm upgrade --install bl01t-ea-test-01 .*\.tgz --namespace bl01t *'
+  - cmd: 'helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*beamline_values.yaml  --values .*values.yaml --namespace bl01t *'
     rsp: ""
 
 deploy:
@@ -42,7 +38,7 @@ deploy:
     rsp: ""
   - cmd: helm package /tmp/ec_tests/services/bl01t-ea-test-01 -u --app-version 2.0
     rsp: ""
-  - cmd: 'bash -c "helm upgrade --install bl01t-ea-test-01 .*\.tgz --namespace bl01t *'
+  - cmd: helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*beamline_values.yaml  --values .*values.yaml --namespace bl01t
     rsp: ""
 
 instances:

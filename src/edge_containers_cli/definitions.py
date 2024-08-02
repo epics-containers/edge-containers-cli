@@ -17,7 +17,7 @@ class ECLogLevels(str, Enum):
 
 class ENV(str, Enum):
     repo = "EC_SERVICES_REPO"
-    namespace = "EC_NAMESPACE"
+    target = "EC_TARGET"
     backend = "EC_CLI_BACKEND"
     verbose = "EC_VERBOSE"
     dryrun = "EC_DRYRUN"
@@ -29,5 +29,5 @@ class ENV(str, Enum):
 @dataclass
 class ECContext:
     repo: str = ""
-    namespace: str = ""
+    target: str = ""
     log_url: str = ""

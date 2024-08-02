@@ -34,22 +34,22 @@ class Commands(ABC):
     """
 
     def __init__(self, ctx: ECContext):
-        self._namespace = ctx.namespace
-        self._namespace_valid = False
+        self._target = ctx.target
+        self._target_valid = False
         self._repo = ctx.repo
         self._log_url = ctx.log_url
 
     @property
-    def namespace(self):
-        if not self._namespace_valid:  # Only validate once
-            if self._namespace == ECContext().namespace:
+    def target(self):
+        if not self._target_valid:  # Only validate once
+            if self._target == ECContext().target:
                 raise CommandError(
-                    f"Please set {ENV.namespace.value} or pass --namespace"
+                    f"Please set {ENV.target.value} or pass --target"
                 )
             else:
-                self._validate_namespace()
-                self._namespace_valid = True
-        return self._namespace
+                self._validate_target()
+                self._target_valid = True
+        return self._target
 
     @property
     def repo(self):
@@ -126,7 +126,7 @@ class Commands(ABC):
     def _logs(self, service_name: str, prev: bool):
         print(self._get_logs(service_name, prev))
 
-    def _validate_namespace(self):
+    def _validate_target(self):
         pass
 
     def _all_services(self) -> list[str]:

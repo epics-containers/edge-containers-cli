@@ -61,27 +61,21 @@ class Helm:
 
     def deploy(self):
         """
-        Generate an IOC helm chart and deploy it to the cluster
+        Clone a helm chart and deploy it to the cluster
         """
-        if not self.version:
-            raise CommandError("Version not found")
-
         shell.run_command(
             f"git clone {self.repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
         )
-
         self._do_deploy(self.tmp / "services" / self.service_name)
 
     def _do_deploy(self, service_folder: Path):
         """
-        Generate an on the fly chart using beamline chart with config folder.
-        Deploy the resulting helm chart to the cluster.
+        Package a Helm chart and deploy it to the cluster
         """
         print(f"Deploying {self.service_name}:{self.version}")
-        # package up the charts to get the appVersion set
-        shell.run_command(f"helm dependency update {service_folder}")
 
+        # package up the charts to get the appVersion set
         with chdir(service_folder):
             shell.run_command(
                 f"helm package {service_folder} -u --app-version {self.version}",
@@ -108,11 +102,12 @@ class Helm:
             shared_vals =  f"--values {helm_chart.parent.parent}/beamline_values.yaml "
 
         helm_cmd = "template" if self.template else "upgrade --install"
+        namespace = f"--namespace {self.namespace} " if self.namespace else ""
         cmd = (
             f"helm {helm_cmd} {self.service_name} {helm_chart} "
             f"{shared_vals} "
             f"--values {helm_chart.parent}/values.yaml "
-            f"--namespace {self.namespace} "
+            f"{namespace} "
             f"{self.args} "
         )
         shell.run_command(cmd, show=True, skip_on_dryrun=True)
@@ -120,7 +115,7 @@ class Helm:
 
 def validate_instance_path(service_path: Path):
     """
-    verify that the service instance path is valid
+    verify that the chart path is valid
     """
     log.info(f"checking {service_path}")
     if not (service_path / "Chart.yaml").exists():

@@ -47,18 +47,18 @@ class K8sCommands(Commands):
         super().__init__(ctx)
 
     def attach(self, service_name):
-        fullname = check_service(service_name, self.namespace)
+        fullname = check_service(service_name, self.target)
         shell.run_interactive(
-            f"kubectl -it -n {self.namespace} attach {fullname}", skip_on_dryrun=True
+            f"kubectl -it -n {self.target} attach {fullname}", skip_on_dryrun=True
         )
 
     def delete(self, service_name):
-        check_service(service_name, self.namespace)
-        shell.run_command(f"helm delete -n {self.namespace} {service_name}", skip_on_dryrun=True)
+        check_service(service_name, self.target)
+        shell.run_command(f"helm delete -n {self.target} {service_name}", skip_on_dryrun=True)
 
     def deploy(self, service_name, version, args):
         chart = Helm(
-            self.namespace,
+            self.target,
             service_name,
             args,
             version,
@@ -68,18 +68,18 @@ class K8sCommands(Commands):
 
     def deploy_local(self, svc_instance, args):
         service_name = svc_instance.name.lower()
-        chart = Helm(self.namespace, service_name, args=args)
+        chart = Helm(self.target, service_name, args=args)
         chart.deploy_local(svc_instance)
 
     def exec(self, service_name):
-        fullname = check_service(service_name, self.namespace)
-        shell.run_interactive(f"kubectl -it -n {self.namespace} exec {fullname} -- bash", skip_on_dryrun=True)
+        fullname = check_service(service_name, self.target)
+        shell.run_interactive(f"kubectl -it -n {self.target} exec {fullname} -- bash", skip_on_dryrun=True)
 
     def logs(self, service_name, prev):
         self._logs(service_name, prev)
 
     def log_history(self, service_name):
-        check_service(service_name, self.namespace)
+        check_service(service_name, self.target)
         url = self.log_url.format(service_name=service_name)
         webbrowser.open(url)
 
@@ -87,19 +87,19 @@ class K8sCommands(Commands):
         self._ps(running_only, wide)
 
     def restart(self, service_name):
-        check_service(service_name, self.namespace)
+        check_service(service_name, self.target)
         pod_name = shell.run_command(
-            f"kubectl get -n {self.namespace} pod -l app={service_name} -o name",
+            f"kubectl get -n {self.target} pod -l app={service_name} -o name",
         )
-        shell.run_command(f"kubectl delete -n {self.namespace} {pod_name}", skip_on_dryrun=True)
+        shell.run_command(f"kubectl delete -n {self.target} {pod_name}", skip_on_dryrun=True)
 
     def start(self, service_name):
-        fullname = check_service(service_name, self.namespace)
-        shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=1", skip_on_dryrun=True)
+        fullname = check_service(service_name, self.target)
+        shell.run_command(f"kubectl scale -n {self.target} {fullname} --replicas=1", skip_on_dryrun=True)
 
     def stop(self, service_name):
-        fullname = check_service(service_name, self.namespace)
-        shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=0 ", skip_on_dryrun=True)
+        fullname = check_service(service_name, self.target)
+        shell.run_command(f"kubectl scale -n {self.target} {fullname} --replicas=0 ", skip_on_dryrun=True)
 
     def template(self, svc_instance, args):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
@@ -107,11 +107,10 @@ class K8sCommands(Commands):
         service_name = svc_instance.name.lower()
 
         chart = Helm(
-            self.namespace,
+            "",
             service_name,
             args=args,
             template=True,
-            repo=self.repo,
         )
         chart.deploy_local(svc_instance)
 
@@ -121,7 +120,7 @@ class K8sCommands(Commands):
         # Gives all services (running & not running) and their image
         for resource in ["deployment", "statefulset"]:
             kubectl_res = shell.run_command(
-                f"kubectl get {resource} -n {self.namespace} {jsonpath_deploy_info}",
+                f"kubectl get {resource} -n {self.target} {jsonpath_deploy_info}",
             )
             if kubectl_res:
                 res_df = polars.read_csv(
@@ -138,7 +137,7 @@ class K8sCommands(Commands):
 
         # Gives the status, restarts for running services
         kubectl_gtpo = shell.run_command(
-            f"kubectl get pods -n {self.namespace} {jsonpath_pod_info}",
+            f"kubectl get pods -n {self.target} {jsonpath_pod_info}",
         )
         if kubectl_gtpo:
             gtpo_df = polars.read_csv(
@@ -163,7 +162,7 @@ class K8sCommands(Commands):
 
         # Adds the version, deployment time for all services
         helm_out = shell.run_command(
-            f"helm list -n {self.namespace} -o json"
+            f"helm list -n {self.target} -o json"
         )
         helm_df = polars.read_json(StringIO(str(helm_out)))
         helm_df = helm_df.rename({"app_version": "version", "updated": "deployed"})
@@ -181,28 +180,28 @@ class K8sCommands(Commands):
         return ServicesDataFrame(services_df)
 
     def _get_logs(self, service_name, prev):
-        fullname = check_service(service_name, self.namespace)
+        fullname = check_service(service_name, self.target)
         previous = "-p" if prev else ""
 
         logs = shell.run_command(
-                f"kubectl -n {self.namespace} logs {fullname} {previous}",
+                f"kubectl -n {self.target} logs {fullname} {previous}",
                 error_OK=True,
             )
         return logs
 
-    def _validate_namespace(self):
+    def _validate_target(self):
         """
         Verify we have a good namespace that exists in the cluster
         """
-        cmd = f"kubectl get namespace {self._namespace} -o name"
+        cmd = f"kubectl get namespace {self._target} -o name"
         result = shell.run_command(cmd, error_OK=True)
         if "NotFound" in str(result):
-            raise CommandError(f"Namespace '{self._namespace}' not found")
-        log.info("domain = %s", self._namespace)
+            raise CommandError(f"Namespace '{self._target}' not found")
+        log.info("domain = %s", self._target)
 
     def _all_services(self):
         columns = "-o custom-columns=NAME:metadata.name"
-        namespace = f"-n {self.namespace}"
+        namespace = f"-n {self.target}"
         labels = "-l is_ioc==true"
         command = f"kubectl {namespace} {labels} get statefulset {columns}"
         all_list = shell.run_command(command).split()[1:]
@@ -213,7 +212,7 @@ class K8sCommands(Commands):
         all = self._all_services()
 
         columns = "-o custom-columns=NAME:metadata.name"
-        namespace = f"-n {self.namespace}"
+        namespace = f"-n {self.target}"
         labels = "-l is_ioc==true"
         selector = "--field-selector=status.phase==Running"
         command = f"kubectl {namespace} {labels} get pod {selector} {columns}"

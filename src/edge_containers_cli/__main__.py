@@ -52,12 +52,12 @@ def main(
         help="Service instances repository",
         envvar=ENV.repo.value,
     ),
-    namespace: str = typer.Option(
-        ECContext().namespace,
-        "-n",
-        "--namespace",
-        help="Kubernetes namespace to use",
-        envvar=ENV.namespace.value,
+    target: str = typer.Option(
+        ECContext().target,
+        "-t",
+        "--target",
+        help="A K8S namespace or ARGOCD project",
+        envvar=ENV.target.value,
     ),
     backend: ECBackends = typer.Option(
         ECBackends.K8S,
@@ -110,7 +110,7 @@ def main(
 
     context = ECContext(
         repo=repo,
-        namespace=namespace,
+        target=target,
         log_url=log_url,
     )
     ec_backend.set_context(context)

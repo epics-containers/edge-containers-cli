@@ -399,7 +399,7 @@ class MonitorApp(App):
 
         self.commands = commands
         self.running_only = running_only
-        self.beamline = commands.namespace
+        self.beamline = commands.target
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""

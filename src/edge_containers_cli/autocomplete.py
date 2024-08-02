@@ -19,7 +19,7 @@ def autocomplete_backend_init(ctx: typer.Context):
     params = ctx.parent.params  # type: ignore
     context = ECContext(
         repo=params["repo"],
-        namespace=params["namespace"],
+        target=params["target"],
         log_url=params["log_url"],
     )
     ec_backend.set_context(context)

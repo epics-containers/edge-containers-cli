@@ -9,35 +9,26 @@ def test_attach(mock_run, K8S):
     mock_run.run_cli("attach bl01t-ea-test-01")
 
 
-# def test_delete(mock_run, K8S):
-#     mock_run.set_seq(K8S.checks + K8S.delete)
-#     mock_run.run_cli("delete bl01t-ea-test-01")
+def test_delete(mock_run, K8S):
+    mock_run.set_seq(K8S.checks + K8S.delete)
+    mock_run.run_cli("delete bl01t-ea-test-01")
 
 
-# def test_template(mock_run, data, K8S):
-#     mock_run.set_seq(K8S.checks[:1] + K8S.template)
-#     mock_run.run_cli(f"template {data / 'bl01t/services/bl01t-ea-test-01'}")
+def test_template(mock_run, data, K8S):
+    mock_run.set_seq(K8S.template)
+    mock_run.run_cli(f"template {data / 'bl01t/services/bl01t-ea-test-01'}")
 
 
-# def test_deploy_local(mock_run, data, K8S):
-#     mock_run.set_seq(K8S.checks[:1] + K8S.deploy_local)
-#     mock_run.run_cli(f"deploy-local {data / 'bl01t/services/bl01t-ea-test-01'}")
+def test_deploy_local(mock_run, data, K8S):
+    mock_run.set_seq(K8S.checks[:1] + K8S.deploy_local)
+    mock_run.run_cli(f"deploy-local {data / 'bl01t/services/bl01t-ea-test-01'}")
 
 
-# def test_deploy(mock_run, data: Path, K8S):
-#     mock_run.set_seq(K8S.deploy)
-#     # prep what deploy expects to find after it cloned bl01t repo
-#     TMPDIR.mkdir()
-#     shutil.copytree(data / "bl01t/services", TMPDIR / "services")
-#     mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
-
-
-# def test_deploy_path(mock_run, data: Path, K8S):
-#     mock_run.set_seq(K8S.deploy)
-#     # prep what deploy expects to find after it cloned bl01t repo
-#     TMPDIR.mkdir()
-#     shutil.copytree(data / "bl01t/services", TMPDIR / "services")
-#     mock_run.run_cli("deploy services/bl01t-ea-test-01 2.0")
+def test_deploy(mock_run, K8S, data: Path):
+    mock_run.set_seq(K8S.deploy)
+    # prep what deploy expects to find after it cloned bl01t repo
+    shutil.copytree(data / "bl01t/services", TMPDIR / "services")
+    mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
 
 
 def test_exec(mock_run, K8S):
