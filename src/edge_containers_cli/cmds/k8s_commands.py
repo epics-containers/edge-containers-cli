@@ -56,7 +56,7 @@ class K8sCommands(Commands):
         check_service(service_name, self.namespace)
         shell.run_command(f"helm delete -n {self.namespace} {service_name}", skip_on_dryrun=True)
 
-    def deploy(self, service_name: str, version: str, args: str):
+    def deploy(self, service_name, version, args):
         chart = Helm(
             self.namespace,
             service_name,
@@ -66,7 +66,7 @@ class K8sCommands(Commands):
         )
         chart.deploy()
 
-    def deploy_local(self, svc_instance: Path, args: str):
+    def deploy_local(self, svc_instance, args):
         service_name = svc_instance.name.lower()
         chart = Helm(self.namespace, service_name, args=args)
         chart.deploy_local(svc_instance)
@@ -75,15 +75,15 @@ class K8sCommands(Commands):
         fullname = check_service(service_name, self.namespace)
         shell.run_interactive(f"kubectl -it -n {self.namespace} exec {fullname} -- bash", skip_on_dryrun=True)
 
-    def logs(self, service_name: str, prev: bool):
+    def logs(self, service_name, prev):
         self._logs(service_name, prev)
 
-    def log_history(self, service_name: str):
+    def log_history(self, service_name):
         check_service(service_name, self.namespace)
         url = self.log_url.format(service_name=service_name)
         webbrowser.open(url)
 
-    def ps(self, running_only: bool, wide: bool):
+    def ps(self, running_only, wide):
         self._ps(running_only, wide)
 
     def restart(self, service_name):
@@ -101,7 +101,7 @@ class K8sCommands(Commands):
         fullname = check_service(service_name, self.namespace)
         shell.run_command(f"kubectl scale -n {self.namespace} {fullname} --replicas=0 ", skip_on_dryrun=True)
 
-    def template(self, svc_instance: Path, args: str):
+    def template(self, svc_instance, args):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
 
         service_name = svc_instance.name.lower()
@@ -115,7 +115,7 @@ class K8sCommands(Commands):
         )
         chart.deploy_local(svc_instance)
 
-    def _get_services(self, running_only: bool) -> ServicesDataFrame:
+    def _get_services(self, running_only):
         services_df = polars.DataFrame()
 
         # Gives all services (running & not running) and their image
@@ -180,7 +180,7 @@ class K8sCommands(Commands):
             log.debug(services_df)
         return ServicesDataFrame(services_df)
 
-    def _get_logs(self, service_name: str, prev: bool) -> str:
+    def _get_logs(self, service_name, prev):
         fullname = check_service(service_name, self.namespace)
         previous = "-p" if prev else ""
 
@@ -200,7 +200,7 @@ class K8sCommands(Commands):
             raise CommandError(f"Namespace '{self._namespace}' not found")
         log.info("domain = %s", self._namespace)
 
-    def _all_services(self) -> list[str]:
+    def _all_services(self):
         columns = "-o custom-columns=NAME:metadata.name"
         namespace = f"-n {self.namespace}"
         labels = "-l is_ioc==true"
@@ -209,7 +209,7 @@ class K8sCommands(Commands):
 
         return all_list
 
-    def _running_services(self) -> list[str]:
+    def _running_services(self):
         all = self._all_services()
 
         columns = "-o custom-columns=NAME:metadata.name"
