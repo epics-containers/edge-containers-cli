@@ -97,9 +97,6 @@ class ArgoCommands(Commands):
             for i, resource in enumerate(resources_dict):
                 if resource["kind"] == "StatefulSet":
                     name = app["metadata"]["name"]
-                    time_stamp = datetime.strptime(
-                        app["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
-                    )
 
                     # check if replicas ready
                     mani_resp = shell.run_command(
@@ -107,6 +104,10 @@ class ArgoCommands(Commands):
                     )
                     for resource_manifest in mani_resp.split("---")[1:]:
                         manifest = YAML(typ="safe").load(resource_manifest)
+                        time_stamp = datetime.strptime(
+                            manifest["metadata"]["creationTimestamp"],
+                            "%Y-%m-%dT%H:%M:%SZ",
+                        )
                         try:
                             if manifest["metadata"]["name"] == name:
                                 is_ready = bool(manifest["status"]["readyReplicas"])
