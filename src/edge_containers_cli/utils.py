@@ -10,8 +10,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, TypeVar
-
+from typing import TypeVar
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
@@ -56,10 +55,10 @@ class WorkingDir:
         return self.cleanup()
 
 
-class NewWorkingDir():
+class NewWorkingDir:
     def __init__(self):
         self.debug = False
-    
+
     def __call__(self):
         return WorkingDir(self.debug)
 

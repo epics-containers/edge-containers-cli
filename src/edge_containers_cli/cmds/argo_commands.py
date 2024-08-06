@@ -3,14 +3,16 @@ implements commands for deploying and managing service instances suing argocd
 
 Relies on the Helm class for deployment aspects.
 """
-from edge_containers_cli.cmds.commands import Commands, ServicesDataFrame, CommandError
-from edge_containers_cli.definitions import ECContext
-from edge_containers_cli.shell import shell, ShellError
-from edge_containers_cli.logging import log
-from edge_containers_cli.globals import TIME_FORMAT
-import polars
 from datetime import datetime
+
+import polars
 from ruamel.yaml import YAML
+
+from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
+from edge_containers_cli.definitions import ECContext
+from edge_containers_cli.globals import TIME_FORMAT
+from edge_containers_cli.logging import log
+from edge_containers_cli.shell import ShellError, shell
 
 
 def extract_project_app(target:str)-> tuple[str, str]:
@@ -109,7 +111,7 @@ class ArgoCommands(Commands):
                     my_data["name"].append(name)
                     my_data["version"].append(app["spec"]["source"]["targetRevision"])
                     my_data["ready"].append(is_ready)
-                    my_data["deployed"].append(datetime.strftime(time_stamp, TIME_FORMAT))                 
+                    my_data["deployed"].append(datetime.strftime(time_stamp, TIME_FORMAT))
 
         services_df = polars.from_dict(my_data)
 
@@ -117,7 +119,7 @@ class ArgoCommands(Commands):
             services_df = services_df.filter(polars.col("ready").eq(True))
             log.debug(services_df)
         return ServicesDataFrame(services_df)
-    
+
     def _check_service(self, service_name: str):
         """
         validate that there is a pod with the given service_name

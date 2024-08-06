@@ -1,9 +1,10 @@
-from pathlib import Path
 from abc import ABC, abstractmethod
+from pathlib import Path
+
 import polars
 
 from edge_containers_cli.definitions import ENV, ECContext
-from edge_containers_cli.logging import log
+
 
 class CommandError(Exception):
     pass
@@ -85,7 +86,7 @@ class Commands(ABC):
 
     def logs(self, service_name: str, prev: bool):
         raise NotImplementedError
-    
+
     def log_history(self, service_name: str):
         raise NotImplementedError
 

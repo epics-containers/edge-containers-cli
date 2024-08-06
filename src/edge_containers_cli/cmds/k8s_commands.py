@@ -4,10 +4,9 @@ implements commands for deploying and managing service instances in the k8s clus
 Relies on the Helm class for deployment aspects.
 """
 
+import webbrowser
 from datetime import datetime
 from io import StringIO
-from pathlib import Path
-import webbrowser
 
 import polars
 
@@ -16,6 +15,7 @@ from edge_containers_cli.cmds.helm import Helm
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import shell
+
 
 def check_service(service_name: str, namespace: str) -> str:
     """

@@ -3,8 +3,8 @@ from typing import Optional
 
 from ruamel.yaml import YAML
 
-from edge_containers_cli.cmds.commands import CommandError
 import edge_containers_cli.globals as globals
+from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.shell import shell
 from edge_containers_cli.utils import (
     chdir,

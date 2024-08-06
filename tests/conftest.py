@@ -1,13 +1,9 @@
+import os
 import re
 import shutil
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
-import os
-from edge_containers_cli.backend import init_backend
-from edge_containers_cli.logging import init_logging
-from edge_containers_cli.shell import init_shell
-from edge_containers_cli.utils import init_cleanup
 
 from pytest import fixture
 from ruamel.yaml import YAML
@@ -80,7 +76,7 @@ class MockRun:
         assert isinstance(rsp, str), "non-interactive commands must return str"
 
         return rsp
-    
+
     def run_interactive(
         self, command: str, error_OK=False, skip_on_dryrun=False,
     ) -> bool:
@@ -193,7 +189,7 @@ def ctx():
 
 @fixture()
 def K8S(mocker, data):
-    mocker.patch.dict(os.environ, 
+    mocker.patch.dict(os.environ,
         {
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
             "EC_TARGET": "bl01t",
@@ -207,7 +203,7 @@ def K8S(mocker, data):
 @fixture()
 def ARGOCD(mocker, data):
 
-    mocker.patch.dict(os.environ, 
+    mocker.patch.dict(os.environ,
         {
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
             "EC_TARGET": "bl01t",

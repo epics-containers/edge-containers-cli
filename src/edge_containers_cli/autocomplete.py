@@ -6,10 +6,10 @@ import edge_containers_cli.globals as globals
 from edge_containers_cli.backend import backend as ec_backend
 from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.definitions import ECContext
-
-from edge_containers_cli.git import create_version_map, GitError
+from edge_containers_cli.git import GitError, create_version_map
 from edge_containers_cli.shell import ShellError
-from edge_containers_cli.utils import cache_dict, read_cached_dict, new_workdir
+from edge_containers_cli.utils import cache_dict, new_workdir, read_cached_dict
+
 
 def url_encode(in_string: str) -> str:
     return urllib.parse.quote(in_string, safe="")  # type: ignore

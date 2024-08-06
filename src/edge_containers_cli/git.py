@@ -4,12 +4,14 @@ Utility functions for working with git
 
 import os
 from pathlib import Path
-from natsort import natsorted
+
 import polars
+from natsort import natsorted
 
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import shell
 from edge_containers_cli.utils import chdir, new_workdir
+
 
 class GitError(Exception):
     pass
@@ -22,7 +24,7 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
     shell.run_command(f"git clone {repo} {working_dir}")
     try:
         path_list = os.listdir(os.path.join(working_dir, root_dir))
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         raise GitError(f"No {root_dir} directory found")
     service_list = [
         path
@@ -131,7 +133,7 @@ def list_all(repo: str, root_dir: Path, shared: str=None) -> polars.DataFrame:
         versions = [natsorted(version_map[svc])[-1] for svc in svc_list]
         services_df = polars.from_dict({"name": svc_list, "version": versions})
         return services_df
-    
+
 
 def list_instances(service_name: str, repo: str, root_dir: Path, shared: str=None) -> polars.DataFrame:
     with new_workdir() as path:
