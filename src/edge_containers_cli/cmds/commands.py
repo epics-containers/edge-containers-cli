@@ -4,25 +4,31 @@ from pathlib import Path
 import polars
 
 from edge_containers_cli.definitions import ENV, ECContext
+from edge_containers_cli.logging import log
 
 
 class CommandError(Exception):
     pass
 
 
-ServicesSchema = polars.Schema({
-    'name': polars.String,
-    'version': polars.String,
-    'ready': polars.Boolean,
-    'deployed': polars.String,
-})
+ServicesSchema = polars.Schema(
+    {
+        "name": polars.String,  # type: ignore
+        "version": polars.String,
+        "ready": polars.Boolean,
+        "deployed": polars.String,
+    }
+)
+
 
 class ServicesDataFrame(polars.DataFrame):
     def __init__(self, data: polars.DataFrame):
         super().__init__(data)
         expected_schema = ServicesSchema
         if self.schema != expected_schema:
-            raise ValueError(f"DataFrame schema: {self.schema} does not match expected schema: {expected_schema}")
+            raise ValueError(
+                f"DataFrame schema: {self.schema} does not match expected schema: {expected_schema}"
+            )
 
 
 class Commands(ABC):
@@ -43,30 +49,27 @@ class Commands(ABC):
     def target(self):
         if not self._target_valid:  # Only validate once
             if self._target == ECContext().target:
-                raise CommandError(
-                    f"Please set {ENV.target.value} or pass --target"
-                )
+                raise CommandError(f"Please set {ENV.target.value} or pass --target")
             else:
                 self._validate_target()
                 self._target_valid = True
+        log.debug("target = %s", self._target)
         return self._target
 
     @property
     def repo(self):
         if self._repo == ECContext().repo:
-            raise CommandError(
-                f"Please set {ENV.repo.value} or pass --repo"
-                )
+            raise CommandError(f"Please set {ENV.repo.value} or pass --repo")
         else:
+            log.debug("repo = %s", self._repo)
             return self._repo
 
     @property
     def log_url(self):
         if self._log_url == ECContext().log_url:
-            raise CommandError(
-                f"Please set {ENV.log_url.value} or pass --log_url"
-                )
+            raise CommandError(f"Please set {ENV.log_url.value} or pass --log_url")
         else:
+            log.debug("log_url = %s", self._log_url)
             return self._log_url
 
     def attach(self, service_name: str):
@@ -124,10 +127,17 @@ class Commands(ABC):
         print(self._get_logs(service_name, prev))
 
     def _validate_target(self):
-        pass
+        raise NotImplementedError
 
-    def _all_services(self) -> list[str]:
-        return []
+    def _running_services(self):
+        return self._get_services(running_only=True)["name"]
 
-    def _running_services(self) -> list[str]:
-        return []
+    def _all_services(self):
+        return self._get_services(running_only=False)["name"]
+
+    def _check_service(self, service_name: str):
+        services_list = self._get_services(running_only=False)["name"]
+        if service_name in services_list:
+            pass
+        else:
+            raise CommandError(f"Service '{service_name}' not found in {self.target}")

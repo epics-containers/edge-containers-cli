@@ -3,6 +3,8 @@ implements commands for deploying and managing service instances suing argocd
 
 Relies on the Helm class for deployment aspects.
 """
+
+import webbrowser
 from datetime import datetime
 
 import polars
@@ -15,9 +17,10 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 
 
-def extract_project_app(target:str)-> tuple[str, str]:
+def extract_project_app(target: str) -> tuple[str, str]:
     project, app = target.split("/")
     return project, app
+
 
 class ArgoCommands(Commands):
     """
@@ -33,6 +36,11 @@ class ArgoCommands(Commands):
     def logs(self, service_name, prev):
         self._logs(service_name, prev)
 
+    def log_history(self, service_name):
+        self._check_service(service_name, self.target)
+        url = self.log_url.format(service_name=service_name)
+        webbrowser.open(url)
+
     def ps(self, running_only):
         self._ps(running_only)
 
@@ -42,25 +50,22 @@ class ArgoCommands(Commands):
         cmd = (
             f"argocd app delete-resource {project}/{service_name} "
             f"--kind StatefulSet"
-            )
+        )
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def start(self, service_name):
         self._check_service(service_name)
         cmd = (
-            f"argocd app set {self.target} "
-            f"-p services.{service_name}.enabled=true"
-            )
+            f"argocd app set {self.target} " f"-p services.{service_name}.enabled=true"
+        )
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def stop(self, service_name):
         self._check_service(service_name)
         cmd = (
-            f"argocd app set {self.target} "
-            f"-p services.{service_name}.enabled=false"
-            )
+            f"argocd app set {self.target} " f"-p services.{service_name}.enabled=false"
+        )
         shell.run_command(cmd, skip_on_dryrun=True)
-
 
     def _get_logs(self, service_name, prev) -> str:
         project, app = extract_project_app(self.target)
@@ -68,36 +73,37 @@ class ArgoCommands(Commands):
         previous = "-p" if prev else ""
 
         logs = shell.run_command(
-                f"argocd app logs {project}/{service_name} {previous}",
-                error_OK=True,
-            )
+            f"argocd app logs {project}/{service_name} {previous}",
+            error_OK=True,
+        )
         return logs
 
     def _get_services(self, running_only) -> ServicesDataFrame:
-
         project, app = extract_project_app(self.target)
         app_resp = shell.run_command(
-            f"argocd app list -l \"edge-service=True\" --project {project} -o yaml",
+            f'argocd app list -l "edge-service=True" --project {project} -o yaml',
         )
         app_dicts = YAML(typ="safe").load(app_resp)
 
-        my_data = {
-            "name": [],
+        service_data = {
+            "name": [],  # type: ignore
             "version": [],
             "ready": [],
             "deployed": [],
-              }
+        }
         for app in app_dicts:
             resources_dict = app["status"]["resources"]
 
             for i, resource in enumerate(resources_dict):
                 if resource["kind"] == "StatefulSet":
                     name = app["metadata"]["name"]
-                    time_stamp = datetime.strptime(app["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ")
+                    time_stamp = datetime.strptime(
+                        app["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
+                    )
 
                     # check if replicas ready
                     mani_resp = shell.run_command(
-                    f"argocd app manifests {project}/{name} --source live",
+                        f"argocd app manifests {project}/{name} --source live",
                     )
                     for resource_manifest in mani_resp.split("---")[1:]:
                         manifest = YAML(typ="safe").load(resource_manifest)
@@ -105,24 +111,27 @@ class ArgoCommands(Commands):
                             if manifest["metadata"]["name"] == name:
                                 is_ready = bool(manifest["status"]["readyReplicas"])
                         except (KeyError, TypeError):  # Not ready if doesnt exist
-                                is_ready = False
+                            is_ready = False
 
                     # Fill app data
-                    my_data["name"].append(name)
-                    my_data["version"].append(app["spec"]["source"]["targetRevision"])
-                    my_data["ready"].append(is_ready)
-                    my_data["deployed"].append(datetime.strftime(time_stamp, TIME_FORMAT))
+                    service_data["name"].append(name)
+                    service_data["version"].append(
+                        app["spec"]["source"]["targetRevision"]
+                    )
+                    service_data["ready"].append(is_ready)
+                    service_data["deployed"].append(
+                        datetime.strftime(time_stamp, TIME_FORMAT)
+                    )
 
-        services_df = polars.from_dict(my_data)
+        services_df = polars.from_dict(service_data)
 
         if running_only:
             services_df = services_df.filter(polars.col("ready").eq(True))
-            log.debug(services_df)
         return ServicesDataFrame(services_df)
 
     def _check_service(self, service_name: str):
         """
-        validate that there is a pod with the given service_name
+        validate that there is a app with the given service_name
         """
         services_list = self._get_services(running_only=False)["name"]
         if service_name in services_list:
@@ -139,14 +148,8 @@ class ArgoCommands(Commands):
             shell.run_command(cmd, error_OK=False)
         except ShellError as e:
             if "code = Unauthenticated" in str(e):
-                raise CommandError("Not authenticated to argocd server")
+                raise CommandError("Not authenticated to argocd server") from e
             elif "code = PermissionDenied" in str(e):
-                raise CommandError(f"Target '{self._target}' not found")
+                raise CommandError(f"Target '{self._target}' not found") from e
             else:
-                raise CommandError(str(e))
-
-    def _running_services(self):
-        return self._get_services(running_only=True)["name"]
-
-    def _all_services(self):
-        return self._get_services(running_only=False)["name"]
+                raise
