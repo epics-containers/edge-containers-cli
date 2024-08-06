@@ -40,6 +40,7 @@ def test_logs(mock_run, K8S):
     mock_run.set_seq(K8S.checks + K8S.logs)
     mock_run.run_cli("logs bl01t-ea-test-01")
 
+
 def test_log_history(mock_run, K8S):
     mock_run.set_seq(K8S.checks + K8S.log_history)
     mock_run.run_cli("log-history bl01t-ea-test-01")
@@ -61,5 +62,5 @@ def test_stop(mock_run, K8S):
 
 
 def test_ps(mock_run, K8S):
-    mock_run.set_seq(K8S.ps)
+    mock_run.set_seq(K8S.checks)
     mock_run.run_cli("ps")

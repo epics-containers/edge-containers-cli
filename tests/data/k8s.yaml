@@ -1,15 +1,30 @@
 checks:
-  - cmd: kubectl get namespace bl01t -o name
-    rsp: namespace/bl01t
-  - cmd: kubectl get statefulset -o name -n bl01t bl01t-ea-test-01 --ignore-not-found
-    rsp: statefulset.apps/bl01t-ea-test-01
+  - cmd: kubectl get namespace bl01t
+    rsp: ""
+  - cmd: kubectl get statefulset -l "is_ioc==true" -n bl01t -o yaml
+    rsp: |
+      apiVersion: v1
+      items:
+      - apiVersion: apps/v1
+        kind: StatefulSet
+        metadata:
+          creationTimestamp: "2024-07-26T08:16:07Z"
+          name: bl01t-ea-test-01
+        status:
+          readyReplicas: 1
+      kind: List
+      metadata:
+        resourceVersion: ""
+  - cmd: helm list -n bl01t -o json
+    rsp: |
+      [{ "name": "bl01t-ea-test-01", "app_version": "2024.7.824f-b" }]
 
 svc_check:
   - cmd: kubectl get namespace bl01t -o name
     rsp: namespace/bl01t
 
 attach:
-  - cmd: kubectl -it -n bl01t attach statefulset.apps/bl01t-ea-test-01
+  - cmd: kubectl -it -n bl01t attach statefulset bl01t-ea-test-01
     rsp: True
 
 delete:
@@ -32,8 +47,8 @@ deploy_local:
     rsp: ""
 
 deploy:
-  - cmd: kubectl get namespace bl01t -o name
-    rsp: namespace/bl01t
+  - cmd: kubectl get namespace bl01t
+    rsp: ""
   - cmd: git clone https://github.com/epics-containers/bl01t /tmp/ec_tests --depth=1 --single-branch --branch=2.0
     rsp: ""
   - cmd: helm package /tmp/ec_tests/services/bl01t-ea-test-01 -u --app-version 2.0
@@ -58,11 +73,11 @@ instances:
     rsp: ../../include/iocs/templates
 
 exec:
-  - cmd: kubectl -it -n bl01t exec statefulset.apps/bl01t-ea-test-01 -- bash
+  - cmd: kubectl -it -n bl01t exec statefulset bl01t-ea-test-01 -- bash
     rsp: True
 
 logs:
-  - cmd: kubectl -n bl01t logs statefulset.apps/bl01t-ea-test-01
+  - cmd: kubectl -n bl01t logs statefulset/bl01t-ea-test-01
     rsp: ""
 
 log_history:
@@ -76,26 +91,9 @@ restart:
     rsp: pod "bl01c-ea-test-01-0" deleted
 
 start:
-  - cmd: kubectl scale -n bl01t statefulset.apps/bl01t-ea-test-01 --replicas=1
+  - cmd: kubectl scale -n bl01t statefulset bl01t-ea-test-01 --replicas=1
     rsp: statefulset.apps/bl01t-ea-test-01 scaled
 
 stop:
-  - cmd: kubectl scale -n bl01t statefulset.apps/bl01t-ea-test-01 --replicas=0
+  - cmd: kubectl scale -n bl01t statefulset bl01t-ea-test-01 --replicas=0
     rsp: statefulset.apps/bl01t-ea-test-01 scaled
-
-ps:
-  - cmd: kubectl get namespace bl01t -o name
-    rsp: bl01t-ea-test-01-xxxx
-  - cmd: kubectl get deployment -n bl01t -o jsonpath=*
-    rsp: name,image
-  - cmd: kubectl get statefulset -n bl01t -o jsonpath=*
-    rsp: name,image
-  - cmd: kubectl get pods -n bl01t -o jsonpath=*
-    rsp: name,Running,0
-  - cmd: helm list -n bl01t -o json
-    rsp: >
-      [{
-      "name":"",
-      "updated":"",
-      "app_version":""
-      }]

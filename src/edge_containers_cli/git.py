@@ -16,7 +16,10 @@ from edge_containers_cli.utils import chdir, new_workdir
 class GitError(Exception):
     pass
 
-def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str=None) -> dict[str: list[str]]:
+
+def create_version_map(
+    repo: str, root_dir: Path, working_dir: Path, shared: str = None
+) -> dict[str : list[str]]:
     """
     return a dictionary of each subdirectory in a chosen root directory in a git
     repository with a list of tags which represent changes. Symlinks are resolved.
@@ -37,9 +40,9 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
     version_map = {service_item: [] for service_item in service_list}
 
     with chdir(working_dir):  # From python 3.11 can use contextlib.chdir(working_dir)
-        result_tags = str(
-            shell.run_command("git tag --sort=committerdate")
-        )
+        result_tags = str(shell.run_command("git tag --sort=committerdate"))
+        if not result_tags:
+            raise GitError(f"No tags found in repo")
         tags_list = result_tags.rstrip().split("\n")
         log.debug(f"tags_list = {tags_list}")
 
@@ -49,23 +52,17 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
             # Check initial configuration
             if not tag_no:
                 cmd = f"git ls-tree -r {tags_list[tag_no]} --name-only"
-                changed_files = str(
-                    shell.run_command(cmd)
-                )
+                changed_files = str(shell.run_command(cmd))
 
             # Check repo changes between tags
             else:
                 cmd = f"git diff --name-only {tags_list[tag_no-1]} {tags_list[tag_no]}"
-                changed_files = str(
-                    shell.run_command(cmd)
-                )
+                changed_files = str(shell.run_command(cmd))
 
                 # Propagate changes through symlink target to source
                 ## Find symlink source mapping to git object
                 cmd = f"git ls-tree {tags_list[tag_no]} -r | grep 120000"
-                result_symlink_obj = str(
-                    shell.run_command(cmd, error_OK=True)
-                )
+                result_symlink_obj = str(shell.run_command(cmd, error_OK=True))
                 if not result_symlink_obj:
                     pass
                 else:
@@ -85,9 +82,7 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
                         # Else retrieve git object
                         else:
                             cmd = f"git cat-file -p {symlink_object_map[symlink]}"
-                            result_symlinks = str(
-                                shell.run_command(cmd)
-                            )
+                            result_symlinks = str(shell.run_command(cmd))
                             symlink_map[symlink] = result_symlinks
                             cached_git_obj[symlink_object_map[symlink]] = (
                                 result_symlinks
@@ -122,8 +117,8 @@ def create_version_map(repo: str, root_dir: Path, working_dir: Path, shared: str
 
     return version_map
 
-def list_all(repo: str, root_dir: Path, shared: str=None) -> polars.DataFrame:
 
+def list_all(repo: str, root_dir: Path, shared: str = None) -> polars.DataFrame:
     """List all services available in the service repository"""
     with new_workdir() as path:
         version_map = create_version_map(repo, root_dir, path, shared=shared)
@@ -135,7 +130,9 @@ def list_all(repo: str, root_dir: Path, shared: str=None) -> polars.DataFrame:
         return services_df
 
 
-def list_instances(service_name: str, repo: str, root_dir: Path, shared: str=None) -> polars.DataFrame:
+def list_instances(
+    service_name: str, repo: str, root_dir: Path, shared: str = None
+) -> polars.DataFrame:
     with new_workdir() as path:
         version_map = create_version_map(repo, root_dir, path, shared)
         try:
