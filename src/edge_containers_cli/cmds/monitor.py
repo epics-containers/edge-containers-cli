@@ -247,7 +247,7 @@ class IocTable(Widget):
             # ioc list data table update loop
             print()
             self.iocs_df = self.commands._get_services(self.running_only)
-            sleep(2.0)
+            sleep(1.0)
 
     def stop(self):
         self._polling = False
@@ -258,7 +258,7 @@ class IocTable(Widget):
         # give up the GIL to other threads
         sleep(0)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
-        exclude = ["deployed", "image"]
+        exclude = [None]
 
         for i, ioc in enumerate(self.iocs):
             ioc = {key: value for key, value in ioc.items() if key not in exclude}
@@ -285,7 +285,7 @@ class IocTable(Widget):
         await self.populate_table()
 
     def _get_heading(self, column_id: str):
-        sorted_style = Style(bold=True, underline=True)
+        sorted_style = Style(bold=True, underline=False)
 
         if column_id == self.sort_column_id:
             heading = Text(column_id, justify="center", style=sorted_style)
@@ -409,7 +409,7 @@ class MonitorApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.title = f"{self.beamline} Ser Monitor"
+        self.title = f"{self.beamline} Services Monitor"
 
     def on_unmount(self) -> None:
         """Executes when the app is closed."""
@@ -479,9 +479,9 @@ class MonitorApp(App):
         service_name = self._get_service_name()
 
         # Convert to corresponding bool
-        running = self._get_highlighted_cell("running") == "True"
+        ready = self._get_highlighted_cell("ready") == "True"
 
-        if running:
+        if ready:
             command = self.commands._get_logs
             self.push_screen(LogsScreen(command, service_name))
 

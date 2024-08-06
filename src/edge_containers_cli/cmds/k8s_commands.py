@@ -83,8 +83,8 @@ class K8sCommands(Commands):
         url = self.log_url.format(service_name=service_name)
         webbrowser.open(url)
 
-    def ps(self, running_only, wide):
-        self._ps(running_only, wide)
+    def ps(self, running_only):
+        self._ps(running_only)
 
     def restart(self, service_name):
         check_service(service_name, self.target)
@@ -107,7 +107,7 @@ class K8sCommands(Commands):
         service_name = svc_instance.name.lower()
 
         chart = Helm(
-            "",
+            #self.target,
             service_name,
             args=args,
             template=True,

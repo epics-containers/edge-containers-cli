@@ -28,13 +28,7 @@ class ErrorHandlingTyper(typer.Typer):
     def __call__(self, *args, **kwargs):
         try:
             super().__call__(*args, **kwargs)
-        except CommandError as e:
-            log.error(e)
-            typer.Exit(1)
-        except ShellError as e:
-            log.error(e)
-            typer.Exit(1)
-        except GitError as e:
+        except (CommandError, ShellError, GitError) as e:
             log.error(e)
             typer.Exit(1)
 
@@ -203,12 +197,9 @@ def ps(
     running_only: bool = typer.Option(
         False, "-r", "--running-only", help="list only services that are running"
     ),
-    wide: bool = typer.Option(
-        False, "--wide", "-w", help="use a wide format with additional fields"
-    ),
 ):
     """List the services running in the current target"""
-    backend.commands.ps(running_only, wide)
+    backend.commands.ps(running_only)
 
 
 @cli.command()

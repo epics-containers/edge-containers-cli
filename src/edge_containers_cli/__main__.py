@@ -56,11 +56,11 @@ def main(
         ECContext().target,
         "-t",
         "--target",
-        help="A K8S namespace or ARGOCD project",
+        help="K8S namespace or ARGOCD <project>/<root-app>",
         envvar=ENV.target.value,
     ),
     backend: ECBackends = typer.Option(
-        ECBackends.K8S,
+        ECBackends.ARGOCD,
         "-b",
         "--backend",
         callback=backend_callback,

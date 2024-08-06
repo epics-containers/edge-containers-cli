@@ -12,10 +12,8 @@ class CommandError(Exception):
 ServicesSchema = polars.Schema({
     'name': polars.String,
     'version': polars.String,
-    'running': polars.Boolean,
-    'restarts': polars.Int64,
+    'ready': polars.Boolean,
     'deployed': polars.String,
-    'image': polars.String,
 })
 
 class ServicesDataFrame(polars.DataFrame):
@@ -31,6 +29,7 @@ class Commands(ABC):
     A base class for ec commands
     Implements the common functionality but defers specialist functions
     Allows the CLI or the TUI to call functions without worrying about backend
+    Methods not exposed to the CLI should be private
     """
 
     def __init__(self, ctx: ECContext):
@@ -90,7 +89,7 @@ class Commands(ABC):
     def log_history(self, service_name: str):
         raise NotImplementedError
 
-    def ps(self, running_only: bool, wide: bool):
+    def ps(self, running_only: bool):
         raise NotImplementedError
 
     @abstractmethod
@@ -112,11 +111,8 @@ class Commands(ABC):
     def _get_services(self, running_only: bool) -> ServicesDataFrame:
         raise NotImplementedError
 
-    def _ps(self, running_only: bool, wide: bool):
+    def _ps(self, running_only: bool):
         services_df = self._get_services(running_only)
-        if not wide:
-            services_df.drop_in_place("image")
-            log.debug(services_df)
         print(services_df)
 
     @abstractmethod

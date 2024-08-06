@@ -16,4 +16,5 @@ CACHE_EXPIRY = 15
 SERVICES_DIR = "services"
 # Shared values
 SHARED_VALUES = "beamline_values.yaml"
-
+# Time formatting
+TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
