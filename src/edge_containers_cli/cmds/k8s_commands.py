@@ -119,6 +119,8 @@ class K8sCommands(Commands):
             f'kubectl get statefulset -l "is_ioc==true" -n {self.target} -o yaml',
         )
         sts_dicts = YAML(typ="safe").load(kubectl_res)
+        if not sts_dicts["items"]:
+            raise CommandError(f"No ec-services found in {self.target}")
         service_data = {
             "name": [],  # type: ignore
             "ready": [],

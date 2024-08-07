@@ -80,17 +80,19 @@ class ArgoCommands(Commands):
 
     def _get_services(self, running_only) -> ServicesDataFrame:
         project, app = extract_project_app(self.target)
-        app_resp = shell.run_command(
-            f'argocd app list -l "edge-service=True" --project {project} -o yaml',
-        )
-        app_dicts = YAML(typ="safe").load(app_resp)
-
         service_data = {
             "name": [],  # type: ignore
             "version": [],
             "ready": [],
             "deployed": [],
         }
+        app_resp = shell.run_command(
+            f'argocd app list -l "ec-service=True" --project {project} -o yaml',
+        )
+        app_dicts = YAML(typ="safe").load(app_resp)
+
+        if not app_dicts:
+            raise CommandError(f"No ec-services found in {self.target}")
         for app in app_dicts:
             resources_dict = app["status"]["resources"]
 
