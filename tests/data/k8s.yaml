@@ -19,10 +19,6 @@ checks:
     rsp: |
       [{ "name": "bl01t-ea-test-01", "app_version": "2024.7.824f-b" }]
 
-svc_check:
-  - cmd: kubectl get namespace bl01t -o name
-    rsp: namespace/bl01t
-
 attach:
   - cmd: kubectl -it -n bl01t attach statefulset bl01t-ea-test-01
     rsp: True
@@ -55,22 +51,6 @@ deploy:
     rsp: ""
   - cmd: helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*beamline_values.yaml  --values .*values.yaml --namespace bl01t
     rsp: ""
-
-instances:
-  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/.*
-    rsp: Cloning into /tmp/xxxx...
-  - cmd: git tag
-    rsp: |
-      1.0
-      2.0
-  - cmd: git ls-tree -r 1.0 --name-only
-    rsp: bl01t-ea-test-01
-  - cmd: git diff --name-only 1.0 2.0
-    rsp: bl01t-ea-test-01
-  - cmd: git ls-tree 2.0 -r | grep 120000
-    rsp: 120000 blob test services/bl01t-ea-test-01/Chart.yaml
-  - cmd: git cat-file -p test
-    rsp: ../../include/iocs/templates
 
 exec:
   - cmd: kubectl -it -n bl01t exec statefulset bl01t-ea-test-01 -- bash
