@@ -151,26 +151,9 @@ def mktempdir() -> Path:
 
 @fixture
 def mock_run(mocker):
-    # Patch globals
-    # mocker.patch(
-    #     "edge_containers_cli.globals.EC_K8S_NAMESPACE",
-    #     "bl01t",
-    # )
-    # mocker.patch(
-    #     "edge_containers_cli.globals.EC_SERVICES_REPO",
-    #     "https://github.com/epics-containers/bl01t",
-    # )
-    # mocker.patch(
-    #     "edge_containers_cli.globals.EC_DEBUG",
-    #     "1",
-    # )
     mocker.patch(
         "edge_containers_cli.globals.CACHE_ROOT",
         TMPDIR,
-    )
-    mocker.patch(
-        "edge_containers_cli.globals.CACHE_EXPIRY",
-        0,
     )
 
     # Patch functions
@@ -187,14 +170,6 @@ def mock_run(mocker):
 @fixture
 def data() -> Path:
     return DATA_PATH
-
-
-@fixture()
-def ctx():
-    ctx = Context
-    ctx.parent = Context  # type: ignore
-    ctx.parent.params = {}  # type: ignore
-    return ctx
 
 
 @fixture()
@@ -237,37 +212,5 @@ def ARGOCD(mocker, data):
         },
     )
     file = Path(__file__).parent / "data" / "argocd.yaml"
-    yaml = YAML(typ="safe").load(file)
-    return SimpleNamespace(**yaml)
-
-
-@fixture()
-def ec_cli(data):
-    file = Path(__file__).parent / "data" / "cli.yaml"
-    yaml = YAML(typ="safe").load(file)
-    return SimpleNamespace(**yaml)
-
-
-@fixture()
-def local(data, mocker):
-    file = Path(__file__).parent / "data" / "local.yaml"
-    mocker.patch(
-        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
-        "local",
-    )
-    yaml = YAML(typ="safe").load(file)
-    return SimpleNamespace(**yaml)
-
-
-@fixture()
-def dev(data):
-    file = Path(__file__).parent / "data" / "dev.yaml"
-    yaml = YAML(typ="safe").load(file)
-    return SimpleNamespace(**yaml)
-
-
-@fixture()
-def autocomplete(data):
-    file = Path(__file__).parent / "data" / "autocomplete.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
