@@ -37,7 +37,7 @@ class ArgoCommands(Commands):
         self._logs(service_name, prev)
 
     def log_history(self, service_name):
-        self._check_service(service_name, self.target)
+        self._check_service(service_name)
         url = self.log_url.format(service_name=service_name)
         webbrowser.open(url)
 
