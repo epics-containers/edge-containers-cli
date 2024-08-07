@@ -7,7 +7,6 @@ from types import SimpleNamespace
 
 from pytest import fixture
 from ruamel.yaml import YAML
-from typer import Context
 from typer.testing import CliRunner
 
 from edge_containers_cli.__main__ import cli
@@ -46,7 +45,7 @@ class MockRun:
         try:
             cmd_rsp = self.cmd_rsp.pop(0)
         except IndexError as e:
-            raise IndexError("Depleted command-responce list") from e
+            raise IndexError("depleted command-response list") from e
 
         cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]

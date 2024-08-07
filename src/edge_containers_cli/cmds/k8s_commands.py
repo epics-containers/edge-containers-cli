@@ -126,7 +126,7 @@ class K8sCommands(Commands):
             "ready": [],
             "deployed": [],
         }
-        for i, sts in enumerate(sts_dicts["items"]):
+        for sts in sts_dicts["items"]:
             name = sts["metadata"]["name"]
             time_stamp = datetime.strptime(
                 sts["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"

@@ -123,9 +123,7 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
 
     @work
     async def load_logs(self, log: RichLog) -> None:
-        self.log_text: str = self.fetch_log(
-            self.service_name, prev=False
-        )
+        self.log_text: str = self.fetch_log(self.service_name, prev=False)
         log.loading = False
         width = max(len(line) for line in self.log_text.split("\n"))
         log.write(
@@ -184,7 +182,7 @@ class SortableText(Text):
         )
 
     def __lt__(self, other: Any) -> bool:
-        if type(other) != SortableText:
+        if type(other) is not SortableText:
             return NotImplemented
 
         # Handle None as values
@@ -197,7 +195,7 @@ class SortableText(Text):
                 return cast(bool, self.value < other.value)
 
     def __gt__(self, other: Any) -> bool:
-        if type(other) != SortableText:
+        if type(other) is not SortableText:
             return NotImplemented
 
         # Handle None as values
@@ -210,7 +208,7 @@ class SortableText(Text):
                 return cast(bool, self.value > other.value)
 
     def __eq__(self, other: Any) -> bool:
-        if type(other) != SortableText:
+        if type(other) is not SortableText:
             return NotImplemented
 
         # Handle None as values

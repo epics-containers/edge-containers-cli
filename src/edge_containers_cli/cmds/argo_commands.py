@@ -13,7 +13,6 @@ from ruamel.yaml import YAML
 from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.globals import TIME_FORMAT
-from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 
 
@@ -96,7 +95,7 @@ class ArgoCommands(Commands):
         for app in app_dicts:
             resources_dict = app["status"]["resources"]
 
-            for i, resource in enumerate(resources_dict):
+            for resource in resources_dict:
                 if resource["kind"] == "StatefulSet":
                     name = app["metadata"]["name"]
 

@@ -27,8 +27,8 @@ def create_version_map(
     shell.run_command(f"git clone {repo} {working_dir}")
     try:
         path_list = os.listdir(os.path.join(working_dir, root_dir))
-    except FileNotFoundError:
-        raise GitError(f"No {root_dir} directory found")
+    except FileNotFoundError as e:
+        raise GitError(f"No {root_dir} directory found") from e
     service_list = [
         path
         for path in path_list
@@ -41,7 +41,7 @@ def create_version_map(
     with chdir(working_dir):  # From python 3.11 can use contextlib.chdir(working_dir)
         result_tags = str(shell.run_command("git tag --sort=committerdate"))
         if not result_tags:
-            raise GitError(f"No tags found in repo")
+            raise GitError("No tags found in repo")
         tags_list = result_tags.rstrip().split("\n")
         log.debug(f"tags_list = {tags_list}")
 
