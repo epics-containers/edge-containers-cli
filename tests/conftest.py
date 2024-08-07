@@ -121,7 +121,7 @@ class MockRun:
 
         return result
 
-    def run_cli(self, args: str):
+    def run_cli(self, args: str) -> str:
         """
         Call a typer CLI function and report the sequence of commands /
         responses when an error occurs.
@@ -137,6 +137,8 @@ class MockRun:
         if len(self.cmd_rsp) > 0:
             log.error(self.log)
             raise AssertionError("not all commands were run")
+
+        return result.stdout
 
 
 MOCKRUN = MockRun()
@@ -203,6 +205,7 @@ def K8S(mocker, data):
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
             "EC_TARGET": "bl01t",
             "EC_CLI_BACKEND": "K8S",
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
         },
     )
     file = Path(__file__).parent / "data" / "k8s.yaml"

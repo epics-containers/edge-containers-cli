@@ -18,7 +18,7 @@ class GitError(Exception):
 
 
 def create_version_map(
-    repo: str, root_dir: Path, working_dir: Path, shared: str = None
+    repo: str, root_dir: Path, working_dir: Path, shared: list[str] = None
 ) -> dict[str : list[str]]:
     """
     return a dictionary of each subdirectory in a chosen root directory in a git
@@ -34,7 +34,6 @@ def create_version_map(
         for path in path_list
         if os.path.isdir(os.path.join(working_dir, root_dir, path))
     ]
-    shared_path = os.path.join(working_dir, root_dir, shared)
     log.debug(f"service_list = {service_list}")
 
     version_map = {service_item: [] for service_item in service_list}
@@ -110,10 +109,15 @@ def create_version_map(
 
             # Test each service for changes
             for service_name in service_list:
-                if shared_path in changed_files:
-                    version_map[service_name].append(tags_list[tag_no])
-                elif os.path.join(root_dir, service_name) in changed_files:
-                    version_map[service_name].append(tags_list[tag_no])
+                change_found = False
+                if shared:
+                    for item in shared:
+                        if item in changed_files:
+                            version_map[service_name].append(tags_list[tag_no])
+                            change_found = True
+                if not change_found:
+                    if os.path.join(root_dir, service_name) in changed_files:
+                        version_map[service_name].append(tags_list[tag_no])
 
     return version_map
 
@@ -121,7 +125,7 @@ def create_version_map(
 def list_all(repo: str, root_dir: Path, shared: str = None) -> polars.DataFrame:
     """List all services available in the service repository"""
     with new_workdir() as path:
-        version_map = create_version_map(repo, root_dir, path, shared=shared)
+        version_map = create_version_map(repo, root_dir, path, shared=[shared])
         svc_list = natsorted(version_map.keys())
         log.debug(f"version_map = {version_map}")
 
@@ -134,7 +138,7 @@ def list_instances(
     service_name: str, repo: str, root_dir: Path, shared: str = None
 ) -> polars.DataFrame:
     with new_workdir() as path:
-        version_map = create_version_map(repo, root_dir, path, shared)
+        version_map = create_version_map(repo, root_dir, path, [shared])
         try:
             svc_list = version_map[service_name]
         except KeyError:
