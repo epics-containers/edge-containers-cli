@@ -39,7 +39,11 @@ class ECShell:
         self.console.print(output, style=Style(color="deep_sky_blue3", bold=True))
 
     def run_command(
-        self, command: str, error_OK=False, show=False, skip_on_dryrun=False,
+        self,
+        command: str,
+        error_OK=False,
+        show=False,
+        skip_on_dryrun=False,
     ) -> str:
         """
         Run a command and return the output
@@ -56,6 +60,7 @@ class ECShell:
 
         if not (self.dry_run and skip_on_dryrun):
             p_result = subprocess.run(command, capture_output=True, shell=True)
+            log.debug(f"running: {command}")
 
             output = p_result.stdout.decode()
             error_out = p_result.stderr.decode()
@@ -78,7 +83,10 @@ class ECShell:
         return result
 
     def run_interactive(
-        self, command: str, error_OK=False, skip_on_dryrun=False,
+        self,
+        command: str,
+        error_OK=False,
+        skip_on_dryrun=False,
     ) -> bool:
         """
         Run a command and allow stdin and stdout, returns True on success
@@ -94,6 +102,7 @@ class ECShell:
 
         if not (self.dry_run and skip_on_dryrun):
             p_result = subprocess.run(command, capture_output=False, shell=True)
+            log.debug(f"running: {command}")
 
             if p_result.returncode != 0 and not error_OK:
                 if self.verbose:
@@ -101,7 +110,7 @@ class ECShell:
                     self.echo_command(command)
                 raise ShellError(f"Command:{command} failed")
 
-            result = (p_result.returncode == 0)
+            result = p_result.returncode == 0
             log.debug(f"returning: {result}")
         else:
             result = True
@@ -112,6 +121,6 @@ class ECShell:
 shell = ECShell()
 
 
-def init_shell(verbose: bool, dry_run:bool) -> None:
-    shell.verbose=verbose
-    shell.dry_run=dry_run
+def init_shell(verbose: bool, dry_run: bool) -> None:
+    shell.verbose = verbose
+    shell.dry_run = dry_run

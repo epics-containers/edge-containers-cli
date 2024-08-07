@@ -24,6 +24,7 @@ def confirmation(message: str, yes: bool):
     if not (yes or typer.confirm("Are you sure?")):
         raise typer.Abort()
 
+
 class ErrorHandlingTyper(typer.Typer):
     def __call__(self, *args, **kwargs):
         try:
@@ -61,7 +62,7 @@ def delete(
     confirmation(
         f"Remove all versions of {service_name} from the target `{backend.commands.target}`",
         yes,
-        )
+    )
     backend.commands.delete(service_name)
 
 
@@ -143,13 +144,24 @@ def instances(
     ),
 ):
     """List all versions of the specified service in the repository"""
-    print(list_instances(service_name, backend.commands.repo, globals.SERVICES_DIR, shared=globals.SHARED_VALUES))
+    print(
+        list_instances(
+            service_name,
+            backend.commands.repo,
+            globals.SERVICES_DIR,
+            shared=globals.SHARED_VALUES,
+        )
+    )
 
 
 @cli.command()
 def list():
     """List all services available in the service repository"""
-    print(list_all(backend.commands.repo, globals.SERVICES_DIR, shared=globals.SHARED_VALUES))
+    print(
+        list_all(
+            backend.commands.repo, globals.SERVICES_DIR, shared=globals.SHARED_VALUES
+        )
+    )
 
 
 @cli.command()
@@ -190,6 +202,7 @@ def monitor(
     from edge_containers_cli.cmds.monitor import (
         MonitorApp,  # Lazy import for performace
     )
+
     app = MonitorApp(backend.commands, running_only)
     app.run()
 

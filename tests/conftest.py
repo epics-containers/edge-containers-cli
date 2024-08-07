@@ -39,9 +39,7 @@ class MockRun:
         self.log: str = ""
         self.params: list[str] = []
 
-    def _str_command(
-        self, command: str, error_OK: bool = False
-    ):
+    def _str_command(self, command: str, error_OK: bool = False):
         self.log += f"\n\nFNC: ec {' '.join(self.params)}"
         self.log += f"\nCMD: {command}"
 
@@ -65,27 +63,34 @@ class MockRun:
         return rsp
 
     def run_command(
-        self, command: str, error_OK=False, show=False, skip_on_dryrun=False,
+        self,
+        command: str,
+        error_OK=False,
+        show=False,
+        skip_on_dryrun=False,
     ) -> str:
         """
         A function to replace shell.run_command that verifies the command
         against the expected sequence of commands and returns the test
         response.
         """
-        rsp = self._str_command(command,error_OK)
+        rsp = self._str_command(command, error_OK)
         assert isinstance(rsp, str), "non-interactive commands must return str"
 
         return rsp
 
     def run_interactive(
-        self, command: str, error_OK=False, skip_on_dryrun=False,
+        self,
+        command: str,
+        error_OK=False,
+        skip_on_dryrun=False,
     ) -> bool:
         """
         A function to replace shell.run_interactive that verifies the command
         against the expected sequence of commands and returns the test
         response.
         """
-        rsp = self._str_command(command,error_OK)
+        rsp = self._str_command(command, error_OK)
         assert isinstance(rsp, bool), "non-interactive commands must return bool"
 
         return rsp
@@ -171,8 +176,11 @@ def mock_run(mocker):
     mocker.patch("typer.confirm", return_value=True)
     mocker.patch("tempfile.mkdtemp", mktempdir)
     mocker.patch("edge_containers_cli.shell.shell.run_command", MOCKRUN.run_command)
-    mocker.patch("edge_containers_cli.shell.shell.run_interactive", MOCKRUN.run_interactive)
+    mocker.patch(
+        "edge_containers_cli.shell.shell.run_interactive", MOCKRUN.run_interactive
+    )
     return MOCKRUN
+
 
 @fixture
 def data() -> Path:
@@ -189,35 +197,53 @@ def ctx():
 
 @fixture()
 def K8S(mocker, data):
-    mocker.patch.dict(os.environ,
+    mocker.patch.dict(
+        os.environ,
         {
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
             "EC_TARGET": "bl01t",
             "EC_CLI_BACKEND": "K8S",
-            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
-            })
+        },
+    )
     file = Path(__file__).parent / "data" / "k8s.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
+
+
+@fixture()
+def CLI(mocker, data):
+    mocker.patch.dict(
+        os.environ,
+        {
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
+        },
+    )
+    file = Path(__file__).parent / "data" / "cli.yaml"
+    yaml = YAML(typ="safe").load(file)
+    return SimpleNamespace(**yaml)
+
 
 @fixture()
 def ARGOCD(mocker, data):
-
-    mocker.patch.dict(os.environ,
+    mocker.patch.dict(
+        os.environ,
         {
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
-            "EC_TARGET": "bl01t",
+            "EC_TARGET": "project/bl01t",
             "EC_CLI_BACKEND": "ARGOCD",
-            })
-    file = Path(__file__).parent / "data" / "k8s.yaml"
+        },
+    )
+    file = Path(__file__).parent / "data" / "argocd.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
+
 
 @fixture()
 def ec_cli(data):
     file = Path(__file__).parent / "data" / "cli.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
+
 
 @fixture()
 def local(data, mocker):
