@@ -19,6 +19,6 @@ instances:
     rsp: ../../dls-aravis/
   - cmd: git diff --name-only 2.0 3.0
     rsp: |
-      services/beamline_values.yaml
+      services/values.yaml
   - cmd: git ls-tree 3.0 -r | grep 120000
     rsp: ""

@@ -30,7 +30,7 @@ delete:
 template:
   - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
-  - cmd: 'helm template bl01t-ea-test-01 .*\.tgz --values .*beamline_values.yaml  --values .*values.yaml   --debug *'
+  - cmd: 'helm template bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml   --debug *'
     rsp: |
       # Source: bl01t-ea-test-01/templates/configmap.yaml
       apiVersion: v1
@@ -39,7 +39,7 @@ template:
 deploy_local:
   - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
-  - cmd: 'helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*beamline_values.yaml  --values .*values.yaml --namespace bl01t *'
+  - cmd: 'helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml --namespace bl01t *'
     rsp: ""
 
 deploy:
@@ -49,7 +49,7 @@ deploy:
     rsp: ""
   - cmd: helm package /tmp/ec_tests/services/bl01t-ea-test-01 -u --app-version 2.0
     rsp: ""
-  - cmd: helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*beamline_values.yaml  --values .*values.yaml --namespace bl01t
+  - cmd: helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml --namespace bl01t
     rsp: ""
 
 exec:

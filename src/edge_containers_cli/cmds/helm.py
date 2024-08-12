@@ -91,7 +91,6 @@ class Helm:
         # use helm to install the chart
         self._install(package_path)
 
-
     def _install(self, helm_chart: Path):
         """
         Execute helm install command
@@ -99,7 +98,7 @@ class Helm:
 
         shared_vals = ""
         if (helm_chart.parent.parent / globals.SHARED_VALUES).exists():
-            shared_vals =  f"--values {helm_chart.parent.parent}/beamline_values.yaml "
+            shared_vals = f"--values {helm_chart.parent.parent}/values.yaml "
 
         helm_cmd = "template" if self.template else "upgrade --install"
         namespace = f"--namespace {self.namespace} " if self.namespace else ""
