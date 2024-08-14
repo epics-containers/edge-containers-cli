@@ -86,7 +86,7 @@ class ArgoCommands(Commands):
             "deployed": [],
         }
         app_resp = shell.run_command(
-            f'argocd app list -l "ec-service=True" --project {project} -o yaml',
+            f'argocd app list -l "ec-service=true" --project {project} -o yaml',
         )
         app_dicts = YAML(typ="safe").load(app_resp)
 

@@ -1,7 +1,7 @@
 checks:
   - cmd: argocd app get project/bl01t
     rsp: ""
-  - cmd: argocd app list -l "ec-service=True" --project project -o yaml
+  - cmd: argocd app list -l "ec-service=true" --project project -o yaml
     rsp: |
       - metadata:
           creationTimestamp: "2024-07-12T13:42:50Z"
