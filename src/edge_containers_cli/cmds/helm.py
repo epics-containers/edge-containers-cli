@@ -73,7 +73,9 @@ class Helm:
         """
         Package a Helm chart and deploy it to the cluster
         """
-        print(f"Deploying {self.service_name}:{self.version}")
+
+        action = "Templating" if self.template else "Deploying"
+        print(f"{action} {self.service_name}:{self.version}")
 
         # package up the charts to get the appVersion set
         with chdir(service_folder):
