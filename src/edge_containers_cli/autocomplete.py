@@ -51,10 +51,7 @@ def avail_services(ctx: typer.Context) -> list[str]:
     try:
         services_graph = fetch_service_graph(ec_backend.commands.repo)
         return list(services_graph.keys())
-    except ShellError as e:
-        typer.echo(f"\n{e}", nl=False, err=True)
-        return []
-    except CommandError as e:
+    except (ShellError, CommandError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
 
@@ -71,13 +68,7 @@ def avail_versions(ctx: typer.Context) -> list[str]:
     except KeyError:
         typer.echo(f"\n{service_name} not found", nl=False, err=True)
         return []
-    except ShellError as e:
-        typer.echo(f"\n{e}", nl=False, err=True)
-        return []
-    except CommandError as e:
-        typer.echo(f"\n{e}", nl=False, err=True)
-        return []
-    except GitError as e:
+    except (ShellError, CommandError, GitError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
 
@@ -91,10 +82,7 @@ def running_svc(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
     try:
         return ec_backend.commands._running_services()
-    except CommandError as e:
-        typer.echo(f"\n{e}", nl=False, err=True)
-        return []
-    except ShellError as e:
+    except (CommandError, ShellError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
 
@@ -103,9 +91,6 @@ def all_svc(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
     try:
         return ec_backend.commands._all_services()
-    except CommandError as e:
-        typer.echo(f"\n{e}", nl=False, err=True)
-        return []
-    except ShellError as e:
+    except (CommandError, ShellError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
