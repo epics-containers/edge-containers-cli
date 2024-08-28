@@ -54,16 +54,14 @@ class ArgoCommands(Commands):
 
     def start(self, service_name):
         self._check_service(service_name)
-        cmd = (
-            f"argocd app set {self.target} " f"-p services.{service_name}.enabled=true"
-        )
+        project, app = extract_project_app(self.target)
+        cmd = f"argocd app set {project}/{service_name} -p global.enabled=true"
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def stop(self, service_name):
         self._check_service(service_name)
-        cmd = (
-            f"argocd app set {self.target} " f"-p services.{service_name}.enabled=false"
-        )
+        project, app = extract_project_app(self.target)
+        cmd = f"argocd app set {project}/{service_name} -p global.enabled=false"
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def _get_logs(self, service_name, prev) -> str:
@@ -106,25 +104,25 @@ class ArgoCommands(Commands):
                     )
                     for resource_manifest in mani_resp.split("---")[1:]:
                         manifest = YAML(typ="safe").load(resource_manifest)
-                        time_stamp = datetime.strptime(
-                            manifest["metadata"]["creationTimestamp"],
-                            "%Y-%m-%dT%H:%M:%SZ",
-                        )
-                        try:
-                            if manifest["metadata"]["name"] == name:
+                        kind = manifest["kind"]
+                        resource_name = manifest["metadata"]["name"]
+                        if kind == "StatefulSet" and resource_name == name:
+                            try:
                                 is_ready = bool(manifest["status"]["readyReplicas"])
-                        except (KeyError, TypeError):  # Not ready if doesnt exist
-                            continue
-
-                        # Fill app data
-                        service_data["name"].append(name)
-                        service_data["version"].append(
-                            app["spec"]["source"]["targetRevision"]
-                        )
-                        service_data["ready"].append(is_ready)
-                        service_data["deployed"].append(
-                            datetime.strftime(time_stamp, TIME_FORMAT)
-                        )
+                            except (KeyError, TypeError):  # Not ready if doesnt exist
+                                is_ready = False
+                            time_stamp = datetime.strptime(
+                                manifest["metadata"]["creationTimestamp"],
+                                "%Y-%m-%dT%H:%M:%SZ",
+                            )
+                            service_data["name"].append(name)
+                            service_data["version"].append(
+                                app["spec"]["source"]["targetRevision"]
+                            )
+                            service_data["ready"].append(is_ready)
+                            service_data["deployed"].append(
+                                datetime.strftime(time_stamp, TIME_FORMAT)
+                            )
 
         services_df = polars.from_dict(service_data)
 

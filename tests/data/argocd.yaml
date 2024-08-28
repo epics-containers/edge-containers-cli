@@ -37,9 +37,9 @@ restart:
     rsp: ""
 
 start:
-  - cmd: argocd app set project/bl01t -p services.bl01t-ea-test-01.enabled=true
+  - cmd: argocd app set project/bl01t-ea-test-01 -p global.enabled=true
     rsp: ""
 
 stop:
-  - cmd: argocd app set project/bl01t -p services.bl01t-ea-test-01.enabled=false
+  - cmd: argocd app set project/bl01t-ea-test-01 -p global.enabled=false
     rsp: ""
