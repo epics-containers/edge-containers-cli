@@ -96,6 +96,7 @@ class ArgoCommands(Commands):
             resources_dict = app["status"]["resources"]
 
             for resource in resources_dict:
+                is_ready = False
                 if resource["kind"] == "StatefulSet":
                     name = app["metadata"]["name"]
 
@@ -113,17 +114,17 @@ class ArgoCommands(Commands):
                             if manifest["metadata"]["name"] == name:
                                 is_ready = bool(manifest["status"]["readyReplicas"])
                         except (KeyError, TypeError):  # Not ready if doesnt exist
-                            is_ready = False
+                            continue
 
-                    # Fill app data
-                    service_data["name"].append(name)
-                    service_data["version"].append(
-                        app["spec"]["source"]["targetRevision"]
-                    )
-                    service_data["ready"].append(is_ready)
-                    service_data["deployed"].append(
-                        datetime.strftime(time_stamp, TIME_FORMAT)
-                    )
+                        # Fill app data
+                        service_data["name"].append(name)
+                        service_data["version"].append(
+                            app["spec"]["source"]["targetRevision"]
+                        )
+                        service_data["ready"].append(is_ready)
+                        service_data["deployed"].append(
+                            datetime.strftime(time_stamp, TIME_FORMAT)
+                        )
 
         services_df = polars.from_dict(service_data)
 

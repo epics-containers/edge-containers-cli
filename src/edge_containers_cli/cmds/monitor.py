@@ -443,9 +443,9 @@ class MonitorApp(App):
         """Start the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        def check_start(restart: bool) -> None:
+        def check_start(start: bool | None) -> None:
             """Called when StartScreen is dismissed."""
-            if restart:
+            if start:
                 self.commands.start(service_name)
 
         self.push_screen(StartScreen(service_name), check_start)
@@ -454,9 +454,9 @@ class MonitorApp(App):
         """Stop the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        def check_stop(restart: bool) -> None:
+        def check_stop(stop: bool | None) -> None:
             """Called when StopScreen is dismissed."""
-            if restart:
+            if stop:
                 self.commands.stop(service_name)
 
         self.push_screen(StopScreen(service_name), check_stop)
@@ -465,7 +465,7 @@ class MonitorApp(App):
         """Restart the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        def check_restart(restart: bool) -> None:
+        def check_restart(restart: bool | None) -> None:
             """Called when RestartScreen is dismissed."""
             if restart:
                 self.commands.restart(service_name)

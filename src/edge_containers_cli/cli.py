@@ -148,8 +148,8 @@ def instances(
         list_instances(
             service_name,
             backend.commands.repo,
-            globals.SERVICES_DIR,
-            shared=globals.SHARED_VALUES,
+            Path(globals.SERVICES_DIR),
+            shared=[globals.SHARED_VALUES],
         )
     )
 
@@ -159,7 +159,9 @@ def list():
     """List all services available in the service repository"""
     print(
         list_all(
-            backend.commands.repo, globals.SERVICES_DIR, shared=globals.SHARED_VALUES
+            backend.commands.repo,
+            Path(globals.SERVICES_DIR),
+            shared=[globals.SHARED_VALUES],
         )
     )
 

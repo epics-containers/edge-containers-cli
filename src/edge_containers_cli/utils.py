@@ -43,7 +43,7 @@ class WorkingDir:
 
     def cleanup(self) -> None:
         # keep the tmp folder if debug is enabled for inspection
-        if not self.debug:
+        if not self.debug and self.dir:
             shutil.rmtree(self.dir, ignore_errors=True)
         else:
             log.debug(f"Temporary directory {self.dir} retained")
@@ -82,7 +82,7 @@ def local_version() -> str:
     return datetime.strftime(time_now, f"%Y.%-m.{elapsed_base}-b")
 
 
-def public_methods(object: callable) -> list:
+def public_methods(object: object) -> list:
     public_list = []
     method_list = [func for func in dir(object) if callable(getattr(object, func))]
     for method in method_list:

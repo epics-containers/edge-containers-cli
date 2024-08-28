@@ -130,10 +130,10 @@ class Commands(ABC):
         raise NotImplementedError
 
     def _running_services(self):
-        return self._get_services(running_only=True)["name"]
+        return self._get_services(running_only=True)["name"].to_list()
 
     def _all_services(self):
-        return self._get_services(running_only=False)["name"]
+        return self._get_services(running_only=False)["name"].to_list()
 
     def _check_service(self, service_name: str):
         services_list = self._get_services(running_only=False)["name"]

@@ -18,8 +18,8 @@ class GitError(Exception):
 
 
 def create_version_map(
-    repo: str, root_dir: Path, working_dir: Path, shared: list[str] = None
-) -> dict[str : list[str]]:
+    repo: str, root_dir: Path, working_dir: Path, shared: list[str] | None = None
+) -> dict[str, list[str]]:
     """
     return a dictionary of each subdirectory in a chosen root directory in a git
     repository with a list of tags which represent changes. Symlinks are resolved.
@@ -125,10 +125,12 @@ def create_version_map(
     return version_map
 
 
-def list_all(repo: str, root_dir: Path, shared: str = None) -> polars.DataFrame:
+def list_all(
+    repo: str, root_dir: Path, shared: list[str] | None = None
+) -> polars.DataFrame:
     """List all services available in the service repository"""
     with new_workdir() as path:
-        version_map = create_version_map(repo, root_dir, path, shared=[shared])
+        version_map = create_version_map(repo, root_dir, path, shared=shared)
         svc_list = natsorted(version_map.keys())
         log.debug(f"version_map = {version_map}")
 
@@ -138,10 +140,10 @@ def list_all(repo: str, root_dir: Path, shared: str = None) -> polars.DataFrame:
 
 
 def list_instances(
-    service_name: str, repo: str, root_dir: Path, shared: str = None
+    service_name: str, repo: str, root_dir: Path, shared: list[str] | None = None
 ) -> polars.DataFrame:
     with new_workdir() as path:
-        version_map = create_version_map(repo, root_dir, path, [shared])
+        version_map = create_version_map(repo, root_dir, path, shared=shared)
         try:
             svc_list = version_map[service_name]
         except KeyError:

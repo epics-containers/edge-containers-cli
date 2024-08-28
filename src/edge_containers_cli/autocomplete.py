@@ -1,4 +1,5 @@
 import urllib
+from pathlib import Path
 
 import typer
 
@@ -32,7 +33,7 @@ def fetch_service_graph(repo: str) -> dict:
     if not version_map:
         with new_workdir() as path:
             version_map = create_version_map(
-                repo, globals.SERVICES_DIR, path, shared=[globals.SHARED_VALUES]
+                repo, Path(globals.SERVICES_DIR), path, shared=[globals.SHARED_VALUES]
             )
             cache_dict(
                 globals.CACHE_ROOT / url_encode(repo),
