@@ -60,7 +60,7 @@ class K8sCommands(Commands):
     def exec(self, service_name):
         self._check_service(service_name)
         shell.run_interactive(
-            f"kubectl -it -n {self.target} exec statefulset {service_name} -- bash",
+            f"kubectl -it -n {self.target} exec statefulset/{service_name} -- bash",
             skip_on_dryrun=True,
         )
 
