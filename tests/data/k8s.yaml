@@ -53,7 +53,7 @@ deploy:
     rsp: ""
 
 exec:
-  - cmd: kubectl -it -n bl01t exec statefulset bl01t-ea-test-01 -- bash
+  - cmd: kubectl -it -n bl01t exec statefulset/bl01t-ea-test-01 -- bash
     rsp: True
 
 logs:
