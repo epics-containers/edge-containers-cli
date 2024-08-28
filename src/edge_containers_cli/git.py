@@ -36,7 +36,7 @@ def create_version_map(
     ]
     log.debug(f"service_list = {service_list}")
 
-    version_map = {service_item: [] for service_item in service_list}
+    version_map = {}
 
     with chdir(working_dir):  # From python 3.11 can use contextlib.chdir(working_dir)
         result_tags = str(shell.run_command("git tag --sort=committerdate"))
@@ -83,9 +83,9 @@ def create_version_map(
                             cmd = f"git cat-file -p {symlink_object_map[symlink]}"
                             result_symlinks = str(shell.run_command(cmd))
                             symlink_map[symlink] = result_symlinks
-                            cached_git_obj[symlink_object_map[symlink]] = (
-                                result_symlinks
-                            )
+                            cached_git_obj[
+                                symlink_object_map[symlink]
+                            ] = result_symlinks
 
                     ## Group sources per symlink target
                     target_tree = {}
@@ -109,13 +109,16 @@ def create_version_map(
 
             # Test each service for changes
             for service_name in service_list:
-                change_found = False
+                shared_change_found = False
                 if shared:
-                    for item in shared:
-                        if item in changed_files:
-                            version_map[service_name].append(tags_list[tag_no])
-                            change_found = True
-                if not change_found:
+                    if service_name in version_map:  # Consider shared once added
+                        for item in shared:
+                            if item in changed_files:
+                                version_map[service_name].append(tags_list[tag_no])
+                                shared_change_found = True
+                if not shared_change_found:
+                    if service_name not in version_map:
+                        version_map[service_name] = []
                     if os.path.join(root_dir, service_name) in changed_files:
                         version_map[service_name].append(tags_list[tag_no])
 

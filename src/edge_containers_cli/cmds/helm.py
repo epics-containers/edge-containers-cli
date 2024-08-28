@@ -99,7 +99,7 @@ class Helm:
         """
 
         shared_vals = ""
-        if (helm_chart.parent.parent / globals.SHARED_VALUES).exists():
+        if (helm_chart.parent.parent.parent / globals.SHARED_VALUES).exists():
             shared_vals = f"--values {helm_chart.parent.parent}/values.yaml "
 
         helm_cmd = "template" if self.template else "upgrade --install"
