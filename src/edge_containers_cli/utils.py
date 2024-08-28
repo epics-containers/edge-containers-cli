@@ -62,8 +62,8 @@ class NewWorkingDir:
     def __call__(self):
         return WorkingDir(self.debug)
 
-new_workdir = NewWorkingDir()
 
+new_workdir = NewWorkingDir()
 
 
 def init_cleanup(debug: bool = False):

@@ -83,9 +83,9 @@ def create_version_map(
                             cmd = f"git cat-file -p {symlink_object_map[symlink]}"
                             result_symlinks = str(shell.run_command(cmd))
                             symlink_map[symlink] = result_symlinks
-                            cached_git_obj[
-                                symlink_object_map[symlink]
-                            ] = result_symlinks
+                            cached_git_obj[symlink_object_map[symlink]] = (
+                                result_symlinks
+                            )
 
                     ## Group sources per symlink target
                     target_tree = {}
