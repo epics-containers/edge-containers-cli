@@ -1,0 +1,3 @@
+# shared beamline values for all services
+global:
+  beamline: bl01t

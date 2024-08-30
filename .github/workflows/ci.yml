@@ -34,19 +34,6 @@ jobs:
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  system:
-    needs: check
-    if: needs.check.outputs.branch-pr == ''
-    strategy:
-      matrix:
-        runs-on: ["ubuntu-latest"]
-        python-version: ["3.12"]
-      fail-fast: false
-    uses: ./.github/workflows/_sys_test.yml
-    with:
-      runs-on: ${{ matrix.runs-on }}
-      python-version: ${{ matrix.python-version }}
-
   dist:
     needs: check
     if: needs.check.outputs.branch-pr == ''

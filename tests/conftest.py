@@ -1,3 +1,4 @@
+import os
 import re
 import shutil
 from collections.abc import Callable
@@ -6,7 +7,6 @@ from types import SimpleNamespace
 
 from pytest import fixture
 from ruamel.yaml import YAML
-from typer import Context
 from typer.testing import CliRunner
 
 from edge_containers_cli.__main__ import cli
@@ -38,27 +38,20 @@ class MockRun:
         self.log: str = ""
         self.params: list[str] = []
 
-    def _str_command(
-        self, command: str, interactive: bool = True, error_OK: bool = False
-    ):
-        """
-        A function to replace shell.run_command that verifies the command
-        against the expected sequence of commands and returns the test
-        response.
-        """
+    def _str_command(self, command: str, error_OK: bool = False):
         self.log += f"\n\nFNC: ec {' '.join(self.params)}"
         self.log += f"\nCMD: {command}"
 
         try:
             cmd_rsp = self.cmd_rsp.pop(0)
         except IndexError as e:
-            raise IndexError("No test command response to return") from e
+            raise IndexError("depleted command-response list") from e
 
         cmd = cmd_rsp[self.cmd].format(data=DATA_PATH)
         rsp = cmd_rsp[self.rsp]
 
         self.log += f"\nTST: {cmd}"
-        self.log += f"\nARG: interactive:{interactive}, error_OK:{error_OK}"
+        self.log += f"\nARG: error_OK:{error_OK}"
         self.log += f"\nRET: {rsp}\n"
 
         # try a raw match first then use the test value as a regex
@@ -66,10 +59,38 @@ class MockRun:
             matches = re.match(cmd, command)
             assert matches is not None, f"command mismatch: {cmd} != {command}"
 
-        if interactive:
-            assert isinstance(rsp, bool), "interactive commands must return bool"
-        else:
-            assert isinstance(rsp, str), "non-interactive commands must return str"
+        return rsp
+
+    def run_command(
+        self,
+        command: str,
+        error_OK=False,
+        show=False,
+        skip_on_dryrun=False,
+    ) -> str:
+        """
+        A function to replace shell.run_command that verifies the command
+        against the expected sequence of commands and returns the test
+        response.
+        """
+        rsp = self._str_command(command, error_OK)
+        assert isinstance(rsp, str), "non-interactive commands must return str"
+
+        return rsp
+
+    def run_interactive(
+        self,
+        command: str,
+        error_OK=False,
+        skip_on_dryrun=False,
+    ) -> bool:
+        """
+        A function to replace shell.run_interactive that verifies the command
+        against the expected sequence of commands and returns the test
+        response.
+        """
+        rsp = self._str_command(command, error_OK)
+        assert isinstance(rsp, bool), "non-interactive commands must return bool"
 
         return rsp
 
@@ -99,7 +120,7 @@ class MockRun:
 
         return result
 
-    def run_cli(self, args: str):
+    def run_cli(self, args: str) -> str:
         """
         Call a typer CLI function and report the sequence of commands /
         responses when an error occurs.
@@ -116,50 +137,32 @@ class MockRun:
             log.error(self.log)
             raise AssertionError("not all commands were run")
 
+        return result.stdout
+
 
 MOCKRUN = MockRun()
 
 
-def mktempdir(_1=None, _2=None, _3=None):
+def mktempdir() -> Path:
     TMPDIR.mkdir(parents=True, exist_ok=True)
-    return str(TMPDIR)
+    return TMPDIR
 
 
 @fixture
 def mock_run(mocker):
-    # Patch globals
-    mocker.patch(
-        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
-        "bl01t",
-    )
-    mocker.patch(
-        "edge_containers_cli.globals.EC_SERVICES_REPO",
-        "https://github.com/epics-containers/bl01t",
-    )
-    mocker.patch(
-        "edge_containers_cli.globals.EC_LOG_URL",
-        "https://graylog2.diamond.ac.uk/search?rangetype=relative&fields="
-        "message%2Csource&width=1489&highlightMessage=&relative=172800&q="
-        "pod_name%3A{service_name}*",
-    )
-    mocker.patch(
-        "edge_containers_cli.globals.EC_DEBUG",
-        "1",
-    )
     mocker.patch(
         "edge_containers_cli.globals.CACHE_ROOT",
         TMPDIR,
     )
-    mocker.patch(
-        "edge_containers_cli.globals.CACHE_EXPIRY",
-        0,
-    )
 
     # Patch functions
-    mocker.patch("webbrowser.open", MOCKRUN._str_command)
+    mocker.patch("webbrowser.open", MOCKRUN.run_interactive)
     mocker.patch("typer.confirm", return_value=True)
     mocker.patch("tempfile.mkdtemp", mktempdir)
-    mocker.patch("edge_containers_cli.shell.run_command", MOCKRUN._str_command)
+    mocker.patch("edge_containers_cli.shell.shell.run_command", MOCKRUN.run_command)
+    mocker.patch(
+        "edge_containers_cli.shell.shell.run_interactive", MOCKRUN.run_interactive
+    )
     return MOCKRUN
 
 
@@ -169,40 +172,44 @@ def data() -> Path:
 
 
 @fixture()
-def ctx():
-    ctx = Context
-    ctx.parent = Context  # type: ignore
-    ctx.parent.params = {}  # type: ignore
-    return ctx
-
-
-@fixture()
-def ioc(data):
-    file = Path(__file__).parent / "data" / "ioc.yaml"
-    yaml = YAML(typ="safe").load(file)
-    return SimpleNamespace(**yaml)
-
-
-@fixture()
-def local(data, mocker):
-    file = Path(__file__).parent / "data" / "local.yaml"
-    mocker.patch(
-        "edge_containers_cli.globals.EC_K8S_NAMESPACE",
-        "local",
+def K8S(mocker, data):
+    mocker.patch.dict(
+        os.environ,
+        {
+            "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
+            "EC_TARGET": "bl01t",
+            "EC_CLI_BACKEND": "K8S",
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
+        },
     )
+    file = Path(__file__).parent / "data" / "k8s.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
 
 
 @fixture()
-def dev(data):
-    file = Path(__file__).parent / "data" / "dev.yaml"
+def CLI(mocker, data):
+    mocker.patch.dict(
+        os.environ,
+        {
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
+        },
+    )
+    file = Path(__file__).parent / "data" / "cli.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
 
 
 @fixture()
-def autocomplete(data):
-    file = Path(__file__).parent / "data" / "autocomplete.yaml"
+def ARGOCD(mocker, data):
+    mocker.patch.dict(
+        os.environ,
+        {
+            "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
+            "EC_TARGET": "project/bl01t",
+            "EC_CLI_BACKEND": "ARGOCD",
+        },
+    )
+    file = Path(__file__).parent / "data" / "argocd.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)

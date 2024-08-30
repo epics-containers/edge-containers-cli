@@ -123,9 +123,7 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
 
     @work
     async def load_logs(self, log: RichLog) -> None:
-        self.log_text: str = self.fetch_log(
-            self.service_name, prev=False, follow=False, stdout=True
-        )
+        self.log_text: str = self.fetch_log(self.service_name, prev=False)
         log.loading = False
         width = max(len(line) for line in self.log_text.split("\n"))
         log.write(
@@ -184,7 +182,7 @@ class SortableText(Text):
         )
 
     def __lt__(self, other: Any) -> bool:
-        if type(other) != SortableText:
+        if type(other) is not SortableText:
             return NotImplemented
 
         # Handle None as values
@@ -197,7 +195,7 @@ class SortableText(Text):
                 return cast(bool, self.value < other.value)
 
     def __gt__(self, other: Any) -> bool:
-        if type(other) != SortableText:
+        if type(other) is not SortableText:
             return NotImplemented
 
         # Handle None as values
@@ -210,7 +208,7 @@ class SortableText(Text):
                 return cast(bool, self.value > other.value)
 
     def __eq__(self, other: Any) -> bool:
-        if type(other) != SortableText:
+        if type(other) is not SortableText:
             return NotImplemented
 
         # Handle None as values
@@ -235,7 +233,7 @@ class IocTable(Widget):
 
         self.commands = commands
         self.running_only = running_only
-        self.iocs_df = self.commands.get_services(self.running_only)
+        self.iocs_df = self.commands._get_services(self.running_only)
 
         self._polling = True
         self._poll_thread = Thread(target=self._poll_services)
@@ -246,8 +244,8 @@ class IocTable(Widget):
         while self._polling:
             # ioc list data table update loop
             print()
-            self.iocs_df = self.commands.get_services(self.running_only)
-            sleep(2.0)
+            self.iocs_df = self.commands._get_services(self.running_only)
+            sleep(1.0)
 
     def stop(self):
         self._polling = False
@@ -258,7 +256,7 @@ class IocTable(Widget):
         # give up the GIL to other threads
         sleep(0)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
-        exclude = ["deployed", "image"]
+        exclude = [None]
 
         for i, ioc in enumerate(self.iocs):
             ioc = {key: value for key, value in ioc.items() if key not in exclude}
@@ -285,7 +283,7 @@ class IocTable(Widget):
         await self.populate_table()
 
     def _get_heading(self, column_id: str):
-        sorted_style = Style(bold=True, underline=True)
+        sorted_style = Style(bold=True, underline=False)
 
         if column_id == self.sort_column_id:
             heading = Text(column_id, justify="center", style=sorted_style)
@@ -392,7 +390,6 @@ class MonitorApp(App):
 
     def __init__(
         self,
-        beamline: str,
         commands: Commands,
         running_only: bool,
     ) -> None:
@@ -400,7 +397,7 @@ class MonitorApp(App):
 
         self.commands = commands
         self.running_only = running_only
-        self.beamline = beamline
+        self.beamline = commands.target
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -410,7 +407,7 @@ class MonitorApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.title = f"{self.beamline} IOC Monitor"
+        self.title = f"{self.beamline} Services Monitor"
 
     def on_unmount(self) -> None:
         """Executes when the app is closed."""
@@ -446,9 +443,9 @@ class MonitorApp(App):
         """Start the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        def check_start(restart: bool) -> None:
+        def check_start(start: bool | None) -> None:
             """Called when StartScreen is dismissed."""
-            if restart:
+            if start:
                 self.commands.start(service_name)
 
         self.push_screen(StartScreen(service_name), check_start)
@@ -457,9 +454,9 @@ class MonitorApp(App):
         """Stop the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        def check_stop(restart: bool) -> None:
+        def check_stop(stop: bool | None) -> None:
             """Called when StopScreen is dismissed."""
-            if restart:
+            if stop:
                 self.commands.stop(service_name)
 
         self.push_screen(StopScreen(service_name), check_stop)
@@ -468,7 +465,7 @@ class MonitorApp(App):
         """Restart the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
-        def check_restart(restart: bool) -> None:
+        def check_restart(restart: bool | None) -> None:
             """Called when RestartScreen is dismissed."""
             if restart:
                 self.commands.restart(service_name)
@@ -480,10 +477,10 @@ class MonitorApp(App):
         service_name = self._get_service_name()
 
         # Convert to corresponding bool
-        running = self._get_highlighted_cell("running") == "True"
+        ready = self._get_highlighted_cell("ready") == "True"
 
-        if running:
-            command = self.commands.logs
+        if ready:
+            command = self.commands._get_logs
             self.push_screen(LogsScreen(command, service_name))
 
     def action_sort(self, col_name: str = "") -> None:

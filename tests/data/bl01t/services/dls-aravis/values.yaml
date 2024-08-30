@@ -1,0 +1,17 @@
+# This chart creates a configmap for a Diagnostics GigE camera with AD plugins.
+
+# IMPORTANT: It's only purpose is to create a configmap with the necessary
+# EPICS manifest ioc.yaml.
+# It must be used as a peer to the ioc-instance chart that uses
+# the configmap and makes the rest of the IOC resources in the cluster.
+
+# The following values may be supplied, the first two are mandatory
+
+# PV Prefix
+P:
+
+# Camera ID - identifier, ip address or DNS name
+ID:
+
+# The type of camera - leave this value as AutoADGenICam for automatic discovery
+CLASS: AutoADGenICam

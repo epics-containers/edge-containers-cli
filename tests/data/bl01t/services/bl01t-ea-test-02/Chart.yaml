@@ -10,5 +10,5 @@ dependencies:
   - name: ioc-instance
     version: 3.5.1
     repository: "oci://ghcr.io/epics-containers"
-    # version: 1.0.0
-    # repository: file://../../../ec-helm-charts/Charts/ioc-instance
+  - name: dls-aravis
+    version: 1.0.0

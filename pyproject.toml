@@ -19,7 +19,7 @@ dependencies = [
     "requests",
     "ruamel.yaml",
     "jinja2",
-    "polars",
+    "polars-lts-cpu",
     "textual",
 ]
 
