@@ -144,11 +144,18 @@ class K8sCommands(Commands):
         services_df = polars.from_dict(service_data)
 
         # Adds the version for all services
-        helm_out = shell.run_command(f"helm list -n {self.target} -o json")
-        helm_df = polars.read_json(StringIO(str(helm_out)))
-        helm_df = helm_df.rename({"app_version": "version"})
+        helm_out = str(shell.run_command(f"helm list -n {self.target} -o json"))
+        if helm_out == "[]\n":
+            helm_df = polars.DataFrame({"name": [""], "version": [""]})
+        else:
+            helm_df = polars.read_json(StringIO(str(helm_out)))
+            helm_df = helm_df.rename({"app_version": "version"})
+
         services_df = services_df.join(
-            helm_df.select(["name", "version"]), on="name", how="left", coalesce=True
+            helm_df.select(["name", "version"]),
+            on="name",
+            how="left",
+            coalesce=True,
         )
 
         # Arrange columns
