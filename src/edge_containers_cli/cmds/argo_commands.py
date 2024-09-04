@@ -16,9 +16,9 @@ from edge_containers_cli.globals import TIME_FORMAT
 from edge_containers_cli.shell import ShellError, shell
 
 
-def extract_project_app(target: str) -> tuple[str, str]:
-    project, app = target.split("/")
-    return project, app
+def extract_ns_app(target: str) -> tuple[str, str]:
+    namespace, app = target.split("/")
+    return namespace, app
 
 
 class ArgoCommands(Commands):
@@ -45,38 +45,38 @@ class ArgoCommands(Commands):
 
     def restart(self, service_name):
         self._check_service(service_name)
-        project, app = extract_project_app(self.target)
+        namespace, app = extract_ns_app(self.target)
         cmd = (
-            f"argocd app delete-resource {project}/{service_name} "
+            f"argocd app delete-resource {namespace}/{service_name} "
             f"--kind StatefulSet"
         )
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def start(self, service_name):
         self._check_service(service_name)
-        project, app = extract_project_app(self.target)
-        cmd = f"argocd app set {project}/{service_name} -p global.enabled=true"
+        namespace, app = extract_ns_app(self.target)
+        cmd = f"argocd app set {namespace}/{service_name} -p global.enabled=true"
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def stop(self, service_name):
         self._check_service(service_name)
-        project, app = extract_project_app(self.target)
-        cmd = f"argocd app set {project}/{service_name} -p global.enabled=false"
+        namespace, app = extract_ns_app(self.target)
+        cmd = f"argocd app set {namespace}/{service_name} -p global.enabled=false"
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def _get_logs(self, service_name, prev) -> str:
-        project, app = extract_project_app(self.target)
+        namespace, app = extract_ns_app(self.target)
         self._check_service(service_name)
         previous = "-p" if prev else ""
 
         logs = shell.run_command(
-            f"argocd app logs {project}/{service_name} {previous}",
+            f"argocd app logs {namespace}/{service_name} {previous}",
             error_OK=True,
         )
         return logs
 
     def _get_services(self, running_only) -> ServicesDataFrame:
-        project, app = extract_project_app(self.target)
+        namespace, app = extract_ns_app(self.target)
         service_data = {
             "name": [],  # type: ignore
             "version": [],
@@ -84,7 +84,7 @@ class ArgoCommands(Commands):
             "deployed": [],
         }
         app_resp = shell.run_command(
-            f'argocd app list -l "ec_service=true" --project {project} -o yaml',
+            f'argocd app list -l "ec_service=true" --app-namespace {namespace} -o yaml',
         )
         app_dicts = YAML(typ="safe").load(app_resp)
 
@@ -100,7 +100,7 @@ class ArgoCommands(Commands):
 
                     # check if replicas ready
                     mani_resp = shell.run_command(
-                        f"argocd app manifests {project}/{name} --source live",
+                        f"argocd app manifests {namespace}/{name} --source live",
                     )
                     for resource_manifest in mani_resp.split("---")[1:]:
                         manifest = YAML(typ="safe").load(resource_manifest)

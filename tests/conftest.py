@@ -206,7 +206,7 @@ def ARGOCD(mocker, data):
         os.environ,
         {
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
-            "EC_TARGET": "project/bl01t",
+            "EC_TARGET": "namespace/bl01t",
             "EC_CLI_BACKEND": "ARGOCD",
         },
     )
