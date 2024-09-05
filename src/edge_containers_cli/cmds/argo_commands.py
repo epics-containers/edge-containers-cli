@@ -104,6 +104,8 @@ class ArgoCommands(Commands):
                     )
                     for resource_manifest in mani_resp.split("---")[1:]:
                         manifest = YAML(typ="safe").load(resource_manifest)
+                        if not manifest:
+                            continue
                         kind = manifest["kind"]
                         resource_name = manifest["metadata"]["name"]
                         if kind == "StatefulSet" and resource_name == name:
