@@ -1,7 +1,7 @@
 checks:
-  - cmd: argocd app get project/bl01t
+  - cmd: argocd app get namespace/bl01t
     rsp: ""
-  - cmd: argocd app list -l "ec_service=true" --project project -o yaml
+  - cmd: argocd app list -l "ec_service=true" --app-namespace namespace -o yaml
     rsp: |
       - metadata:
           creationTimestamp: "2024-07-12T13:42:50Z"
@@ -13,7 +13,7 @@ checks:
           resources:
             - kind: StatefulSet
               name: bl01t-ea-test-01
-  - cmd: argocd app manifests project/bl01t-ea-test-01 --source live
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
     rsp: |
       ---
       apiVersion: apps/v1
@@ -25,7 +25,7 @@ checks:
         readyReplicas: 1
 
 logs:
-  - cmd: argocd app logs project/bl01t-ea-test-01
+  - cmd: argocd app logs namespace/bl01t-ea-test-01
     rsp: ""
 
 log_history:
@@ -33,13 +33,13 @@ log_history:
     rsp: True
 
 restart:
-  - cmd: argocd app delete-resource project/bl01t-ea-test-01 --kind StatefulSet
+  - cmd: argocd app delete-resource namespace/bl01t-ea-test-01 --kind StatefulSet
     rsp: ""
 
 start:
-  - cmd: argocd app set project/bl01t-ea-test-01 -p global.enabled=true
+  - cmd: argocd app set namespace/bl01t-ea-test-01 -p global.enabled=true
     rsp: ""
 
 stop:
-  - cmd: argocd app set project/bl01t-ea-test-01 -p global.enabled=false
+  - cmd: argocd app set namespace/bl01t-ea-test-01 -p global.enabled=false
     rsp: ""
