@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TypeVar
 
+from ruamel.yaml import YAML
+
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
 
@@ -112,3 +114,46 @@ def read_cached_dict(cache_folder: Path, cache_file: str) -> dict:
                 read_dict = json.load(f)
 
     return read_dict
+
+
+class YamlProcessorError(Exception):
+    pass
+
+
+class YamlFile:
+    def __init__(self, file: Path) -> None:
+        self.file = file
+        self._processor = YAML(typ="rt")  # 'rt' slower but preserves comments
+        try:
+            with open(file) as fp:
+                self._yaml_data = self._processor.load(fp)
+        except FileNotFoundError as e:
+            raise YamlProcessorError(str(e)) from e
+
+    def dump_file(self, output_path: Path | None = None):
+        with open(output_path if output_path else self.file, "wb") as file_w:
+            self._processor.dump(self._yaml_data, file_w)
+
+    def get_key(self, key_path: str) -> str | bool | int:
+        curser = self._yaml_data
+        for key in key_path.split("."):
+            try:
+                curser = curser[key]
+            except (TypeError, KeyError) as e:
+                raise YamlProcessorError(f"No key '{key}' in {key_path} found") from e
+        return curser
+
+    def set_key(self, key_path: str, value: str | bool | int):
+        curser = self._yaml_data
+        keys = key_path.split(".")
+
+        for key in keys:
+            try:
+                if key is keys[-1]:
+                    break  # Keep dict as pointer
+                curser = curser[key]
+            except (TypeError, KeyError) as e:
+                raise YamlProcessorError(
+                    f"No key '{str(key)}' in {key_path} found"
+                ) from e
+        curser[keys[-1]] = type(curser[keys[-1]])(value)  # Preserve type

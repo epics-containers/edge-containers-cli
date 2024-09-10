@@ -1,0 +1,4 @@
+services:
+  bl01t-ea-test-01:
+    ec_service: true
+    enabled: false

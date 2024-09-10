@@ -446,7 +446,7 @@ class MonitorApp(App):
         def check_start(start: bool | None) -> None:
             """Called when StartScreen is dismissed."""
             if start:
-                self.commands.start(service_name)
+                self.commands.start(service_name, False)
 
         self.push_screen(StartScreen(service_name), check_start)
 
@@ -457,7 +457,7 @@ class MonitorApp(App):
         def check_stop(stop: bool | None) -> None:
             """Called when StopScreen is dismissed."""
             if stop:
-                self.commands.stop(service_name)
+                self.commands.stop(service_name, False)
 
         self.push_screen(StopScreen(service_name), check_stop)
 

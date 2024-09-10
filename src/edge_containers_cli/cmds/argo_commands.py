@@ -6,12 +6,14 @@ Relies on the Helm class for deployment aspects.
 
 import webbrowser
 from datetime import datetime
+from pathlib import Path
 
 import polars
 from ruamel.yaml import YAML
 
 from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
 from edge_containers_cli.definitions import ECContext
+from edge_containers_cli.git import set_values
 from edge_containers_cli.globals import TIME_FORMAT
 from edge_containers_cli.shell import ShellError, shell
 
@@ -19,6 +21,34 @@ from edge_containers_cli.shell import ShellError, shell
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
     return namespace, app
+
+
+def patch_value(target: str, key: str, value: str | bool | int):
+    cmd_temp_ = f"argocd app set {target} -p {key}={value}"
+    shell.run_command(cmd_temp_, skip_on_dryrun=True)
+
+
+def push_value(target: str, key: str, value: str | bool | int):
+    # Get source details
+    app_resp = shell.run_command(
+        f"argocd app get {target} -o yaml",
+    )
+    app_dicts = YAML(typ="safe").load(app_resp)
+    repo_url = app_dicts["spec"]["source"]["repoURL"]
+    path = Path(app_dicts["spec"]["source"]["path"])
+
+    set_values(
+        repo_url,
+        path / "values.yaml",
+        key,
+        value,
+    )
+
+    # Sync & release a possible patched value
+    cmd_sync = f"argocd app sync {target} --apply-out-of-sync-only"
+    shell.run_command(cmd_sync, skip_on_dryrun=True)
+    cmd_unset = f"argocd app unset {target} -p {key}"
+    shell.run_command(cmd_unset, skip_on_dryrun=True)
 
 
 class ArgoCommands(Commands):
@@ -52,17 +82,19 @@ class ArgoCommands(Commands):
         )
         shell.run_command(cmd, skip_on_dryrun=True)
 
-    def start(self, service_name):
+    def start(self, service_name, temp):
         self._check_service(service_name)
-        namespace, app = extract_ns_app(self.target)
-        cmd = f"argocd app set {namespace}/{service_name} -p global.enabled=true"
-        shell.run_command(cmd, skip_on_dryrun=True)
+        if temp:
+            patch_value(self.target, f"services.{service_name}.enabled", True)
+        else:
+            push_value(self.target, f"services.{service_name}.enabled", True)
 
-    def stop(self, service_name):
+    def stop(self, service_name, temp):
         self._check_service(service_name)
-        namespace, app = extract_ns_app(self.target)
-        cmd = f"argocd app set {namespace}/{service_name} -p global.enabled=false"
-        shell.run_command(cmd, skip_on_dryrun=True)
+        if temp:
+            patch_value(self.target, f"services.{service_name}.enabled", False)
+        else:
+            push_value(self.target, f"services.{service_name}.enabled", False)
 
     def _get_logs(self, service_name, prev) -> str:
         namespace, app = extract_ns_app(self.target)

@@ -37,9 +37,43 @@ restart:
     rsp: ""
 
 start:
-  - cmd: argocd app set namespace/bl01t-ea-test-01 -p global.enabled=true
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: git add .
+    rsp: ""
+  - cmd: git commit -m "Set services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
+    rsp: ""
+  - cmd: git push
+    rsp: ""
+  - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
+    rsp: ""
+
+start_temp:
+  - cmd: argocd app set namespace/bl01t -p services.bl01t-ea-test-01.enabled=True
     rsp: ""
 
 stop:
-  - cmd: argocd app set namespace/bl01t-ea-test-01 -p global.enabled=false
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
+    rsp: ""
+
+stop_temp:
+  - cmd: argocd app set namespace/bl01t -p services.bl01t-ea-test-01.enabled=False
     rsp: ""

@@ -28,7 +28,7 @@ delete:
     rsp: ""
 
 template:
-  - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
+  - cmd: 'helm package .*\/tests\/data\/bl01t-services\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
   - cmd: 'helm template bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml   --debug *'
     rsp: |
@@ -37,7 +37,7 @@ template:
       ...
 
 deploy_local:
-  - cmd: 'helm package .*\/tests\/data\/bl01t\/services\/bl01t-ea-test-01 -u --app-version .*'
+  - cmd: 'helm package .*\/tests\/data\/bl01t-services\/services\/bl01t-ea-test-01 -u --app-version .*'
     rsp: ""
   - cmd: 'helm upgrade --install bl01t-ea-test-01 .*\.tgz --values .*values.yaml  --values .*values.yaml --namespace bl01t *'
     rsp: ""
@@ -45,7 +45,7 @@ deploy_local:
 deploy:
   - cmd: kubectl get namespace bl01t
     rsp: ""
-  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/ec_tests --depth=1 --single-branch --branch=2.0
+  - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/ec_tests --depth=1 --single-branch --branch=2.0
     rsp: ""
   - cmd: helm package /tmp/ec_tests/services/bl01t-ea-test-01 -u --app-version 2.0
     rsp: ""

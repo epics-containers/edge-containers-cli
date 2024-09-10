@@ -234,9 +234,14 @@ def start(
     service_name: str = typer.Argument(
         ..., help="Name of the service container to start", autocompletion=all_svc
     ),
+    temp: bool = typer.Option(False, help="Directly overrides the controller values"),
 ):
     """Start a service"""
-    backend.commands.start(service_name)
+    try:
+        backend.commands.start(service_name, temp)
+    except GitError as e:
+        msg = f"{str(e)} - Try 'ec start <service> --temp' to bypass the git server"
+        raise GitError(msg) from e
 
 
 @cli.command()
@@ -246,9 +251,14 @@ def stop(
         help="Name of the service container to stop",
         autocompletion=running_svc,
     ),
+    temp: bool = typer.Option(False, help="Directly overrides the controller values"),
 ):
     """Stop a service"""
-    backend.commands.stop(service_name)
+    try:
+        backend.commands.stop(service_name, temp)
+    except GitError as e:
+        msg = f"{str(e)} - Try ec stop <service> --temp to bypass the git server"
+        raise GitError(msg) from e
 
 
 @cli.command()

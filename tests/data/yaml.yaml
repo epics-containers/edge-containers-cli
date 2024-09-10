@@ -1,0 +1,9 @@
+# Trunk comment
+trunk_A:
+  # branch comment
+  branch_A:
+    leaf_A: 0 # Leaf comment
+    leaf_B: zero
+trunk_B:
+  leaf_A: false
+leaf_A: "False"
