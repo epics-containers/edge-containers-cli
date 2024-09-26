@@ -26,6 +26,8 @@ def extract_ns_app(target: str) -> tuple[str, str]:
 def patch_value(target: str, key: str, value: str | bool | int):
     cmd_temp_ = f"argocd app set {target} -p {key}={value}"
     shell.run_command(cmd_temp_, skip_on_dryrun=True)
+    cmd_sync = f"argocd app sync {target} --apply-out-of-sync-only"
+    shell.run_command(cmd_sync, skip_on_dryrun=True)
 
 
 def push_value(target: str, key: str, value: str | bool | int):
