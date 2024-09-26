@@ -140,13 +140,20 @@ class YamlFile:
     def set_key(self, key_path: str, value: str | bool | int):
         curser = self._yaml_data
         keys = key_path.split(".")
+        element = keys[-1]
 
+        # Iterate through mappings to element - Entries must exist
         for key in keys:
-            if key is keys[-1]:
+            if key is element:
                 break  # Keep dict as pointer
             curser = curser[key]
+
+        # Set element if exists or create it
         try:
-            curser[keys[-1]] = type(curser[keys[-1]])(value)  # Preserve type
-        except KeyError:  # Create element if does not exist
-            log.debug(f"Entry '{keys[-1]}' in '{key_path}' not found - Creating")
-            curser[keys[-1]] = value
+            curser[element] = type(curser[element])(value)  # Preserve type
+        except KeyError:
+            # Create element if does not exist
+            log.debug(f"Entry '{element}' in '{key_path}' not found - Creating")
+            curser[element] = value
+
+        log.debug(f"Set '{element}' in '{key_path}' to {value}")

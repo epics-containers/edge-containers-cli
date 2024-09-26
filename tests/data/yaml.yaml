@@ -4,6 +4,9 @@ trunk_A:
   branch_A:
     leaf_A: 0 # Leaf comment
     leaf_B: zero
+
 trunk_B:
-  leaf_A: false
+  leaf_B: true # Out of order
+  leaf_A: false # Comment before space
+
 leaf_A: "False"
