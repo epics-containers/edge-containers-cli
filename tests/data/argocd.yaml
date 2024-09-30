@@ -1,7 +1,7 @@
 checks:
   - cmd: argocd app get namespace/bl01t
     rsp: ""
-  - cmd: argocd app list -l "ec_service=true" --app-namespace namespace -o yaml
+  - cmd: argocd app list -l "is_ioc=true" --app-namespace namespace -o yaml
     rsp: |
       - metadata:
           creationTimestamp: "2024-07-12T13:42:50Z"
