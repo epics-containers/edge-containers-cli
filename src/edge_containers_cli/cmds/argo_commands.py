@@ -87,16 +87,16 @@ class ArgoCommands(Commands):
     def start(self, service_name, temp):
         self._check_service(service_name)
         if temp:
-            patch_value(self.target, f"services.{service_name}.enabled", True)
+            patch_value(self.target, f"iocs.{service_name}.enabled", True)
         else:
-            push_value(self.target, f"services.{service_name}.enabled", True)
+            push_value(self.target, f"iocs.{service_name}.enabled", True)
 
     def stop(self, service_name, temp):
         self._check_service(service_name)
         if temp:
-            patch_value(self.target, f"services.{service_name}.enabled", False)
+            patch_value(self.target, f"iocs.{service_name}.enabled", False)
         else:
-            push_value(self.target, f"services.{service_name}.enabled", False)
+            push_value(self.target, f"iocs.{service_name}.enabled", False)
 
     def _get_logs(self, service_name, prev) -> str:
         namespace, app = extract_ns_app(self.target)
