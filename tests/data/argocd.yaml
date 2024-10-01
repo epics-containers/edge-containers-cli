@@ -1,7 +1,7 @@
 checks:
   - cmd: argocd app get namespace/bl01t
     rsp: ""
-  - cmd: argocd app list -l "is_ioc=true" --app-namespace namespace -o yaml
+  - cmd: argocd app list -l "ec_service=true" --app-namespace namespace -o yaml
     rsp: |
       - metadata:
           creationTimestamp: "2024-07-12T13:42:50Z"
@@ -47,17 +47,17 @@ start:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Set iocs.bl01t-ea-test-01.enabled=True in apps/values.yaml"
+  - cmd: git commit -m "Set ec_services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
     rsp: ""
   - cmd: git push
     rsp: ""
   - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
     rsp: ""
-  - cmd: argocd app unset namespace/bl01t -p iocs.bl01t-ea-test-01.enabled
+  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
     rsp: ""
 
 start_temp:
-  - cmd: argocd app set namespace/bl01t -p iocs.bl01t-ea-test-01.enabled=True
+  - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=True
     rsp: ""
   - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
     rsp: ""
@@ -73,11 +73,11 @@ stop:
     rsp: ""
   - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
     rsp: ""
-  - cmd: argocd app unset namespace/bl01t -p iocs.bl01t-ea-test-01.enabled
+  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
     rsp: ""
 
 stop_temp:
-  - cmd: argocd app set namespace/bl01t -p iocs.bl01t-ea-test-01.enabled=False
+  - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=False
     rsp: ""
   - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
     rsp: ""

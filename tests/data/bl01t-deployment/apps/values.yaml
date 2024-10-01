@@ -1,3 +1,3 @@
-iocs:
+ec_services:
   bl01t-ea-test-01:
     enabled: false
