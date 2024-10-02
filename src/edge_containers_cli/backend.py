@@ -5,6 +5,7 @@ Manage a backend for the project
 from edge_containers_cli.cmds.argo_commands import ArgoCommands
 from edge_containers_cli.cmds.commands import Commands
 from edge_containers_cli.cmds.k8s_commands import K8sCommands
+from edge_containers_cli.cmds.demo_commands import DemoCommands
 from edge_containers_cli.definitions import ECBackends, ECContext
 from edge_containers_cli.utils import public_methods
 
@@ -36,10 +37,13 @@ class Backend:
 
     def set_backend(self, backend: ECBackends):
         self._value = backend
-        if backend == ECBackends.K8S:
-            self._Commands = K8sCommands
-        elif backend == ECBackends.ARGOCD:
-            self._Commands = ArgoCommands
+        match backend:
+            case ECBackends.DEMO:
+                self._Commands = DemoCommands
+            case ECBackends.K8S:
+                self._Commands = K8sCommands
+            case ECBackends.ARGOCD:
+                self._Commands = K8sCommands
 
     def set_context(self, context: ECContext):
         """
