@@ -23,14 +23,21 @@ def version_callback(value: bool):
 
 def backend_callback(ctx: typer.Context, backend: ECBackends):
     init_backend(backend)
+
     # Dynamically drop any method not implemented
     not_implemented = [
-        mthd.replace("_", "-") for mthd in ec_backend.get_notimplemented()
+        mthd.replace("_", "-") for mthd in ec_backend.get_notimplemented_cmds()
     ]
+    typer_commands = ctx.command.commands  # type: ignore
     for command in not_implemented:
-        typer_commands = ctx.command.commands  # type: ignore
         if command in typer_commands:
             typer_commands.pop(command)
+
+    # Dynamically drop any cli options as specified
+    for cmd_name, drop_params in ec_backend.get_notimplemented_params().items():
+        for index, param in enumerate(typer_commands[cmd_name].params):
+            if param.name in drop_params:
+                typer_commands[cmd_name].params.pop(index)
 
     return backend.value
 

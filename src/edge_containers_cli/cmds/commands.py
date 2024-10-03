@@ -39,6 +39,8 @@ class Commands(ABC):
     Methods not exposed to the CLI should be private
     """
 
+    params_opt_out: dict[str, list[str]] = {}
+
     def __init__(self, ctx: ECContext):
         self._target = ctx.target
         self._target_valid = False
@@ -72,50 +74,50 @@ class Commands(ABC):
             log.debug("log_url = %s", self._log_url)
             return self._log_url
 
-    def attach(self, service_name: str):
+    def attach(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def delete(self, service_name: str):
+    def delete(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def deploy(self, service_name: str, version: str, args: str):
+    def deploy(self, service_name: str, version: str, args: str) -> None:
         raise NotImplementedError
 
-    def deploy_local(self, svc_instance: Path, args: str):
+    def deploy_local(self, svc_instance: Path, args: str) -> None:
         raise NotImplementedError
 
-    def exec(self, service_name: str):
+    def exec(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def logs(self, service_name: str, prev: bool):
+    def logs(self, service_name: str, prev: bool) -> None:
         raise NotImplementedError
 
-    def log_history(self, service_name: str):
+    def log_history(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def ps(self, running_only: bool):
-        raise NotImplementedError
-
-    @abstractmethod
-    def restart(self, service_name: str):
+    def ps(self, running_only: bool) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def start(self, service_name: str):
+    def restart(self, service_name: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def stop(self, service_name: str):
+    def start(self, service_name: str, temp: bool) -> None:
         raise NotImplementedError
 
-    def template(self, svc_instance: Path, args: str):
+    @abstractmethod
+    def stop(self, service_name: str, temp: bool) -> None:
+        raise NotImplementedError
+
+    def template(self, svc_instance: Path, args: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
     def _get_services(self, running_only: bool) -> ServicesDataFrame:
         raise NotImplementedError
 
-    def _ps(self, running_only: bool):
+    def _ps(self, running_only: bool) -> None:
         services_df = self._get_services(running_only)
         print(services_df)
 
@@ -123,19 +125,19 @@ class Commands(ABC):
     def _get_logs(self, service_name: str, prev: bool) -> str:
         raise NotImplementedError
 
-    def _logs(self, service_name: str, prev: bool):
+    def _logs(self, service_name: str, prev: bool) -> None:
         print(self._get_logs(service_name, prev))
 
-    def _validate_target(self):
+    def _validate_target(self) -> None:
         raise NotImplementedError
 
-    def _running_services(self):
+    def _running_services(self) -> list[str]:
         return self._get_services(running_only=True)["name"].to_list()
 
-    def _all_services(self):
+    def _all_services(self) -> list[str]:
         return self._get_services(running_only=False)["name"].to_list()
 
-    def _check_service(self, service_name: str):
+    def _check_service(self, service_name: str) -> None:
         services_list = self._get_services(running_only=False)["name"]
         if service_name in services_list:
             pass

@@ -179,7 +179,7 @@ def K8S(mocker, data):
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
             "EC_TARGET": "bl01t",
             "EC_CLI_BACKEND": "K8S",
-            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t-services",
         },
     )
     file = Path(__file__).parent / "data" / "k8s.yaml"

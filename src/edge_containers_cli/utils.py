@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TypeVar
 
+from ruamel.yaml import YAML
+
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
 
@@ -112,3 +114,46 @@ def read_cached_dict(cache_folder: Path, cache_file: str) -> dict:
                 read_dict = json.load(f)
 
     return read_dict
+
+
+class YamlFile:
+    def __init__(self, file: Path) -> None:
+        self.file = file
+        self._processor = YAML(typ="rt")  # 'rt' slower but preserves comments
+        with open(file) as fp:
+            self._yaml_data = self._processor.load(fp)
+
+    def dump_file(self, output_path: Path | None = None):
+        with open(output_path if output_path else self.file, "wb") as file_w:
+            self._processor.dump(self._yaml_data, file_w)
+
+    def get_key(self, key_path: str) -> str | bool | int | None:
+        curser = self._yaml_data
+        for key in key_path.split("."):
+            try:
+                curser = curser[key]
+            except KeyError:
+                log.debug(f"Entry '{key}' in '{key_path}' not found")
+                return None
+        return curser
+
+    def set_key(self, key_path: str, value: str | bool | int):
+        curser = self._yaml_data
+        keys = key_path.split(".")
+        element = keys[-1]
+
+        # Iterate through mappings to element - Entries must exist
+        for key in keys:
+            if key is element:
+                break  # Keep dict as pointer
+            curser = curser[key]
+
+        # Set element if exists or create it
+        try:
+            curser[element] = type(curser[element])(value)  # Preserve type
+        except KeyError:
+            # Create element if does not exist
+            log.debug(f"Entry '{element}' in '{key_path}' not found - Creating")
+            curser[element] = value
+
+        log.debug(f"Set '{element}' in '{key_path}' to {value}")

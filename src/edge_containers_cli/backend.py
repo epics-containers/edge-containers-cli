@@ -21,6 +21,13 @@ class Backend:
         self._commands: Commands | None = None
 
     @property
+    def Commands(self):
+        if self._Commands is None:
+            raise BackendError("Backend commands not set")
+        else:
+            return self._Commands
+
+    @property
     def commands(self):
         if self._commands is None:
             raise BackendError("Backend commands not constructed")
@@ -44,7 +51,7 @@ class Backend:
             self._cxt = context
             self._commands = self._Commands(context)
 
-    def get_notimplemented(self) -> list[str]:
+    def get_notimplemented_cmds(self) -> list[str]:
         notimplemented = []
         if self._Commands is None:
             return []
@@ -53,6 +60,9 @@ class Backend:
                 if getattr(self._Commands, command) is getattr(Commands, command):
                     notimplemented.append(command)
         return notimplemented
+
+    def get_notimplemented_params(self) -> dict[str, list[str]]:
+        return self.Commands.params_opt_out
 
 
 backend = Backend()

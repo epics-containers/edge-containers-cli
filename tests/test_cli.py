@@ -23,7 +23,7 @@ def test_list(mock_run, CLI, data: Path):
     mock_run.set_seq(CLI.instances)
     # prep what instances expects to find after it cloned bl01t repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "bl01t/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     res = mock_run.run_cli("list")
 
     assert res == expect
@@ -39,6 +39,6 @@ def test_instances(mock_run, CLI, data: Path):
     mock_run.set_seq(CLI.instances)
     # prep what instances expects to find after it cloned bl01t repo
     TMPDIR.mkdir()
-    shutil.copytree(data / "bl01t/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     res = mock_run.run_cli("instances bl01t-ea-test-01")
     assert res == expect
