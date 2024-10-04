@@ -43,7 +43,7 @@ class Backend:
             case ECBackends.K8S:
                 self._Commands = K8sCommands
             case ECBackends.ARGOCD:
-                self._Commands = K8sCommands
+                self._Commands = ArgoCommands
 
     def set_context(self, context: ECContext):
         """

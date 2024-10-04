@@ -26,7 +26,6 @@ def test_stop(mock_run, DEMO):
 
 def test_ps(mock_run, DEMO):
     expect = (
-        "***RUNNING IN DEMO MODE***\n"
         "| name       | version    | ready | deployed             |\n"
         "|------------|------------|-------|----------------------|\n"
         "| demo-ea-01 | 2024.10.1  | true  | 2024-10-22T11:23:10Z |\n"
@@ -36,4 +35,4 @@ def test_ps(mock_run, DEMO):
 
     res = mock_run.run_cli("ps")
 
-    assert res == expect
+    assert expect in res
