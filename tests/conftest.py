@@ -213,3 +213,13 @@ def ARGOCD(mocker, data):
     file = Path(__file__).parent / "data" / "argocd.yaml"
     yaml = YAML(typ="safe").load(file)
     return SimpleNamespace(**yaml)
+
+
+@fixture()
+def DEMO(mocker):
+    mocker.patch.dict(
+        os.environ,
+        {
+            "EC_CLI_BACKEND": "DEMO",
+        },
+    )
