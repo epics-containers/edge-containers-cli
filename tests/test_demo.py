@@ -1,9 +1,3 @@
-import shutil
-from pathlib import Path
-
-from tests.conftest import TMPDIR
-
-
 def test_logs(mock_run, DEMO):
     mock_run.run_cli("logs demo-ea-01")
 

@@ -4,8 +4,8 @@ Manage a backend for the project
 
 from edge_containers_cli.cmds.argo_commands import ArgoCommands
 from edge_containers_cli.cmds.commands import Commands
-from edge_containers_cli.cmds.k8s_commands import K8sCommands
 from edge_containers_cli.cmds.demo_commands import DemoCommands
+from edge_containers_cli.cmds.k8s_commands import K8sCommands
 from edge_containers_cli.definitions import ECBackends, ECContext
 from edge_containers_cli.utils import public_methods
 

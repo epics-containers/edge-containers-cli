@@ -4,17 +4,14 @@ implements commands for deploying and managing service instances suing argocd
 Relies on the Helm class for deployment aspects.
 """
 
-from datetime import datetime
-from edge_containers_cli.globals import TIME_FORMAT
-
 import time
+from datetime import datetime
 
 import polars
 
 from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.globals import TIME_FORMAT
-
 
 DELAY = 0.0
 
@@ -37,7 +34,7 @@ sample_data = {
 sample_ServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
 
 
-def demo_wrapper() -> callable:
+def demo_wrapper():
     """Using closure to display once"""
     called = False
 
