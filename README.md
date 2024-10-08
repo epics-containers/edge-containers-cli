@@ -23,4 +23,3 @@ and perform the following::
 
     pip install edge-containers-cli
     ec --version
-

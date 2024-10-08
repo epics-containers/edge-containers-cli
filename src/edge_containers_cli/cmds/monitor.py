@@ -233,7 +233,7 @@ class IocTable(Widget):
 
         self.commands = commands
         self.running_only = running_only
-        self.iocs_df = self.commands._get_services(self.running_only)
+        self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
 
         self._polling = True
         self._poll_thread = Thread(target=self._poll_services)
@@ -244,7 +244,7 @@ class IocTable(Widget):
         while self._polling:
             # ioc list data table update loop
             print()
-            self.iocs_df = self.commands._get_services(self.running_only)
+            self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
             sleep(1.0)
 
     def stop(self):
@@ -480,7 +480,7 @@ class MonitorApp(App):
         ready = self._get_highlighted_cell("ready") == "True"
 
         if ready:
-            command = self.commands._get_logs
+            command = self.commands._get_logs  # noqa: SLF001
             self.push_screen(LogsScreen(command, service_name))
 
     def action_sort(self, col_name: str = "") -> None:
