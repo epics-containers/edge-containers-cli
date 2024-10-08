@@ -5,6 +5,7 @@ from enum import Enum
 class ECBackends(str, Enum):
     ARGOCD = "ARGOCD"
     K8S = "K8S"
+    DEMO = "DEMO"
 
 
 class ECLogLevels(str, Enum):
