@@ -1,9 +1,8 @@
 # Changes here will be overwritten by Copier
-_commit: 1.3.0
+_commit: 2.3.0
 _src_path: gh:DiamondLightSource/python-copier-template
 author_email: giles.knap@gmail.com
 author_name: Giles Knap
-component_owner: group:default/sscc
 description: CLI for deploying and managing epics containers IOCs and services
 distribution_name: edge-containers-cli
 docker: false
@@ -11,5 +10,6 @@ docs_type: README
 git_platform: github.com
 github_org: epics-containers
 package_name: edge_containers_cli
+pypi: true
 repo_name: edge-containers-cli
 type_checker: pyright
