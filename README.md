@@ -15,6 +15,7 @@ https://epics-containers.github.io/
 Source          | <https://github.com/epics-containers/edge-containers-cli>
 :---:           | :---:
 PyPI            | `pip install edge-containers-cli`
+Docker          | `docker run ghcr.io/epics-containers/edge-containers-cli:latest`
 Releases        | <https://github.com/epics-containers/edge-containers-cli/releases>
 
 

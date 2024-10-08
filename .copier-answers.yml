@@ -5,7 +5,7 @@ author_email: giles.knap@gmail.com
 author_name: Giles Knap
 description: CLI for deploying and managing epics containers IOCs and services
 distribution_name: edge-containers-cli
-docker: false
+docker: true
 docs_type: README
 git_platform: github.com
 github_org: epics-containers
