@@ -81,7 +81,7 @@ def force_plain_completion() -> list[str]:
 def running_svc(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
     try:
-        return ec_backend.commands._running_services()
+        return ec_backend.commands._running_services()  # noqa: SLF001
     except (CommandError, ShellError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
@@ -90,7 +90,7 @@ def running_svc(ctx: typer.Context) -> list[str]:
 def all_svc(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
     try:
-        return ec_backend.commands._all_services()
+        return ec_backend.commands._all_services()  # noqa: SLF001
     except (CommandError, ShellError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
