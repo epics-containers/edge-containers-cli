@@ -24,8 +24,8 @@ class K8sCommands(Commands):
     """
 
     params_opt_out = {
-        "stop": ["temp"],
-        "start": ["temp"],
+        "stop": ["commit"],
+        "start": ["commit"],
     }
 
     def __init__(
@@ -89,14 +89,14 @@ class K8sCommands(Commands):
             f"kubectl delete -n {self.target} {pod_name}", skip_on_dryrun=True
         )
 
-    def start(self, service_name, temp):
+    def start(self, service_name, commit):
         self._check_service(service_name)
         shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=1",
             skip_on_dryrun=True,
         )
 
-    def stop(self, service_name, temp):
+    def stop(self, service_name, commit):
         self._check_service(service_name)
         shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=0 ",

@@ -84,19 +84,19 @@ class ArgoCommands(Commands):
         )
         shell.run_command(cmd, skip_on_dryrun=True)
 
-    def start(self, service_name, temp):
+    def start(self, service_name, commit):
         self._check_service(service_name)
-        if temp:
-            patch_value(self.target, f"ec_services.{service_name}.enabled", True)
-        else:
+        if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", True)
-
-    def stop(self, service_name, temp):
-        self._check_service(service_name)
-        if temp:
-            patch_value(self.target, f"ec_services.{service_name}.enabled", False)
         else:
+            patch_value(self.target, f"ec_services.{service_name}.enabled", True)
+
+    def stop(self, service_name, commit):
+        self._check_service(service_name)
+        if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", False)
+        else:
+            patch_value(self.target, f"ec_services.{service_name}.enabled", False)
 
     def _get_logs(self, service_name, prev) -> str:
         namespace, app = extract_ns_app(self.target)
