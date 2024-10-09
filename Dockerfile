@@ -24,6 +24,11 @@ FROM python:${PYTHON_VERSION}-slim as runtime
 COPY --from=build /venv/ /venv/
 ENV PATH=/venv/bin:$PATH
 RUN pip install textual-dev
+RUN apt-get update && apt-get install -y curl
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && mv kubectl /usr/local/bin/
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 # change this entrypoint if it is not the same as the repo
 # Usage: serve "ec -b DEMO monitor" -p 8081
