@@ -83,11 +83,14 @@ class DemoCommands(Commands):
 
     @demo_message
     def restart(self, service_name):
-        self.stop(service_name, False)
-        self.start(service_name, False)
+        self._stop(service_name, commit=False)
+        self._start(service_name, commit=False)
 
     @demo_message
-    def start(self, service_name, commit):
+    def start(self, service_name, commit=False):
+        self._start(service_name, commit=commit)
+
+    def _start(self, service_name, commit=False):
         self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(
@@ -98,7 +101,10 @@ class DemoCommands(Commands):
         )
 
     @demo_message
-    def stop(self, service_name, commit):
+    def stop(self, service_name, commit=False):
+        self._stop(service_name, commit=commit)
+
+    def _stop(self, service_name, commit=False):
         self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(

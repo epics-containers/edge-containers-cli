@@ -238,7 +238,7 @@ def start(
 ):
     """Start a service"""
     try:
-        backend.commands.start(service_name, commit)
+        backend.commands.start(service_name, commit=commit)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try 'ec start <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
@@ -255,7 +255,7 @@ def stop(
 ):
     """Stop a service"""
     try:
-        backend.commands.stop(service_name, commit)
+        backend.commands.stop(service_name, commit=commit)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try ec stop <service> --no-commit to set values without updating git"
         raise GitError(msg) from e

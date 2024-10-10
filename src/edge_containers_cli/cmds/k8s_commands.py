@@ -89,14 +89,14 @@ class K8sCommands(Commands):
             f"kubectl delete -n {self.target} {pod_name}", skip_on_dryrun=True
         )
 
-    def start(self, service_name, commit):
+    def start(self, service_name, commit=False):
         self._check_service(service_name)
         shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=1",
             skip_on_dryrun=True,
         )
 
-    def stop(self, service_name, commit):
+    def stop(self, service_name, commit=False):
         self._check_service(service_name)
         shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=0 ",

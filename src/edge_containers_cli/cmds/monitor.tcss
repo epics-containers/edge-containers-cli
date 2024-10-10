@@ -6,19 +6,23 @@ Footer > .footer--key {
   background: rgb(30, 144, 255);
 }
 
-IocTable {
-  height: 1fr;
+Vertical {
+    height: 100%;
+}
+#collapsible_container {
+    height: 1fr;
+    max-height: 50%;
+    align: center bottom
+}
+#ioc_table_container {
+    height: 1fr;
+}
+Collapsible > .collapsible--content {
+    max-height: 50%;
+    overflow: auto;
 }
 
-.narrow IocTable {
-  height: 100%;
-}
-
-IocTable > ScrollView {
-  height: 100%;
-}
-
-OptionScreen {
+ConfirmScreen {
   align: center middle;
 }
 
