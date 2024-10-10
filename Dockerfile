@@ -29,6 +29,9 @@ RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/s
     && chmod +x kubectl \
     && mv kubectl /usr/local/bin/
 RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+RUN curl -sSL https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+    && chmod +x argocd \
+    && mv argocd /usr/local/bin/
 
 # change this entrypoint if it is not the same as the repo
 # Usage: serve "ec -b DEMO monitor" -p 8081
