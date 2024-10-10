@@ -1,10 +1,9 @@
 """TUI monitor for containerised IOCs."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from functools import total_ordering
-from threading import Thread
-from time import sleep
 from typing import Any, cast
 
 import polars
@@ -210,30 +209,30 @@ class IocTable(Widget):
     def __init__(self, commands, running_only: bool) -> None:
         super().__init__()
 
+        self.refresh_rate = 10
         self.commands = commands
         self.running_only = running_only
         self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
 
         self._polling = True
-        self._poll_thread = Thread(target=self._poll_services)
-        self._poll_thread.start()
         self._get_iocs()
+        self._polling_task = asyncio.create_task(
+            self._poll_services()
+        )  # https://github.com/Textualize/textual/discussions/1828
 
-    def _poll_services(self):
+    async def _poll_services(self):
         while self._polling:
-            # ioc list data table update loop
-            print()
-            self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
-            sleep(1.0)
+            self.iocs_df = await asyncio.to_thread(
+                self.commands._get_services,  # noqa: SLF001
+                self.running_only,
+            )
+            await asyncio.sleep(1.0)
 
     def stop(self):
         self._polling = False
-        self._poll_thread.join()
 
     def _get_iocs(self) -> None:
         iocs = self._convert_df_to_list(self.iocs_df)
-        # give up the GIL to other threads
-        sleep(0)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
         exclude = [None]
 
@@ -252,7 +251,7 @@ class IocTable(Widget):
 
     def on_mount(self) -> None:
         """Provides a loop after generating the app for updating the data."""
-        self.set_interval(1.0, self.update_iocs)
+        self.set_interval(1 / self.refresh_rate, self.update_iocs)
 
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
@@ -406,6 +405,7 @@ class MonitorApp(App):
         self.commands = commands
         self.running_only = running_only
         self.beamline = commands.target
+        self.busy_services = {}
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -455,38 +455,40 @@ class MonitorApp(App):
         service_name = self._get_highlighted_cell("name")
         return service_name
 
-    def action_start_ioc(self) -> None:
-        """Start the IOC that is currently highlighted."""
+    def _do_confirmed_action(self, action: str, command: Callable):
         service_name = self._get_service_name()
 
-        def check_start(start: bool | None) -> None:
-            """Called when StartScreen is dismissed."""
-            if start:
-                self.commands.start(service_name, commit=False)
+        def task_done_callback(t):
+            """Called when asyncio task is completed."""
+            del self.busy_services[service_name]
 
-        self.push_screen(ConfirmScreen(service_name, "start"), check_start)
+        def after_dismiss_callback(start: bool | None) -> None:
+            """Called when ConfirmScreen is dismissed."""
+            if start:
+                if service_name in self.busy_services:
+                    log.info(f"Skipped {action}: {service_name} busy")
+                    return None
+                else:
+                    task = asyncio.create_task(
+                        asyncio.to_thread(command, service_name),
+                        name=service_name,
+                    )
+                    self.busy_services[service_name] = task
+                    task.add_done_callback(task_done_callback)
+
+        self.push_screen(ConfirmScreen(service_name, action), after_dismiss_callback)
+
+    def action_start_ioc(self) -> None:
+        """Start the IOC that is currently highlighted."""
+        self._do_confirmed_action("start", self.commands.start)
 
     def action_stop_ioc(self) -> None:
         """Stop the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_stop(stop: bool | None) -> None:
-            """Called when StopScreen is dismissed."""
-            if stop:
-                self.commands.stop(service_name, commit=False)
-
-        self.push_screen(ConfirmScreen(service_name, "stop"), check_stop)
+        self._do_confirmed_action("stop", self.commands.stop)
 
     def action_restart_ioc(self) -> None:
         """Restart the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_restart(restart: bool | None) -> None:
-            """Called when RestartScreen is dismissed."""
-            if restart:
-                self.commands.restart(service_name)
-
-        self.push_screen(ConfirmScreen(service_name, "restart"), check_restart)
+        self._do_confirmed_action("restart", self.commands.restart)
 
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
