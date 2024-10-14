@@ -36,7 +36,7 @@ restart:
   - cmd: argocd app delete-resource namespace/bl01t-ea-test-01 --kind StatefulSet
     rsp: ""
 
-start:
+start_commit:
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:
@@ -56,13 +56,13 @@ start:
   - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
     rsp: ""
 
-start_temp:
+start:
   - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=True
     rsp: ""
   - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
     rsp: ""
 
-stop:
+stop_commit:
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:
@@ -76,7 +76,7 @@ stop:
   - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
     rsp: ""
 
-stop_temp:
+stop:
   - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=False
     rsp: ""
   - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only

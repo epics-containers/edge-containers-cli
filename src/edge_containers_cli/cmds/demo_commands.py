@@ -87,7 +87,7 @@ class DemoCommands(Commands):
         self.start(service_name, False)
 
     @demo_message
-    def start(self, service_name, temp):
+    def start(self, service_name, commit):
         self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(
@@ -98,7 +98,7 @@ class DemoCommands(Commands):
         )
 
     @demo_message
-    def stop(self, service_name, temp):
+    def stop(self, service_name, commit):
         self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(

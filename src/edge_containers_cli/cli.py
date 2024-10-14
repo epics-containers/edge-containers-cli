@@ -234,13 +234,13 @@ def start(
     service_name: str = typer.Argument(
         ..., help="Name of the service container to start", autocompletion=all_svc
     ),
-    temp: bool = typer.Option(False, help="Directly overrides the controller values"),
+    commit: bool = typer.Option(False, help="Commits the values to the git repo"),
 ):
     """Start a service"""
     try:
-        backend.commands.start(service_name, temp)
+        backend.commands.start(service_name, commit)
     except GitError as e:
-        msg = f"{str(e)} - Try 'ec start <service> --temp' to bypass the git server"
+        msg = f"{str(e)} - Commit failed. Try 'ec start <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
 
 
@@ -251,13 +251,13 @@ def stop(
         help="Name of the service container to stop",
         autocompletion=running_svc,
     ),
-    temp: bool = typer.Option(False, help="Directly overrides the controller values"),
+    commit: bool = typer.Option(False, help="Commits the values to the git repo"),
 ):
     """Stop a service"""
     try:
-        backend.commands.stop(service_name, temp)
+        backend.commands.stop(service_name, commit)
     except GitError as e:
-        msg = f"{str(e)} - Try ec stop <service> --temp to bypass the git server"
+        msg = f"{str(e)} - Commit failed. Try ec stop <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
 
 

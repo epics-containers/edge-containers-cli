@@ -19,28 +19,28 @@ def test_restart(mock_run, ARGOCD):
     mock_run.run_cli("restart bl01t-ea-test-01")
 
 
-def test_start(mock_run, ARGOCD, data: Path):
-    mock_run.set_seq(ARGOCD.checks + ARGOCD.start)
+def test_start_commit(mock_run, ARGOCD, data: Path):
+    mock_run.set_seq(ARGOCD.checks + ARGOCD.start_commit)
     TMPDIR.mkdir()
     shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+    mock_run.run_cli("start bl01t-ea-test-01 --commit")
+
+
+def test_start(mock_run, ARGOCD):
+    mock_run.set_seq(ARGOCD.checks + ARGOCD.start)
     mock_run.run_cli("start bl01t-ea-test-01")
 
 
-def test_start_temp(mock_run, ARGOCD):
-    mock_run.set_seq(ARGOCD.checks + ARGOCD.start_temp)
-    mock_run.run_cli("start bl01t-ea-test-01 --temp")
-
-
-def test_stop(mock_run, ARGOCD, data: Path):
-    mock_run.set_seq(ARGOCD.checks + ARGOCD.stop)
+def test_stop_commit(mock_run, ARGOCD, data: Path):
+    mock_run.set_seq(ARGOCD.checks + ARGOCD.stop_commit)
     TMPDIR.mkdir()
     shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+    mock_run.run_cli("stop bl01t-ea-test-01 --commit")
+
+
+def test_stop(mock_run, ARGOCD):
+    mock_run.set_seq(ARGOCD.checks + ARGOCD.stop)
     mock_run.run_cli("stop bl01t-ea-test-01")
-
-
-def test_stop_temp(mock_run, ARGOCD):
-    mock_run.set_seq(ARGOCD.checks + ARGOCD.stop_temp)
-    mock_run.run_cli("stop bl01t-ea-test-01 --temp")
 
 
 def test_ps(mock_run, ARGOCD):

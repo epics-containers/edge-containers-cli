@@ -39,7 +39,7 @@ class Commands(ABC):
     Methods not exposed to the CLI should be private
     """
 
-    params_opt_out: dict[str, list[str]] = {}
+    params_opt_out: dict[str, list[str]] = {}  # Optionally drop parameters from the CLI
 
     def __init__(self, ctx: ECContext):
         self._target = ctx.target
@@ -103,11 +103,11 @@ class Commands(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def start(self, service_name: str, temp: bool) -> None:
+    def start(self, service_name: str, commit: bool) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def stop(self, service_name: str, temp: bool) -> None:
+    def stop(self, service_name: str, commit: bool) -> None:
         raise NotImplementedError
 
     def template(self, svc_instance: Path, args: str) -> None:
