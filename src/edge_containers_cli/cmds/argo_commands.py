@@ -7,6 +7,7 @@ Relies on the Helm class for deployment aspects.
 import webbrowser
 from datetime import datetime
 from pathlib import Path
+from time import sleep
 
 import polars
 from ruamel.yaml import YAML
@@ -15,6 +16,7 @@ from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDa
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.git import set_values
 from edge_containers_cli.globals import TIME_FORMAT
+from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 
 
@@ -26,8 +28,23 @@ def extract_ns_app(target: str) -> tuple[str, str]:
 def patch_value(target: str, key: str, value: str | bool | int):
     cmd_temp_ = f"argocd app set {target} -p {key}={value}"
     shell.run_command(cmd_temp_, skip_on_dryrun=True)
-    cmd_sync = f"argocd app sync {target} --apply-out-of-sync-only"
-    shell.run_command(cmd_sync, skip_on_dryrun=True)
+    max_attempts = 3
+    attempt = 1
+    sleep_time = 2
+    while attempt <= max_attempts:
+        try:
+            # Sync may conflict with autosync "another operation is already in progress"
+            cmd_sync = f"argocd app sync {target} --apply-out-of-sync-only"
+            shell.run_command(cmd_sync, skip_on_dryrun=True)
+            return None
+        except ShellError:
+            if attempt == max_attempts:
+                log.debug(f"Argo patch failed after {max_attempts} attempts")
+                raise
+            else:
+                log.debug(f"Argo patch attempt {attempt} failed. Retrying...")
+                sleep(sleep_time)
+                attempt += 1
 
 
 def push_value(target: str, key: str, value: str | bool | int):
@@ -84,14 +101,14 @@ class ArgoCommands(Commands):
         )
         shell.run_command(cmd, skip_on_dryrun=True)
 
-    def start(self, service_name, commit):
+    def start(self, service_name, commit=False):
         self._check_service(service_name)
         if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", True)
         else:
             patch_value(self.target, f"ec_services.{service_name}.enabled", True)
 
-    def stop(self, service_name, commit):
+    def stop(self, service_name, commit=False):
         self._check_service(service_name)
         if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", False)

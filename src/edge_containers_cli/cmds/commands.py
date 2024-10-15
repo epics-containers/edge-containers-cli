@@ -47,6 +47,34 @@ class Commands(ABC):
         self._repo = ctx.repo
         self._log_url = ctx.log_url
 
+    def __getattribute__(self, attr_name):
+        """Override to wrap each abstract method"""
+        attr = super().__getattribute__(attr_name)
+        if callable(attr):
+            if attr_name[0] == "_":
+                log_f = log.debug
+            else:
+                log_f = log.info
+
+            def wrapper(*args, **kwargs):
+                call_msg = (
+                    f"Calling: {attr_name} {', '.join(str(item) for item in args)}"
+                )
+                return_msg = (
+                    f"Returned: {attr_name} {', '.join(str(item) for item in args)}"
+                )
+                if kwargs:
+                    call_msg = f"{call_msg} [{', '.join(f'{k}={v}' for k, v in kwargs.items())}]"
+                    return_msg = f"{return_msg} [{', '.join(f'{k}={v}' for k, v in kwargs.items())}]"
+                log_f(call_msg)
+                result = attr(*args, **kwargs)
+                log_f(return_msg)
+                return result
+
+            return wrapper
+        else:
+            return attr
+
     @property
     def target(self):
         if not self._target_valid:  # Only validate once
@@ -103,11 +131,11 @@ class Commands(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def start(self, service_name: str, commit: bool) -> None:
+    def start(self, service_name: str, commit: bool = False) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def stop(self, service_name: str, commit: bool) -> None:
+    def stop(self, service_name: str, commit: bool = False) -> None:
         raise NotImplementedError
 
     def template(self, svc_instance: Path, args: str) -> None:
