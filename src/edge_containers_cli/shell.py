@@ -113,6 +113,7 @@ class ECShell:
             result = p_result.returncode == 0
             log.debug(f"returning: {result}")
         else:
+            log.info(f"Dry run - skipping: {command}")
             result = True
 
         return result

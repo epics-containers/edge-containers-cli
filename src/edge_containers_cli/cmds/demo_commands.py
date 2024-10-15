@@ -13,7 +13,8 @@ from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDa
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.globals import TIME_FORMAT
 
-DELAY = 0.0
+DELAY = 2.0
+NUM_SERVICES = 8
 
 
 def process_t(time_string) -> str:
@@ -22,14 +23,10 @@ def process_t(time_string) -> str:
 
 
 sample_data = {
-    "name": ["demo-ea-01", "demo-ea-02", "demo-ea-03"],  # type: ignore
-    "version": ["2024.10.1", "2024.10.1b", "2024.10.1"],
-    "ready": [True, True, False],
-    "deployed": [
-        process_t("2024-10-22T11:23:10Z"),
-        process_t("2024-10-28T14:53:55Z"),
-        process_t("2024-10-22T12:51:50Z"),
-    ],
+    "name": [f"demo-ea-0{cnt}" for cnt in range(NUM_SERVICES)],
+    "version": ["2024-10-01"] * NUM_SERVICES,
+    "ready": [True] * NUM_SERVICES,
+    "deployed": [process_t("2024-10-22T11:23:10Z")] * NUM_SERVICES,
 }
 sample_ServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
 
@@ -83,11 +80,14 @@ class DemoCommands(Commands):
 
     @demo_message
     def restart(self, service_name):
-        self.stop(service_name, False)
-        self.start(service_name, False)
+        self._stop(service_name, commit=False)
+        self._start(service_name, commit=False)
 
     @demo_message
-    def start(self, service_name, commit):
+    def start(self, service_name, commit=False):
+        self._start(service_name, commit=commit)
+
+    def _start(self, service_name, commit=False):
         self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(
@@ -98,7 +98,10 @@ class DemoCommands(Commands):
         )
 
     @demo_message
-    def stop(self, service_name, commit):
+    def stop(self, service_name, commit=False):
+        self._stop(service_name, commit=commit)
+
+    def _stop(self, service_name, commit=False):
         self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(

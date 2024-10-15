@@ -1,42 +1,51 @@
 """TUI monitor for containerised IOCs."""
 
+import asyncio
+import logging
 from collections.abc import Callable
 from functools import total_ordering
-from threading import Thread
-from time import sleep
 from typing import Any, cast
 
 import polars
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
-
-# from textual import on
-from textual import work
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
-from textual.containers import Grid
+from textual.containers import Grid, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Button, DataTable, Footer, Header, Label, RichLog
+from textual.widgets import (
+    Button,
+    Collapsible,
+    DataTable,
+    Footer,
+    Header,
+    Label,
+    RichLog,
+    Static,
+)
 from textual.widgets.data_table import RowKey
 
 from edge_containers_cli.cmds.commands import Commands
+from edge_containers_cli.definitions import ECLogLevels
+from edge_containers_cli.logging import log
 
 
-class OptionScreen(ModalScreen[bool], inherit_bindings=False):
+class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
     BINDINGS = [
         Binding("y,enter", "option_yes", "Yes"),
         Binding("n,c,escape", "option_cancel", "Cancel"),
     ]
 
-    def __init__(self, service_name: str) -> None:
+    def __init__(self, service_name: str, type_action: str) -> None:
         super().__init__()
 
         self.service_name = service_name
-        self.type_action = "stop"
+        self.type_action = type_action
 
     def compose(self) -> ComposeResult:
         yield Grid(
@@ -50,44 +59,13 @@ class OptionScreen(ModalScreen[bool], inherit_bindings=False):
         )
         yield Footer()
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "yes":
-            self.action_option_yes()
-        else:
-            self.action_option_cancel()
-
+    @on(Button.Pressed, "#yes")
     def action_option_yes(self) -> None:
         self.dismiss(True)
 
+    @on(Button.Pressed, "#cancel")
     def action_option_cancel(self) -> None:
         self.dismiss(False)
-
-
-class StartScreen(OptionScreen):
-    """Screen with dialog to start service."""
-
-    def __init__(self, service_name: str) -> None:
-        super().__init__(service_name)
-
-        self.type_action = "start"
-
-
-class StopScreen(OptionScreen):
-    """Screen with dialog to stop service."""
-
-    def __init__(self, service_name: str) -> None:
-        super().__init__(service_name)
-
-        self.type_action = "stop"
-
-
-class RestartScreen(OptionScreen):
-    """Screen with dialog to restart service."""
-
-    def __init__(self, service_name: str) -> None:
-        super().__init__(service_name)
-
-        self.type_action = "restart"
 
 
 class LogsScreen(ModalScreen, inherit_bindings=False):
@@ -231,30 +209,30 @@ class IocTable(Widget):
     def __init__(self, commands, running_only: bool) -> None:
         super().__init__()
 
+        self.refresh_rate = 10
         self.commands = commands
         self.running_only = running_only
         self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
 
         self._polling = True
-        self._poll_thread = Thread(target=self._poll_services)
-        self._poll_thread.start()
         self._get_iocs()
+        self._polling_task = asyncio.create_task(
+            self._poll_services()
+        )  # https://github.com/Textualize/textual/discussions/1828
 
-    def _poll_services(self):
+    async def _poll_services(self):
         while self._polling:
-            # ioc list data table update loop
-            print()
-            self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
-            sleep(1.0)
+            self.iocs_df = await asyncio.to_thread(
+                self.commands._get_services,  # noqa: SLF001
+                self.running_only,
+            )
+            await asyncio.sleep(1.0)
 
     def stop(self):
         self._polling = False
-        self._poll_thread.join()
 
     def _get_iocs(self) -> None:
         iocs = self._convert_df_to_list(self.iocs_df)
-        # give up the GIL to other threads
-        sleep(0)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
         exclude = [None]
 
@@ -273,7 +251,7 @@ class IocTable(Widget):
 
     def on_mount(self) -> None:
         """Provides a loop after generating the app for updating the data."""
-        self.set_interval(1.0, self.update_iocs)
+        self.set_interval(1 / self.refresh_rate, self.update_iocs)
 
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
@@ -375,6 +353,34 @@ class IocTable(Widget):
         table.sort(self.sort_column_id, reverse=False)
 
 
+class MonitorLogHandler(logging.Handler):
+    def __init__(self, rich_log: RichLog):
+        super().__init__()
+        self.rich_log = rich_log
+
+    def emit(self, record: logging.LogRecord):
+        log_entry = self.format(record)
+        self.rich_log.write(Text(log_entry))
+
+
+class MonitorLogs(Static):
+    """Widget to display the monitor logs."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        yield RichLog(max_lines=25)
+
+    def on_mount(self) -> None:
+        rich_log = self.query_one(RichLog)
+        handler = MonitorLogHandler(rich_log)
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+        log.addHandler(handler)
+        log.removeHandler(log.handlers[0])  # Cut noise from main handler
+        log.setLevel(ECLogLevels.INFO.value)
+
+
 class MonitorApp(App):
     CSS_PATH = "monitor.tcss"
 
@@ -385,7 +391,8 @@ class MonitorApp(App):
         Binding("r", "restart_ioc", "Restart IOC"),
         Binding("l", "ioc_logs", "IOC Logs"),
         Binding("o", "sort", "Sort"),
-        Binding("d", "toggle_dark", "Toggle dark mode"),
+        Binding("m", "monitor_logs", "Monitor logs", show=False),
+        # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
 
     def __init__(
@@ -398,12 +405,19 @@ class MonitorApp(App):
         self.commands = commands
         self.running_only = running_only
         self.beamline = commands.target
+        self.busy_services = {}
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
-        self.table = IocTable(self.commands, self.running_only)
-        yield self.table
+        with Vertical():
+            with Static(id="ioc_table_container"):
+                self.table = IocTable(self.commands, self.running_only)
+                yield ScrollableContainer(self.table)
+            with Static(id="collapsible_container"):
+                yield Collapsible(
+                    MonitorLogs(), title="Monitor Logs (m)", collapsed=True
+                )
         yield Footer()
 
     def on_mount(self) -> None:
@@ -439,38 +453,40 @@ class MonitorApp(App):
         service_name = self._get_highlighted_cell("name")
         return service_name
 
-    def action_start_ioc(self) -> None:
-        """Start the IOC that is currently highlighted."""
+    def _do_confirmed_action(self, action: str, command: Callable):
         service_name = self._get_service_name()
 
-        def check_start(start: bool | None) -> None:
-            """Called when StartScreen is dismissed."""
-            if start:
-                self.commands.start(service_name, False)
+        def task_done_callback(t):
+            """Called when asyncio task is completed."""
+            del self.busy_services[service_name]
 
-        self.push_screen(StartScreen(service_name), check_start)
+        def after_dismiss_callback(start: bool | None) -> None:
+            """Called when ConfirmScreen is dismissed."""
+            if start:
+                if service_name in self.busy_services:
+                    log.info(f"Skipped {action}: {service_name} busy")
+                    return None
+                else:
+                    task = asyncio.create_task(
+                        asyncio.to_thread(command, service_name),
+                        name=service_name,
+                    )
+                    self.busy_services[service_name] = task
+                    task.add_done_callback(task_done_callback)
+
+        self.push_screen(ConfirmScreen(service_name, action), after_dismiss_callback)
+
+    def action_start_ioc(self) -> None:
+        """Start the IOC that is currently highlighted."""
+        self._do_confirmed_action("start", self.commands.start)
 
     def action_stop_ioc(self) -> None:
         """Stop the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_stop(stop: bool | None) -> None:
-            """Called when StopScreen is dismissed."""
-            if stop:
-                self.commands.stop(service_name, False)
-
-        self.push_screen(StopScreen(service_name), check_stop)
+        self._do_confirmed_action("stop", self.commands.stop)
 
     def action_restart_ioc(self) -> None:
         """Restart the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_restart(restart: bool | None) -> None:
-            """Called when RestartScreen is dismissed."""
-            if restart:
-                self.commands.restart(service_name)
-
-        self.push_screen(RestartScreen(service_name), check_restart)
+        self._do_confirmed_action("restart", self.commands.restart)
 
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
@@ -498,6 +514,11 @@ class MonitorApp(App):
             col_index = cols.index(col_name)
             new_col = cols[0 if col_index + 1 > 3 else col_index + 1]
         self.update_sort_key(new_col)
+
+    def action_monitor_logs(self) -> None:
+        """Get a new hello and update the content area."""
+        collapsed_state = self.query_one(Collapsible).collapsed
+        self.query_one(Collapsible).collapsed = not collapsed_state
 
     def update_sort_key(self, col_name: str) -> None:
         """Method called to update the table sort key attribute."""
