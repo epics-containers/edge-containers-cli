@@ -385,7 +385,7 @@ class MonitorApp(App):
         Binding("r", "restart_ioc", "Restart IOC"),
         Binding("l", "ioc_logs", "IOC Logs"),
         Binding("o", "sort", "Sort"),
-        Binding("d", "toggle_dark", "Toggle dark mode"),
+        # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
 
     def __init__(
