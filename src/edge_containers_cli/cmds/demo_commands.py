@@ -6,6 +6,7 @@ Relies on the Helm class for deployment aspects.
 
 import time
 from datetime import datetime
+from random import randrange
 
 import polars
 
@@ -24,9 +25,11 @@ def process_t(time_string) -> str:
 
 sample_data = {
     "name": [f"demo-ea-0{cnt}" for cnt in range(NUM_SERVICES)],
-    "version": ["2024-10-01"] * NUM_SERVICES,
+    "version": ["2024-10-" + str(25 - cnt) for cnt in range(NUM_SERVICES)],
     "ready": [True] * NUM_SERVICES,
-    "deployed": [process_t("2024-10-22T11:23:10Z")] * NUM_SERVICES,
+    "deployed": [
+        process_t(f"2024-10-22T11:23:0{randrange(1,9)}Z") for cnt in range(NUM_SERVICES)
+    ],
 }
 sample_ServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
 
