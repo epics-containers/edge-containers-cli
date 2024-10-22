@@ -254,7 +254,6 @@ class IocTable(Widget):
             else:
                 self._service_indicators["name"].append(name)
                 self._service_indicators[emoji.exclaim].append(indicator)
-                log.info("Exited")
 
     def stop(self):
         self._polling = False
