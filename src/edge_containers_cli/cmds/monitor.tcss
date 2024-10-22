@@ -10,16 +10,12 @@ Vertical {
     height: 100%;
 }
 #collapsible_container {
-    height: 1fr;
+    height: auto;
     max-height: 50%;
-    align: center bottom
+    align: left bottom
 }
 #ioc_table_container {
     height: 1fr;
-}
-Collapsible > .collapsible--content {
-    max-height: 50%;
-    overflow: auto;
 }
 
 MonitorLogs {

@@ -414,10 +414,12 @@ class MonitorApp(App):
             with Static(id="ioc_table_container"):
                 self.table = IocTable(self.commands, self.running_only)
                 yield ScrollableContainer(self.table)
-            with Static(id="collapsible_container"):
-                yield Collapsible(
-                    MonitorLogs(), title="Monitor Logs (m)", collapsed=True
-                )
+            yield Collapsible(
+                MonitorLogs(),
+                title="Monitor Logs (m)",
+                collapsed=True,
+                id="collapsible_container",
+            )
         yield Footer()
 
     def on_mount(self) -> None:
