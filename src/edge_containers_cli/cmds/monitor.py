@@ -31,7 +31,7 @@ from textual.widgets import (
 from textual.widgets.data_table import RowKey
 
 from edge_containers_cli.cmds.commands import Commands
-from edge_containers_cli.definitions import ECLogLevels
+from edge_containers_cli.definitions import ECLogLevels, emoji
 from edge_containers_cli.logging import log
 
 
@@ -212,7 +212,12 @@ class IocTable(Widget):
         self.refresh_rate = 10
         self.commands = commands
         self.running_only = running_only
-        self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
+        self._indicator_lock = asyncio.Lock()
+        self._service_indicators = {
+            "name": [""],
+            emoji.exclaim: [""],
+        }
+        self.iocs_df = self._get_services_df(running_only)
 
         self._polling = True
         self._get_iocs()
@@ -220,13 +225,36 @@ class IocTable(Widget):
             self._poll_services()
         )  # https://github.com/Textualize/textual/discussions/1828
 
+    def _get_services_df(self, running_only):
+        services_df = self.commands._get_services(running_only)  # noqa: SLF001
+        services_df = services_df.with_columns(
+            polars.when(polars.col("ready"))
+            .then(polars.lit(emoji.check_mark))
+            .otherwise(polars.lit(emoji.cross_mark))
+            .alias("ready")
+        )
+        indicators_df = polars.DataFrame(self._service_indicators)
+        result = services_df.join(indicators_df, on="name", how="left").fill_null("")
+        return result
+
     async def _poll_services(self):
         while self._polling:
             self.iocs_df = await asyncio.to_thread(
-                self.commands._get_services,  # noqa: SLF001
+                self._get_services_df,  # noqa: SLF001
                 self.running_only,
             )
             await asyncio.sleep(1.0)
+
+    async def update_indicators(self, name: str, indicator: str):
+        """Update indicators in a concurrecy-safe manner"""
+        async with self._indicator_lock:
+            if name in self._service_indicators["name"]:
+                index = self._service_indicators["name"].index(name)
+                self._service_indicators[emoji.exclaim][index] = indicator
+            else:
+                self._service_indicators["name"].append(name)
+                self._service_indicators[emoji.exclaim].append(indicator)
+                log.info("Exited")
 
     def stop(self):
         self._polling = False
@@ -275,7 +303,10 @@ class IocTable(Widget):
 
     def compose(self) -> ComposeResult:
         table: DataTable[Text] = DataTable(
-            id="body_table", header_height=1, show_cursor=False, zebra_stripes=True
+            id="body_table",
+            header_height=1,
+            show_cursor=False,
+            zebra_stripes=True,
         )
         table.focus()
 
@@ -330,7 +361,10 @@ class IocTable(Widget):
                 {
                     "col_key": key,
                     "contents": SortableText(
-                        ioc[key], str(ioc[key]), self._get_color(str(ioc[key]))
+                        ioc[key],
+                        str(ioc[key]),
+                        self._get_color(str(ioc[key])),
+                        justify="center",
                     ),
                 }
                 for key in self.columns
@@ -457,10 +491,14 @@ class MonitorApp(App):
 
     def _do_confirmed_action(self, action: str, command: Callable):
         service_name = self._get_service_name()
+        table = self.query_one(IocTable)
 
-        def task_done_callback(t):
-            """Called when asyncio task is completed."""
+        async def for_task(command, service_name):
+            """Called to start asyncio to_thread task."""
+            await table.update_indicators(service_name, emoji.road_works)
+            await asyncio.to_thread(command, service_name)
             del self.busy_services[service_name]
+            await table.update_indicators(service_name, emoji.none)
 
         def after_dismiss_callback(start: bool | None) -> None:
             """Called when ConfirmScreen is dismissed."""
@@ -470,11 +508,10 @@ class MonitorApp(App):
                     return None
                 else:
                     task = asyncio.create_task(
-                        asyncio.to_thread(command, service_name),
+                        for_task(command, service_name),
                         name=service_name,
                     )
                     self.busy_services[service_name] = task
-                    task.add_done_callback(task_done_callback)
 
         self.push_screen(ConfirmScreen(service_name, action), after_dismiss_callback)
 
@@ -525,4 +562,5 @@ class MonitorApp(App):
     def update_sort_key(self, col_name: str) -> None:
         """Method called to update the table sort key attribute."""
         table = self.query_one(IocTable)
+        log.info(f"New sort key '{col_name}'")
         table.sort_column_id = col_name
