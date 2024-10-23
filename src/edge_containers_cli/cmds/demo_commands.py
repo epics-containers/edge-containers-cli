@@ -25,7 +25,7 @@ def process_t(time_string) -> str:
 
 sample_data = {
     "name": [f"demo-ea-0{cnt}" for cnt in range(NUM_SERVICES)],
-    "version": ["2024-10-" + str(25 - cnt) for cnt in range(NUM_SERVICES)],
+    "version": ["1.0." + str(25 - cnt) for cnt in range(NUM_SERVICES)],
     "ready": [True] * NUM_SERVICES,
     "deployed": [
         process_t(f"2024-10-22T11:23:0{randrange(1,9)}Z") for cnt in range(NUM_SERVICES)
@@ -68,6 +68,11 @@ class DemoCommands(Commands):
         self._target = "Demo Beamline"
         self._target_valid = False
         self._stateDF = sample_ServicesDataFrame
+
+        self.lorem_min = 10
+        self.lorem_max = 50
+        self.lorem_step = 5
+        self.lorem_count = self.lorem_min
 
     @demo_message
     def logs(self, service_name, prev):
@@ -116,7 +121,11 @@ class DemoCommands(Commands):
 
     def _get_logs(self, service_name, prev) -> str:
         self._check_service(service_name)
-        logs_list = ["Lorem ipsum dolor sit amet"] * 25
+        if self.lorem_count < self.lorem_max:
+            self.lorem_count += self.lorem_step
+        else:
+            self.lorem_count = self.lorem_min
+        logs_list = ["Lorem ipsum dolor sit amet"] * self.lorem_count
         return "\n".join(logs_list)
 
     def _get_services(self, running_only) -> ServicesDataFrame:
