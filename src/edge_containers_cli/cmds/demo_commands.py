@@ -6,7 +6,7 @@ Relies on the Helm class for deployment aspects.
 
 import time
 from datetime import datetime
-from random import randrange
+from random import randrange, seed
 
 import polars
 
@@ -16,6 +16,7 @@ from edge_containers_cli.globals import TIME_FORMAT
 
 DELAY = 2.0
 NUM_SERVICES = 8
+seed(237)
 
 
 def process_t(time_string) -> str:
@@ -28,7 +29,8 @@ sample_data = {
     "version": ["1.0." + str(25 - cnt) for cnt in range(NUM_SERVICES)],
     "ready": [True] * NUM_SERVICES,
     "deployed": [
-        process_t(f"2024-10-22T11:23:0{randrange(1,9)}Z") for cnt in range(NUM_SERVICES)
+        process_t(f"2024-10-22T11:23:0{randrange(1,9, )}Z")
+        for cnt in range(NUM_SERVICES)
     ],
 }
 sample_ServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))

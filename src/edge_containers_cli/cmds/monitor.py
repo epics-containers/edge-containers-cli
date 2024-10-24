@@ -10,7 +10,7 @@ import polars
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
-from textual import on, work
+from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
