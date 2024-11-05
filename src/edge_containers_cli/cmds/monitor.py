@@ -516,15 +516,36 @@ class MonitorApp(App):
 
     def action_start_ioc(self) -> None:
         """Start the IOC that is currently highlighted."""
-        self._do_confirmed_action("start", self.commands.start)
+        service_name = self._get_service_name()
+
+        def check_start(start: bool | None) -> None:
+            """Called when StartScreen is dismissed."""
+            if start:
+                self.commands.start(service_name, commit=False)
+
+        self.push_screen(ConfirmScreen(service_name, "start"), check_start)
 
     def action_stop_ioc(self) -> None:
         """Stop the IOC that is currently highlighted."""
-        self._do_confirmed_action("stop", self.commands.stop)
+        service_name = self._get_service_name()
+
+        def check_stop(stop: bool | None) -> None:
+            """Called when StopScreen is dismissed."""
+            if stop:
+                self.commands.stop(service_name, commit=False)
+
+        self.push_screen(ConfirmScreen(service_name, "stop"), check_stop)
 
     def action_restart_ioc(self) -> None:
         """Restart the IOC that is currently highlighted."""
-        self._do_confirmed_action("restart", self.commands.restart)
+        service_name = self._get_service_name()
+
+        def check_restart(restart: bool | None) -> None:
+            """Called when RestartScreen is dismissed."""
+            if restart:
+                self.commands.restart(service_name)
+
+        self.push_screen(ConfirmScreen(service_name, "restart"), check_restart)
 
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
