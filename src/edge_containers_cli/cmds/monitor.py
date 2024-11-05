@@ -1,17 +1,16 @@
 """TUI monitor for containerised IOCs."""
 
+import asyncio
 import logging
 from collections.abc import Callable
 from functools import total_ordering
-from threading import Thread
-from time import sleep
 from typing import Any, cast
 
 import polars
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
-from textual import on, work
+from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
@@ -32,7 +31,7 @@ from textual.widgets import (
 from textual.widgets.data_table import RowKey
 
 from edge_containers_cli.cmds.commands import Commands
-from edge_containers_cli.definitions import ECLogLevels
+from edge_containers_cli.definitions import ECLogLevels, emoji
 from edge_containers_cli.logging import log
 
 
@@ -78,10 +77,11 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         Binding("down,s,j", "scroll_down", "Scroll Down", show=False),
         Binding("left,h", "scroll_left", "Scroll Left", show=False),
         Binding("right,l", "scroll_right", "Scroll Right", show=False),
-        Binding("home,G", "scroll_home", "Scroll Home", show=False),
-        Binding("end,g", "scroll_end", "Scroll End", show=False),
+        Binding("home,G", "scroll_home", "Scroll Home", show=True, key_display="Home"),
+        Binding("end,g", "scroll_end", "Scroll End", show=True, key_display="End"),
         Binding("pageup,b", "page_up", "Page Up", show=False),
         Binding("pagedown,space", "page_down", "Page Down", show=False),
+        Binding("f", "follow_logs", "Follow Logs", show=True),
     ]
 
     def __init__(self, fetch_log: Callable, service_name) -> None:
@@ -89,30 +89,61 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
 
         self.fetch_log = fetch_log
         self.service_name = service_name
-        self.log_text = ""
+        self.auto_scroll = False
+        self.log_text = self.fetch_log(self.service_name, prev=False)
+        self._polling = True
 
     def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
         yield RichLog(highlight=True, id="log")
         yield Footer()
 
     def on_mount(self) -> None:
+        self.title = f"{self.service_name} logs"
         log = self.query_one(RichLog)
-        log.loading = True
-        self.load_logs(log)
-
-    @work
-    async def load_logs(self, log: RichLog) -> None:
-        self.log_text: str = self.fetch_log(self.service_name, prev=False)
-        log.loading = False
-        width = max(len(line) for line in self.log_text.split("\n"))
         log.write(
             Syntax(self.log_text, "bash", line_numbers=True),
-            width=width + 10,
+            width=80,
             expand=True,
             shrink=False,
             scroll_end=True,
         )
-        log.focus()
+        self._polling_task = asyncio.create_task(self._poll_logs())
+
+    def on_unmount(self) -> None:
+        """Executes when the app is closed."""
+        self.stop()
+
+    def stop(self):
+        self._polling = False
+
+    async def _poll_logs(self):
+        while self._polling:
+            self.log_text = await asyncio.to_thread(
+                self.fetch_log,
+                self.service_name,
+                **{"prev": False},
+            )
+            await asyncio.sleep(1.0)
+            self.update_logs()
+
+    def update_logs(self):
+        log = self.query_one(RichLog)
+        curr_x = log.scroll_x
+        curr_y = log.scroll_y
+        log.clear()
+        log.write(
+            Syntax(self.log_text, "bash", line_numbers=True),
+            width=80,
+            expand=True,
+            shrink=False,
+            scroll_end=False,
+        )
+        if self.auto_scroll:
+            log.scroll_end(animate=False)
+        else:
+            log.scroll_x = curr_x
+            log.scroll_y = curr_y
 
     def action_close_screen(self) -> None:
         self.app.pop_screen()
@@ -140,6 +171,12 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
     def action_page_up(self) -> None:
         log = self.query_one(RichLog)
         log.action_page_up()
+
+    def action_follow_logs(self) -> None:
+        log = self.query_one(RichLog)
+        self.auto_scroll = not self.auto_scroll
+        if self.auto_scroll:
+            log.scroll_end(animate=False)
 
 
 @total_ordering
@@ -210,30 +247,57 @@ class IocTable(Widget):
     def __init__(self, commands, running_only: bool) -> None:
         super().__init__()
 
+        self.refresh_rate = 10
         self.commands = commands
         self.running_only = running_only
-        self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
+        self._indicator_lock = asyncio.Lock()
+        self._service_indicators = {
+            "name": [""],
+            emoji.exclaim: [""],
+        }
+        self.iocs_df = self._get_services_df(running_only)
 
         self._polling = True
-        self._poll_thread = Thread(target=self._poll_services)
-        self._poll_thread.start()
         self._get_iocs()
+        self._polling_task = asyncio.create_task(
+            self._poll_services()
+        )  # https://github.com/Textualize/textual/discussions/1828
 
-    def _poll_services(self):
+    def _get_services_df(self, running_only):
+        services_df = self.commands._get_services(running_only)  # noqa: SLF001
+        services_df = services_df.with_columns(
+            polars.when(polars.col("ready"))
+            .then(polars.lit(emoji.check_mark))
+            .otherwise(polars.lit(emoji.cross_mark))
+            .alias("ready")
+        )
+        indicators_df = polars.DataFrame(self._service_indicators)
+        result = services_df.join(indicators_df, on="name", how="left").fill_null("")
+        return result
+
+    async def _poll_services(self):
         while self._polling:
-            # ioc list data table update loop
-            print()
-            self.iocs_df = self.commands._get_services(self.running_only)  # noqa: SLF001
-            sleep(1.0)
+            self.iocs_df = await asyncio.to_thread(
+                self._get_services_df,  # noqa: SLF001
+                self.running_only,
+            )
+            await asyncio.sleep(1.0)
+
+    async def update_indicators(self, name: str, indicator: str):
+        """Update indicators in a concurrecy-safe manner"""
+        async with self._indicator_lock:
+            if name in self._service_indicators["name"]:
+                index = self._service_indicators["name"].index(name)
+                self._service_indicators[emoji.exclaim][index] = indicator
+            else:
+                self._service_indicators["name"].append(name)
+                self._service_indicators[emoji.exclaim].append(indicator)
 
     def stop(self):
         self._polling = False
-        self._poll_thread.join()
 
     def _get_iocs(self) -> None:
         iocs = self._convert_df_to_list(self.iocs_df)
-        # give up the GIL to other threads
-        sleep(0)
         self.iocs = sorted(iocs, key=lambda d: d["name"])
         exclude = [None]
 
@@ -252,7 +316,7 @@ class IocTable(Widget):
 
     def on_mount(self) -> None:
         """Provides a loop after generating the app for updating the data."""
-        self.set_interval(1.0, self.update_iocs)
+        self.set_interval(1 / self.refresh_rate, self.update_iocs)
 
     async def update_iocs(self) -> None:
         """Updates the IOC stats data."""
@@ -276,7 +340,10 @@ class IocTable(Widget):
 
     def compose(self) -> ComposeResult:
         table: DataTable[Text] = DataTable(
-            id="body_table", header_height=1, show_cursor=False, zebra_stripes=True
+            id="body_table",
+            header_height=1,
+            show_cursor=False,
+            zebra_stripes=True,
         )
         table.focus()
 
@@ -331,7 +398,10 @@ class IocTable(Widget):
                 {
                     "col_key": key,
                     "contents": SortableText(
-                        ioc[key], str(ioc[key]), self._get_color(str(ioc[key]))
+                        ioc[key],
+                        str(ioc[key]),
+                        self._get_color(str(ioc[key])),
+                        justify="center",
                     ),
                 }
                 for key in self.columns
@@ -406,6 +476,7 @@ class MonitorApp(App):
         self.commands = commands
         self.running_only = running_only
         self.beamline = commands.target
+        self.busy_services = {}
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -455,49 +526,56 @@ class MonitorApp(App):
         service_name = self._get_highlighted_cell("name")
         return service_name
 
+    def _do_confirmed_action(self, action: str, command: Callable):
+        service_name = self._get_service_name()
+        table = self.query_one(IocTable)
+
+        async def for_task(command, service_name):
+            """Called to start asyncio to_thread task."""
+            await table.update_indicators(service_name, emoji.road_works)
+            await asyncio.to_thread(command, service_name)
+            del self.busy_services[service_name]
+            await table.update_indicators(service_name, emoji.none)
+
+        def after_dismiss_callback(start: bool | None) -> None:
+            """Called when ConfirmScreen is dismissed."""
+            if start:
+                if service_name in self.busy_services:
+                    log.info(f"Skipped {action}: {service_name} busy")
+                    return None
+                else:
+                    task = asyncio.create_task(
+                        for_task(command, service_name),
+                        name=service_name,
+                    )
+                    self.busy_services[service_name] = task
+
+        self.push_screen(ConfirmScreen(service_name, action), after_dismiss_callback)
+
     def action_start_ioc(self) -> None:
         """Start the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_start(start: bool | None) -> None:
-            """Called when StartScreen is dismissed."""
-            if start:
-                self.commands.start(service_name, commit=False)
-
-        self.push_screen(ConfirmScreen(service_name, "start"), check_start)
+        self._do_confirmed_action("start", self.commands.start)
 
     def action_stop_ioc(self) -> None:
         """Stop the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_stop(stop: bool | None) -> None:
-            """Called when StopScreen is dismissed."""
-            if stop:
-                self.commands.stop(service_name, commit=False)
-
-        self.push_screen(ConfirmScreen(service_name, "stop"), check_stop)
+        self._do_confirmed_action("stop", self.commands.stop)
 
     def action_restart_ioc(self) -> None:
         """Restart the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_restart(restart: bool | None) -> None:
-            """Called when RestartScreen is dismissed."""
-            if restart:
-                self.commands.restart(service_name)
-
-        self.push_screen(ConfirmScreen(service_name, "restart"), check_restart)
+        self._do_confirmed_action("restart", self.commands.restart)
 
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
         # Convert to corresponding bool
-        ready = self._get_highlighted_cell("ready") == "True"
+        ready = self._get_highlighted_cell("ready") == emoji.check_mark
 
         if ready:
             command = self.commands._get_logs  # noqa: SLF001
             self.push_screen(LogsScreen(command, service_name))
+        else:
+            log.info(f"Ignore request for logs - {service_name} not ready")
 
     def action_sort(self, col_name: str = "") -> None:
         """An action to sort the table rows by column heading."""
@@ -523,4 +601,5 @@ class MonitorApp(App):
     def update_sort_key(self, col_name: str) -> None:
         """Method called to update the table sort key attribute."""
         table = self.query_one(IocTable)
+        log.info(f"New sort key '{col_name}'")
         table.sort_column_id = col_name

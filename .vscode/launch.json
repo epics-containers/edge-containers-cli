@@ -18,6 +18,19 @@
                 // Enable break on exception when debugging tests (see: tests/conftest.py)
                 "PYTEST_RAISE": "1",
             },
+        },
+        {
+            "name": "Debug Monitor",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "edge_containers_cli",
+            "args": [
+                "monitor"
+            ],
+            "console": "integratedTerminal",
+            "env": {
+                "EC_CLI_BACKEND": "DEMO",
+            },
         }
     ]
 }
