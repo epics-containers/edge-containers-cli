@@ -10,7 +10,7 @@ import polars
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
-from textual import on, work
+from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
@@ -77,10 +77,11 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         Binding("down,s,j", "scroll_down", "Scroll Down", show=False),
         Binding("left,h", "scroll_left", "Scroll Left", show=False),
         Binding("right,l", "scroll_right", "Scroll Right", show=False),
-        Binding("home,G", "scroll_home", "Scroll Home", show=False),
-        Binding("end,g", "scroll_end", "Scroll End", show=False),
+        Binding("home,G", "scroll_home", "Scroll Home", show=True, key_display="Home"),
+        Binding("end,g", "scroll_end", "Scroll End", show=True, key_display="End"),
         Binding("pageup,b", "page_up", "Page Up", show=False),
         Binding("pagedown,space", "page_down", "Page Down", show=False),
+        Binding("f", "follow_logs", "Follow Logs", show=True),
     ]
 
     def __init__(self, fetch_log: Callable, service_name) -> None:
@@ -88,30 +89,61 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
 
         self.fetch_log = fetch_log
         self.service_name = service_name
-        self.log_text = ""
+        self.auto_scroll = False
+        self.log_text = self.fetch_log(self.service_name, prev=False)
+        self._polling = True
 
     def compose(self) -> ComposeResult:
+        yield Header(show_clock=True)
         yield RichLog(highlight=True, id="log")
         yield Footer()
 
     def on_mount(self) -> None:
+        self.title = f"{self.service_name} logs"
         log = self.query_one(RichLog)
-        log.loading = True
-        self.load_logs(log)
-
-    @work
-    async def load_logs(self, log: RichLog) -> None:
-        self.log_text: str = self.fetch_log(self.service_name, prev=False)
-        log.loading = False
-        width = max(len(line) for line in self.log_text.split("\n"))
         log.write(
             Syntax(self.log_text, "bash", line_numbers=True),
-            width=width + 10,
+            width=80,
             expand=True,
             shrink=False,
             scroll_end=True,
         )
-        log.focus()
+        self._polling_task = asyncio.create_task(self._poll_logs())
+
+    def on_unmount(self) -> None:
+        """Executes when the app is closed."""
+        self.stop()
+
+    def stop(self):
+        self._polling = False
+
+    async def _poll_logs(self):
+        while self._polling:
+            self.log_text = await asyncio.to_thread(
+                self.fetch_log,
+                self.service_name,
+                **{"prev": False},
+            )
+            await asyncio.sleep(1.0)
+            self.update_logs()
+
+    def update_logs(self):
+        log = self.query_one(RichLog)
+        curr_x = log.scroll_x
+        curr_y = log.scroll_y
+        log.clear()
+        log.write(
+            Syntax(self.log_text, "bash", line_numbers=True),
+            width=80,
+            expand=True,
+            shrink=False,
+            scroll_end=False,
+        )
+        if self.auto_scroll:
+            log.scroll_end(animate=False)
+        else:
+            log.scroll_x = curr_x
+            log.scroll_y = curr_y
 
     def action_close_screen(self) -> None:
         self.app.pop_screen()
@@ -139,6 +171,12 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
     def action_page_up(self) -> None:
         log = self.query_one(RichLog)
         log.action_page_up()
+
+    def action_follow_logs(self) -> None:
+        log = self.query_one(RichLog)
+        self.auto_scroll = not self.auto_scroll
+        if self.auto_scroll:
+            log.scroll_end(animate=False)
 
 
 @total_ordering
@@ -516,47 +554,28 @@ class MonitorApp(App):
 
     def action_start_ioc(self) -> None:
         """Start the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_start(start: bool | None) -> None:
-            """Called when StartScreen is dismissed."""
-            if start:
-                self.commands.start(service_name, commit=False)
-
-        self.push_screen(ConfirmScreen(service_name, "start"), check_start)
+        self._do_confirmed_action("start", self.commands.start)
 
     def action_stop_ioc(self) -> None:
         """Stop the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_stop(stop: bool | None) -> None:
-            """Called when StopScreen is dismissed."""
-            if stop:
-                self.commands.stop(service_name, commit=False)
-
-        self.push_screen(ConfirmScreen(service_name, "stop"), check_stop)
+        self._do_confirmed_action("stop", self.commands.stop)
 
     def action_restart_ioc(self) -> None:
         """Restart the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
-
-        def check_restart(restart: bool | None) -> None:
-            """Called when RestartScreen is dismissed."""
-            if restart:
-                self.commands.restart(service_name)
-
-        self.push_screen(ConfirmScreen(service_name, "restart"), check_restart)
+        self._do_confirmed_action("restart", self.commands.restart)
 
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
         service_name = self._get_service_name()
 
         # Convert to corresponding bool
-        ready = self._get_highlighted_cell("ready") == "True"
+        ready = self._get_highlighted_cell("ready") == emoji.check_mark
 
         if ready:
             command = self.commands._get_logs  # noqa: SLF001
             self.push_screen(LogsScreen(command, service_name))
+        else:
+            log.info(f"Ignore request for logs - {service_name} not ready")
 
     def action_sort(self, col_name: str = "") -> None:
         """An action to sort the table rows by column heading."""
