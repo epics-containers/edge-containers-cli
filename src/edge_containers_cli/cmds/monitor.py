@@ -304,7 +304,7 @@ class IocTable(Widget):
         for i, ioc in enumerate(self.iocs):
             ioc = {key: value for key, value in ioc.items() if key not in exclude}
             self.iocs[i] = ioc
-        self.columns = [key for key in self.iocs[0].keys() if key not in exclude]
+        self.columns = [key for key in self.iocs_df.columns if key not in exclude]
 
     def _convert_df_to_list(self, iocs_df: polars.DataFrame | list) -> list[dict]:
         if isinstance(iocs_df, polars.DataFrame):

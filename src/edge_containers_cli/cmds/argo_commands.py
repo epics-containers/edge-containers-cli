@@ -12,7 +12,12 @@ from time import sleep
 import polars
 from ruamel.yaml import YAML
 
-from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
+from edge_containers_cli.cmds.commands import (
+    CommandError,
+    Commands,
+    ServicesDataFrame,
+    ServicesSchema,
+)
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.git import set_values
 from edge_containers_cli.globals import TIME_FORMAT
@@ -139,45 +144,47 @@ class ArgoCommands(Commands):
         )
         app_dicts = YAML(typ="safe").load(app_resp)
 
-        if not app_dicts:
-            raise CommandError(f"No ec-services found in {self.target}")
-        for app in app_dicts:
-            resources_dict = app["status"]["resources"]
+        if app_dicts:
+            for app in app_dicts:
+                resources_dict = app["status"]["resources"]
 
-            for resource in resources_dict:
-                is_ready = False
-                if resource["kind"] == "StatefulSet":
-                    name = app["metadata"]["name"]
+                for resource in resources_dict:
+                    is_ready = False
+                    if resource["kind"] == "StatefulSet":
+                        name = app["metadata"]["name"]
 
-                    # check if replicas ready
-                    mani_resp = shell.run_command(
-                        f"argocd app manifests {namespace}/{name} --source live",
-                    )
-                    for resource_manifest in mani_resp.split("---")[1:]:
-                        manifest = YAML(typ="safe").load(resource_manifest)
-                        if not manifest:
-                            continue
-                        kind = manifest["kind"]
-                        resource_name = manifest["metadata"]["name"]
-                        if kind == "StatefulSet" and resource_name == name:
-                            try:
-                                is_ready = bool(manifest["status"]["readyReplicas"])
-                            except (KeyError, TypeError):  # Not ready if doesnt exist
-                                is_ready = False
-                            time_stamp = datetime.strptime(
-                                manifest["metadata"]["creationTimestamp"],
-                                "%Y-%m-%dT%H:%M:%SZ",
-                            )
-                            service_data["name"].append(name)
-                            service_data["version"].append(
-                                app["spec"]["source"]["targetRevision"]
-                            )
-                            service_data["ready"].append(is_ready)
-                            service_data["deployed"].append(
-                                datetime.strftime(time_stamp, TIME_FORMAT)
-                            )
+                        # check if replicas ready
+                        mani_resp = shell.run_command(
+                            f"argocd app manifests {namespace}/{name} --source live",
+                        )
+                        for resource_manifest in mani_resp.split("---")[1:]:
+                            manifest = YAML(typ="safe").load(resource_manifest)
+                            if not manifest:
+                                continue
+                            kind = manifest["kind"]
+                            resource_name = manifest["metadata"]["name"]
+                            if kind == "StatefulSet" and resource_name == name:
+                                try:
+                                    is_ready = bool(manifest["status"]["readyReplicas"])
+                                except (
+                                    KeyError,
+                                    TypeError,
+                                ):  # Not ready if doesnt exist
+                                    is_ready = False
+                                time_stamp = datetime.strptime(
+                                    manifest["metadata"]["creationTimestamp"],
+                                    "%Y-%m-%dT%H:%M:%SZ",
+                                )
+                                service_data["name"].append(name)
+                                service_data["version"].append(
+                                    app["spec"]["source"]["targetRevision"]
+                                )
+                                service_data["ready"].append(is_ready)
+                                service_data["deployed"].append(
+                                    datetime.strftime(time_stamp, TIME_FORMAT)
+                                )
 
-        services_df = polars.from_dict(service_data)
+        services_df = polars.from_dict(service_data, schema=ServicesSchema)
 
         if running_only:
             services_df = services_df.filter(polars.col("ready").eq(True))
