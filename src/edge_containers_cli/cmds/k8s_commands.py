@@ -124,34 +124,46 @@ class K8sCommands(Commands):
             f'kubectl get statefulset -l "is_ioc==true" -n {self.target} -o yaml',
         )
         sts_dicts = YAML(typ="safe").load(kubectl_res)
-        if not sts_dicts["items"]:
-            raise CommandError(f"No ec-services found in {self.target}")
         service_data = {
             "name": [],  # type: ignore
             "ready": [],
             "deployed": [],
         }
-        for sts in sts_dicts["items"]:
-            name = sts["metadata"]["name"]
-            time_stamp = datetime.strptime(
-                sts["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
-            )
-            try:
-                is_ready = bool(sts["status"]["readyReplicas"])
-            except KeyError:  # Not ready if doesnt exist
-                is_ready = False
+        if sts_dicts["items"]:
+            for sts in sts_dicts["items"]:
+                name = sts["metadata"]["name"]
+                time_stamp = datetime.strptime(
+                    sts["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
+                )
+                try:
+                    is_ready = bool(sts["status"]["readyReplicas"])
+                except KeyError:  # Not ready if doesnt exist
+                    is_ready = False
 
-            # Fill app data
-            service_data["name"].append(name)
-            service_data["ready"].append(is_ready)
-            service_data["deployed"].append(datetime.strftime(time_stamp, TIME_FORMAT))
+                # Fill app data
+                service_data["name"].append(name)
+                service_data["ready"].append(is_ready)
+                service_data["deployed"].append(
+                    datetime.strftime(time_stamp, TIME_FORMAT)
+                )
 
-        services_df = polars.from_dict(service_data)
+        services_df = polars.from_dict(
+            service_data,
+            schema=polars.Schema(
+                {
+                    "name": polars.String,
+                    "ready": polars.Boolean,
+                    "deployed": polars.String,
+                }
+            ),
+        )
 
         # Adds the version for all services
         helm_out = str(shell.run_command(f"helm list -n {self.target} -o json"))
         if helm_out == "[]\n":
-            helm_df = polars.DataFrame({"name": [""], "version": [""]})
+            helm_df = polars.DataFrame(
+                schema=polars.Schema({"name": polars.String, "version": polars.String})
+            )
         else:
             helm_df = polars.read_json(StringIO(str(helm_out)))
             helm_df = helm_df.rename({"app_version": "version"})
