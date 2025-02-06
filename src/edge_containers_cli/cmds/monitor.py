@@ -1,16 +1,18 @@
 """TUI monitor for containerised IOCs."""
 
-import asyncio
 import logging
+import threading
+import time
 from collections.abc import Callable
-from functools import total_ordering
+from functools import partial, total_ordering
+from queue import Empty, Queue
 from typing import Any, cast
 
 import polars
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
-from textual import on
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
@@ -29,6 +31,7 @@ from textual.widgets import (
     Static,
 )
 from textual.widgets.data_table import RowKey
+from textual.worker import get_current_worker
 
 from edge_containers_cli.cmds.commands import Commands
 from edge_containers_cli.definitions import ECLogLevels, emoji
@@ -84,14 +87,12 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         Binding("f", "follow_logs", "Follow Logs", show=True),
     ]
 
-    def __init__(self, fetch_log: Callable, service_name) -> None:
+    def __init__(self, fetch_log: Callable, service_name: str) -> None:
         super().__init__()
-
         self.fetch_log = fetch_log
         self.service_name = service_name
         self.auto_scroll = False
-        self.log_text = self.fetch_log(self.service_name, prev=False)
-        self._polling = True
+        self._polling_rate_hz = 1
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -100,40 +101,27 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
 
     def on_mount(self) -> None:
         self.title = f"{self.service_name} logs"
-        log = self.query_one(RichLog)
-        log.write(
-            Syntax(self.log_text, "bash", line_numbers=True),
-            width=80,
-            expand=True,
-            shrink=False,
-            scroll_end=True,
-        )
-        self._polling_task = asyncio.create_task(self._poll_logs())
+        self.do_polling()
 
-    def on_unmount(self) -> None:
-        """Executes when the app is closed."""
-        self.stop()
+    @work(exclusive=True, thread=True)
+    def do_polling(self):
+        worker = get_current_worker()
 
-    def stop(self):
-        self._polling = False
-
-    async def _poll_logs(self):
-        while self._polling:
-            self.log_text = await asyncio.to_thread(
-                self.fetch_log,
+        while not worker.is_cancelled:
+            result = self.fetch_log(
                 self.service_name,
                 **{"prev": False},
             )
-            await asyncio.sleep(1.0)
-            self.update_logs()
+            self.app.call_from_thread(partial(self.update_logs, result))
+            time.sleep(1 / self._polling_rate_hz)
 
-    def update_logs(self):
+    def update_logs(self, log_text):
         log = self.query_one(RichLog)
         curr_x = log.scroll_x
         curr_y = log.scroll_y
         log.clear()
         log.write(
-            Syntax(self.log_text, "bash", line_numbers=True),
+            Syntax(log_text, "bash", line_numbers=True),
             width=80,
             expand=True,
             shrink=False,
@@ -241,102 +229,21 @@ class IocTable(Widget):
     """Widget to display the IOC table."""
 
     default_sort_column_id = "name"
-    # init=False otherwise triggers table query before yielded in compose
     sort_column_id = reactive(default_sort_column_id, init=False)
 
     def __init__(self, commands, running_only: bool) -> None:
         super().__init__()
 
-        self.refresh_rate = 10
         self.commands = commands
         self.running_only = running_only
-        self._indicator_lock = asyncio.Lock()
+        self._indicator_lock = threading.Lock()
         self._service_indicators = {
             "name": [""],
             emoji.exclaim: [""],
         }
-        self.iocs_df = self._get_services_df(running_only)
-
-        self._polling = True
-        self._get_iocs()
-        self._polling_task = asyncio.create_task(
-            self._poll_services()
-        )  # https://github.com/Textualize/textual/discussions/1828
-
-    def _get_services_df(self, running_only):
-        services_df = self.commands._get_services(running_only)  # noqa: SLF001
-        services_df = services_df.with_columns(
-            polars.when(polars.col("ready"))
-            .then(polars.lit(emoji.check_mark))
-            .otherwise(polars.lit(emoji.cross_mark))
-            .alias("ready")
-        )
-        indicators_df = polars.DataFrame(self._service_indicators)
-        result = services_df.join(indicators_df, on="name", how="left").fill_null("")
-        return result
-
-    async def _poll_services(self):
-        while self._polling:
-            self.iocs_df = await asyncio.to_thread(
-                self._get_services_df,  # noqa: SLF001
-                self.running_only,
-            )
-            await asyncio.sleep(1.0)
-
-    async def update_indicators(self, name: str, indicator: str):
-        """Update indicators in a concurrecy-safe manner"""
-        async with self._indicator_lock:
-            if name in self._service_indicators["name"]:
-                index = self._service_indicators["name"].index(name)
-                self._service_indicators[emoji.exclaim][index] = indicator
-            else:
-                self._service_indicators["name"].append(name)
-                self._service_indicators[emoji.exclaim].append(indicator)
-
-    def stop(self):
-        self._polling = False
-
-    def _get_iocs(self) -> None:
-        iocs = self._convert_df_to_list(self.iocs_df)
-        self.iocs = sorted(iocs, key=lambda d: d["name"])
-        exclude = [None]
-
-        for i, ioc in enumerate(self.iocs):
-            ioc = {key: value for key, value in ioc.items() if key not in exclude}
-            self.iocs[i] = ioc
-        self.columns = [key for key in self.iocs_df.columns if key not in exclude]
-
-    def _convert_df_to_list(self, iocs_df: polars.DataFrame | list) -> list[dict]:
-        if isinstance(iocs_df, polars.DataFrame):
-            iocs = iocs_df.to_dicts()
-        else:
-            iocs = iocs_df
-
-        return iocs
-
-    def on_mount(self) -> None:
-        """Provides a loop after generating the app for updating the data."""
-        self.set_interval(1 / self.refresh_rate, self.update_iocs)
-
-    async def update_iocs(self) -> None:
-        """Updates the IOC stats data."""
-        # Fetch services dataframe
-        self._get_iocs()
-
-        await self.populate_table()
-
-    def _get_heading(self, column_id: str):
-        sorted_style = Style(bold=True, underline=False)
-
-        if column_id == self.sort_column_id:
-            heading = Text(column_id, justify="center", style=sorted_style)
-        else:
-            # screen.sort() is referring to the screen action function
-            heading = Text(column_id, justify="center").on(
-                click=f"app.sort('{column_id}')"
-            )
-
-        return heading
+        iocs_df = self._get_services_df(self.running_only)
+        self.columns = iocs_df.columns
+        self._polling_rate_hz = 1
 
     def compose(self) -> ComposeResult:
         table: DataTable[Text] = DataTable(
@@ -351,13 +258,57 @@ class IocTable(Widget):
             heading = self._get_heading(column_id)
             table.add_column(heading, key=str(column_id))
 
-        # Set a size for the left column
-        # table.ordered_columns[0].content_width = 50
-
         table.show_cursor = True
         table.cursor_type = "row"
 
         yield table
+
+    def _get_heading(self, column_id: str):
+        if column_id == self.sort_column_id:
+            heading = Text(column_id, justify="center")
+        else:
+            heading = Text(column_id, justify="center").on(
+                click=f"app.sort('{column_id}')"
+            )
+
+        return heading
+
+    def on_mount(self) -> None:
+        self.do_polling()
+
+    @work(exclusive=True, thread=True)
+    def do_polling(self):
+        worker = get_current_worker()
+
+        while not worker.is_cancelled:
+            result = self._get_services_df(self.running_only)
+            self.app.call_from_thread(partial(self.populate_table, result))
+            time.sleep(1 / self._polling_rate_hz)
+
+    def _get_services_df(self, running_only):
+        services_df = self.commands._get_services(running_only)  # noqa: SLF001
+        services_df = services_df.with_columns(
+            polars.when(polars.col("ready"))
+            .then(polars.lit(emoji.check_mark))
+            .otherwise(polars.lit(emoji.cross_mark))
+            .alias("ready")
+        )
+        indicators_df = polars.DataFrame(self._service_indicators)
+        result = services_df.join(
+            indicators_df,
+            on="name",
+            how="left",
+        ).fill_null("")
+        return result
+
+    def update_indicator_threadsafe(self, name: str, indicator: str):
+        with self._indicator_lock:
+            if name in self._service_indicators["name"]:
+                index = self._service_indicators["name"].index(name)
+                self._service_indicators[emoji.exclaim][index] = indicator
+            else:
+                self._service_indicators["name"].append(name)
+                self._service_indicators[emoji.exclaim].append(indicator)
 
     def watch_sort_column_id(self, sort_column_id: str) -> None:
         """Called when the sort_column_id attribute changes."""
@@ -371,28 +322,20 @@ class IocTable(Widget):
 
         table.sort(table.ordered_columns[sorted_col].key, reverse=False)
 
-    def _get_color(self, value: str) -> Color:
-        if value == "True":
-            return Color.parse("lime")
-        elif value == "False":
-            return Color.parse("red")
-        else:
-            return Color.parse("white")
-
-    async def populate_table(self) -> None:
+    def populate_table(self, iocs_df) -> None:
         """Method to render the TUI table."""
         table = self.query_one("#body_table", DataTable)
 
-        if not table.columns:
-            return
+        curr_ioc_set = set(table.rows)
+        new_ioc_set = set()
 
-        iocs = set(table.rows)
-        new_iocs = set()
+        new_iocs = iocs_df.to_dicts()
+        new_iocs = sorted(new_iocs, key=lambda d: d["name"])
 
         # For each IOC row
-        for ioc in self.iocs:
+        for ioc in new_iocs:
             row_key = str(ioc["name"])
-            new_iocs.add(RowKey(row_key))
+            new_ioc_set.add(RowKey(row_key))
 
             cells = [
                 {
@@ -400,7 +343,7 @@ class IocTable(Widget):
                     "contents": SortableText(
                         ioc[key],
                         str(ioc[key]),
-                        self._get_color(str(ioc[key])),
+                        Color.parse("white"),
                         justify="center",
                     ),
                 }
@@ -417,7 +360,7 @@ class IocTable(Widget):
                     table.update_cell(row_key, cell["col_key"], cell["contents"])
 
         # If any IOC has been removed, remove it from the table
-        for old_row_key in iocs - new_iocs:
+        for old_row_key in curr_ioc_set - new_ioc_set:
             table.remove_row(old_row_key)
 
         # Sort by column
@@ -463,7 +406,6 @@ class MonitorApp(App):
         Binding("l", "ioc_logs", "IOC Logs"),
         Binding("o", "sort", "Sort"),
         Binding("m", "monitor_logs", "Monitor logs", show=False),
-        # Binding("d", "toggle_dark", "Toggle dark mode"),
     ]
 
     def __init__(
@@ -476,7 +418,8 @@ class MonitorApp(App):
         self.commands = commands
         self.running_only = running_only
         self.beamline = commands.target
-        self.busy_services = {}
+        self.busy_services: ThreadsafeSet = ThreadsafeSet()
+        self._queue: Queue[Callable] = Queue()
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -495,15 +438,18 @@ class MonitorApp(App):
 
     def on_mount(self) -> None:
         self.title = f"{self.beamline} Services Monitor"
+        self.do_work()
 
-    def on_unmount(self) -> None:
-        """Executes when the app is closed."""
-        # Makes sure the thread is stopped even if the App crashes
-        self.table.stop()
-
-    # def action_toggle_dark(self) -> None:
-    #     """An action to toggle dark mode."""
-    #     self.dark = not self.dark
+    @work(exclusive=True, thread=True)
+    def do_work(self):
+        worker = get_current_worker()
+        while not worker.is_cancelled:
+            try:
+                job = self._queue.get(timeout=1)
+                job()
+                self._queue.task_done()
+            except Empty:
+                pass
 
     def action_close_application(self) -> None:
         """Provide another way of exiting the app along with CTRL+C."""
@@ -530,27 +476,31 @@ class MonitorApp(App):
         service_name = self._get_service_name()
         table = self.query_one(IocTable)
 
-        async def for_task(command, service_name):
-            """Called to start asyncio to_thread task."""
-            await table.update_indicators(service_name, emoji.road_works)
-            await asyncio.to_thread(command, service_name)
-            del self.busy_services[service_name]
-            await table.update_indicators(service_name, emoji.none)
+        def do_task(command, service_name):
+            def _do_task():
+                table.update_indicator_threadsafe(service_name, emoji.road_works)
+                command(service_name)
+                table.update_indicator_threadsafe(service_name, emoji.none)
+                self.busy_services.remove(service_name)
+
+            return _do_task
 
         def after_dismiss_callback(start: bool | None) -> None:
             """Called when ConfirmScreen is dismissed."""
             if start:
                 if service_name in self.busy_services:
-                    log.info(f"Skipped {action}: {service_name} busy")
+                    log.info(f"Skipped {action}: {service_name} is busy")
                     return None
                 else:
-                    task = asyncio.create_task(
-                        for_task(command, service_name),
-                        name=service_name,
-                    )
-                    self.busy_services[service_name] = task
+                    log.info(f"Scheduled: {action} {service_name}")
+                    self.busy_services.add(service_name)
+                    table.update_indicator_threadsafe(service_name, emoji.hour_glass)
+                    self._queue.put(do_task(command, service_name))
 
-        self.push_screen(ConfirmScreen(service_name, action), after_dismiss_callback)
+        self.push_screen(
+            ConfirmScreen(service_name, action),
+            after_dismiss_callback,
+        )
 
     def action_start_ioc(self) -> None:
         """Start the IOC that is currently highlighted."""
@@ -603,3 +553,20 @@ class MonitorApp(App):
         table = self.query_one(IocTable)
         log.info(f"New sort key '{col_name}'")
         table.sort_column_id = col_name
+
+
+class ThreadsafeSet:
+    def __init__(self):
+        self._set = set()
+        self._lock = threading.Lock()
+
+    def add(self, item):
+        with self._lock:
+            self._set.add(item)
+
+    def remove(self, element):
+        with self._lock:
+            self._set.remove(element)
+
+    def __contains__(self, item):
+        return item in self._set

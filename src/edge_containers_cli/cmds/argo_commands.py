@@ -33,23 +33,25 @@ def extract_ns_app(target: str) -> tuple[str, str]:
 def patch_value(target: str, key: str, value: str | bool | int):
     cmd_temp_ = f"argocd app set {target} -p {key}={value}"
     shell.run_command(cmd_temp_, skip_on_dryrun=True)
-    max_attempts = 3
-    attempt = 1
-    sleep_time = 2
+    max_attempts = 60
+    attempt = 0
+    sleep_time = 1
     while attempt <= max_attempts:
         try:
             # Sync may conflict with autosync "another operation is already in progress"
             cmd_sync = f"argocd app sync {target} --apply-out-of-sync-only"
             shell.run_command(cmd_sync, skip_on_dryrun=True)
             return None
-        except ShellError:
+        except ShellError as e:
             if attempt == max_attempts:
-                log.debug(f"Argo patch failed after {max_attempts} attempts")
-                raise
-            else:
+                message = f"Argo patch failed after {max_attempts} attempts"
+                raise ChildProcessError(message) from e
+            elif "another operation is already in progress" in str(e):
                 log.debug(f"Argo patch attempt {attempt} failed. Retrying...")
                 sleep(sleep_time)
                 attempt += 1
+            else:
+                raise
 
 
 def push_value(target: str, key: str, value: str | bool | int):
