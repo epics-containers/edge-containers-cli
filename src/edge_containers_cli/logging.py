@@ -14,7 +14,7 @@ def init_logging(level: ECLogLevels) -> None:
     log.setLevel(level.value)
     if log.level == logging.DEBUG:
         formatter = logging.Formatter(
-            "%(levelname)s: %(pathname)s:%(lineno)d %(funcName)s " "\n\t%(message)s"
+            "%(levelname)s: %(pathname)s:%(lineno)d %(funcName)s \n\t%(message)s"
         )
     else:
         formatter = logging.Formatter("%(levelname)s:\t%(message)s")

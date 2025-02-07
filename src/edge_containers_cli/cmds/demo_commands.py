@@ -29,7 +29,7 @@ sample_data = {
     "version": ["1.0." + str(25 - cnt) for cnt in range(NUM_SERVICES)],
     "ready": [True] * NUM_SERVICES,
     "deployed": [
-        process_t(f"2024-10-22T11:23:0{randrange(1,9, )}Z")
+        process_t(f"2024-10-22T11:23:0{randrange(1, 9)}Z")
         for cnt in range(NUM_SERVICES)
     ],
 }

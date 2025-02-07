@@ -81,7 +81,9 @@ def create_version_map(
 
             # Check repo changes between tags
             else:
-                cmd = f"git diff --name-only {tags_list[tag_no-1]} {tags_list[tag_no]}"
+                cmd = (
+                    f"git diff --name-only {tags_list[tag_no - 1]} {tags_list[tag_no]}"
+                )
                 changed_files = str(shell.run_command(cmd))
 
                 # Propagate changes through symlink target to source
