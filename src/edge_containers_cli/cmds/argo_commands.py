@@ -101,8 +101,7 @@ class ArgoCommands(Commands):
         self._check_service(service_name)
         namespace, app = extract_ns_app(self.target)
         cmd = (
-            f"argocd app delete-resource {namespace}/{service_name} "
-            f"--kind StatefulSet"
+            f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet"
         )
         shell.run_command(cmd, skip_on_dryrun=True)
 

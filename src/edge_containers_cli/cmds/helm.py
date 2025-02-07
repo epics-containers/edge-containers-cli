@@ -87,7 +87,7 @@ class Helm:
             with open("Chart.yaml") as fp:
                 chart_yaml = YAML(typ="safe").load(fp)
             package_path = (
-                service_folder / f'{chart_yaml["name"]}-{chart_yaml["version"]}.tgz'
+                service_folder / f"{chart_yaml['name']}-{chart_yaml['version']}.tgz"
             )
 
         # use helm to install the chart

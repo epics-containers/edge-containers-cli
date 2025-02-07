@@ -10,7 +10,10 @@ def test_yaml_processor_get(data):
         "leaf_A": "False",
     }
     for key_0 in expect_0:
-        assert processor.get_key(key_0) == expect_0[key_0]
+        get = processor.get_key(key_0)
+        expect = expect_0[key_0]
+        assert get == expect
+        assert type(get) is type(expect)
 
 
 def test_yaml_processor_set(data):

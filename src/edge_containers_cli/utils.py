@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TypeVar
 
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, scalarint
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
@@ -135,6 +135,8 @@ class YamlFile:
             except KeyError:
                 log.debug(f"Entry '{key}' in '{key_path}' not found")
                 return None
+        if type(curser) is scalarint.ScalarInt:
+            curser = int(curser)
         return curser
 
     def set_key(self, key_path: str, value: str | bool | int):
