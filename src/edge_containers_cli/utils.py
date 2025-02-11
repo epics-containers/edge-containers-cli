@@ -129,12 +129,20 @@ class YamlFile:
 
     def get_key(self, key_path: str) -> str | bool | int | None:
         curser = self._yaml_data
+        prev_key = ""
         for key in key_path.split("."):
             try:
                 curser = curser[key]
             except KeyError:
                 log.debug(f"Entry '{key}' in '{key_path}' not found")
                 return None
+            except TypeError:
+                log.debug(
+                    f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
+                )
+                return None
+            prev_key = key
+
         if type(curser) is scalarint.ScalarInt:
             curser = int(curser)
         return curser
@@ -144,15 +152,22 @@ class YamlFile:
         keys = key_path.split(".")
         element = keys[-1]
 
-        # Iterate through mappings to element - Entries must exist
+        # Iterate through mappings to element
         for key in keys:
-            if key is element:
-                break  # Keep dict as pointer
+            if key == element:
+                break  # Exit early to have pointer into parent structure
+
+            if not curser[key]:  # Handle empty keys as empty dicts
+                log.debug(f"Empty key '{element}' in '{key_path}'")
+                curser[key] = {element: None}
             curser = curser[key]
 
         # Set element if exists or create it
         try:
-            curser[element] = type(curser[element])(value)  # Preserve type
+            if curser[element]:  # Preserve type if existing
+                curser[element] = type(curser[element])(value)
+            else:
+                curser[element] = value
         except KeyError:
             # Create element if does not exist
             log.debug(f"Entry '{element}' in '{key_path}' not found - Creating")
