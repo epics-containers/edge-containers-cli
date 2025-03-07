@@ -40,3 +40,4 @@ class emoji(str, Enum):
     exclaim = "\U00002755"
     check_mark = "\U00002705"
     cross_mark = "\U0000274c"
+    hour_glass = "\U000023f3c"

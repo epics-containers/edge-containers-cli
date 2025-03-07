@@ -30,28 +30,35 @@ def extract_ns_app(target: str) -> tuple[str, str]:
     return namespace, app
 
 
+def do_retry(cmd):
+    def _do_retry(*args, **kwargs):
+        max_attempts = 5
+        attempt = 1
+        sleep_time = 1
+        while attempt <= max_attempts:
+            try:
+                cmd(*args, **kwargs)
+                return None
+            except ShellError:
+                if attempt == max_attempts:
+                    log.debug(f"Retry failed after {max_attempts} attempts")
+                    raise
+                else:
+                    log.debug(f"Retry attempt {attempt} failed. Retrying...")
+                    sleep(sleep_time)
+                    attempt += 1
+
+    return _do_retry
+
+
+@do_retry
 def patch_value(target: str, key: str, value: str | bool | int):
     cmd_temp_ = f"argocd app set {target} -p {key}={value}"
     shell.run_command(cmd_temp_, skip_on_dryrun=True)
-    max_attempts = 3
-    attempt = 1
-    sleep_time = 2
-    while attempt <= max_attempts:
-        try:
-            # Sync may conflict with autosync "another operation is already in progress"
-            cmd_sync = f"argocd app sync {target} --apply-out-of-sync-only"
-            shell.run_command(cmd_sync, skip_on_dryrun=True)
-            return None
-        except ShellError:
-            if attempt == max_attempts:
-                log.debug(f"Argo patch failed after {max_attempts} attempts")
-                raise
-            else:
-                log.debug(f"Argo patch attempt {attempt} failed. Retrying...")
-                sleep(sleep_time)
-                attempt += 1
+    # Rely on argocd autosync to get the cluster into the right state
 
 
+@do_retry
 def push_value(target: str, key: str, value: str | bool | int):
     # Get source details
     app_resp = shell.run_command(
@@ -68,11 +75,12 @@ def push_value(target: str, key: str, value: str | bool | int):
         value,
     )
 
-    # Sync & release a possible patched value
-    cmd_sync = f"argocd app sync {target} --apply-out-of-sync-only"
-    shell.run_command(cmd_sync, skip_on_dryrun=True)
+    # Free a possible patched value & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
     shell.run_command(cmd_unset, skip_on_dryrun=True)
+    cmd_refresh = f"argocd app get {target} --refresh"
+    shell.run_command(cmd_refresh, skip_on_dryrun=True)
+    # Rely on argocd autosync to get the cluster into the right state
 
 
 class ArgoCommands(Commands):

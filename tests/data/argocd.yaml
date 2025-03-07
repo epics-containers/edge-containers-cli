@@ -51,15 +51,13 @@ start_commit:
     rsp: ""
   - cmd: git push
     rsp: ""
-  - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
-    rsp: ""
   - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
 start:
   - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=True
-    rsp: ""
-  - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
     rsp: ""
 
 stop_commit:
@@ -71,13 +69,11 @@ stop_commit:
           path: apps
   - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
     rsp: ""
-  - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
-    rsp: ""
   - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
 stop:
   - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=False
-    rsp: ""
-  - cmd: argocd app sync namespace/bl01t --apply-out-of-sync-only
     rsp: ""

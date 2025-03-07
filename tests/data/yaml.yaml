@@ -4,7 +4,7 @@ trunk_A:
   branch_A:
     leaf_A: 0 # Leaf comment
     leaf_B: zero
-
+  branch_B: # Empty entry
 trunk_B:
   leaf_B: true # Out of order
   leaf_A: false # Comment before space
