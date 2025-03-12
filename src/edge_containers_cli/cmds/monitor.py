@@ -455,52 +455,57 @@ class MonitorApp(App):
         """Provide another way of exiting the app along with CTRL+C."""
         self.exit()
 
-    def _get_highlighted_cell(self, col_key: str) -> str:
+    def _get_highlighted_cell(self, col_key: str) -> str | None:
         table = self.get_widget_by_id("body_table")
         assert isinstance(table, DataTable)
         # Fetches hightlighted row ID (integer)
         row = table.cursor_row
-        ioc_row = table.ordered_rows[row]
-        col_keys = [ord_col.key.value for ord_col in table.ordered_columns]
-        col_i = col_keys.index(col_key)
-        ioc_col = table.ordered_columns[col_i]
-        cell: str | SortableText = table.get_cell(ioc_row.key, ioc_col.key)
-        # SortableText inherits __str__() from Text
-        return str(cell)
+        if table.ordered_rows:
+            ioc_row = table.ordered_rows[row]
+            col_keys = [ord_col.key.value for ord_col in table.ordered_columns]
+            col_i = col_keys.index(col_key)
+            ioc_col = table.ordered_columns[col_i]
+            cell: str | SortableText = table.get_cell(ioc_row.key, ioc_col.key)
+            # SortableText inherits __str__() from Text
+            return str(cell)
 
-    def _get_service_name(self) -> str:
-        service_name = self._get_highlighted_cell("name")
-        return service_name
+    def _get_service_name(self) -> str | None:
+        if service_name := self._get_highlighted_cell("name"):
+            return service_name
 
     def _do_confirmed_action(self, action: str, command: Callable):
-        service_name = self._get_service_name()
-        table = self.query_one(IocTable)
+        if service_name := self._get_service_name():
+            table = self.query_one(IocTable)
 
-        def do_task(command, service_name):
-            def _do_task():
-                table.update_indicator_threadsafe(service_name, emoji.road_works)
-                command(service_name)
-                table.update_indicator_threadsafe(service_name, emoji.none)
-                self.busy_services.remove(service_name)
+            def do_task(command, service_name):
+                def _do_task():
+                    table.update_indicator_threadsafe(service_name, emoji.road_works)
+                    command(service_name)
+                    table.update_indicator_threadsafe(service_name, emoji.none)
+                    self.busy_services.remove(service_name)
 
-            return _do_task
+                return _do_task
 
-        def after_dismiss_callback(start: bool | None) -> None:
-            """Called when ConfirmScreen is dismissed."""
-            if start:
-                if service_name in self.busy_services:
-                    log.info(f"Skipped {action}: {service_name} is busy")
-                    return None
-                else:
-                    log.info(f"Scheduled: {action} {service_name}")
-                    self.busy_services.add(service_name)
-                    table.update_indicator_threadsafe(service_name, emoji.hour_glass)
-                    self._queue.put(do_task(command, service_name))
+            def after_dismiss_callback(start: bool | None) -> None:
+                """Called when ConfirmScreen is dismissed."""
+                if start:
+                    if service_name in self.busy_services:
+                        log.info(f"Skipped {action}: {service_name} is busy")
+                        return None
+                    else:
+                        log.info(f"Scheduled: {action} {service_name}")
+                        self.busy_services.add(service_name)
+                        table.update_indicator_threadsafe(
+                            service_name, emoji.hour_glass
+                        )
+                        self._queue.put(do_task(command, service_name))
 
-        self.push_screen(
-            ConfirmScreen(service_name, action),
-            after_dismiss_callback,
-        )
+            self.push_screen(
+                ConfirmScreen(service_name, action),
+                after_dismiss_callback,
+            )
+        else:
+            log.info(f"No services available to perform: '{action}'")
 
     def action_start_ioc(self) -> None:
         """Start the IOC that is currently highlighted."""
@@ -516,16 +521,17 @@ class MonitorApp(App):
 
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
-        service_name = self._get_service_name()
+        if service_name := self._get_service_name():
+            # Convert to corresponding bool
+            ready = self._get_highlighted_cell("ready") == emoji.check_mark
 
-        # Convert to corresponding bool
-        ready = self._get_highlighted_cell("ready") == emoji.check_mark
-
-        if ready:
-            command = self.commands._get_logs  # noqa: SLF001
-            self.push_screen(LogsScreen(command, service_name))
+            if ready:
+                command = self.commands._get_logs  # noqa: SLF001
+                self.push_screen(LogsScreen(command, service_name))
+            else:
+                log.info(f"Ignore request for logs - {service_name} not ready")
         else:
-            log.info(f"Ignore request for logs - {service_name} not ready")
+            log.info("No services available to perform: 'logs'")
 
     def action_sort(self, col_name: str = "") -> None:
         """An action to sort the table rows by column heading."""

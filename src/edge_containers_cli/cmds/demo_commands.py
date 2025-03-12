@@ -10,7 +10,12 @@ from random import randrange, seed
 
 import polars
 
-from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
+from edge_containers_cli.cmds.commands import (
+    CommandError,
+    Commands,
+    ServicesDataFrame,
+    ServicesSchema,
+)
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.globals import TIME_FORMAT
 
@@ -33,7 +38,11 @@ sample_data = {
         for cnt in range(NUM_SERVICES)
     ],
 }
-sample_ServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
+
+if NUM_SERVICES == 0:
+    sample_ServicesDataFrame = polars.DataFrame(schema=ServicesSchema)
+else:
+    sample_ServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
 
 
 def demo_wrapper():
