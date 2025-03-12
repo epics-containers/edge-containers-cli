@@ -57,7 +57,7 @@ def delete(
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
 ):
     """
-    Remove a helm deployment from the cluster
+    Remove a service from the cluster
     """
     confirmation(
         f"Remove all versions of {service_name} from the target `{backend.commands.target}`",
@@ -83,7 +83,7 @@ def deploy(
     ),
 ):
     """
-    Pull an service helm chart version from the domain repo and deploy it to the cluster
+    Add a service to the cluster from its source repository
     """
     confirmation(
         f"Deploy {service_name.lower()} "
@@ -108,7 +108,7 @@ def deploy_local(
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
-    Deploy a local service helm chart directly to the cluster with dated beta version
+    Add a local service helm chart directly to the cluster with dated beta version
     """
     confirmation(
         f"Deploy local {svc_instance.name.lower()} "
@@ -174,7 +174,7 @@ def log_history(
         autocompletion=all_svc,
     ),
 ):
-    """Open historical logs for an service"""
+    """Open historical logs for a service"""
     backend.commands.log_history(service_name)
 
 
@@ -190,7 +190,7 @@ def logs(
         help="Show log from the previous instance of the service",
     ),
 ):
-    """Show logs for current and previous instances of an service"""
+    """Show logs for current and previous instances of a service"""
     backend.commands.logs(service_name, prev)
 
 
@@ -200,7 +200,7 @@ def monitor(
         False, "-r", "--running-only", help="list only services that are running"
     ),
 ):
-    """Open monitor TUI."""
+    """Open monitor TUI"""
     from edge_containers_cli.cmds.monitor import (
         MonitorApp,  # Lazy import for performace
     )
