@@ -60,7 +60,7 @@ def delete(
     Remove a service from the cluster
     """
     confirmation(
-        f"Remove all versions of {service_name} from the target `{backend.commands.target}`",
+        f"Remove {service_name} from the target `{backend.commands.target}`",
         yes,
     )
     backend.commands.delete(service_name)
@@ -154,8 +154,8 @@ def instances(
     )
 
 
-@cli.command()
-def list():
+@cli.command(name="list")
+def _list():
     """List all services available in the service repository"""
     print(
         list_all(
