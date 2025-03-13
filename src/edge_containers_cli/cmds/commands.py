@@ -105,7 +105,7 @@ class Commands(ABC):
     def attach(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def delete(self, service_name: str, commit: bool = False) -> None:
+    def delete(self, service_name: str) -> None:
         raise NotImplementedError
 
     def deploy(self, service_name: str, version: str, args: str) -> None:

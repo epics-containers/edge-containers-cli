@@ -33,3 +33,11 @@ def test_yaml_processor_set(data):
         expect = expect_1[key_1]
         assert get == expect, f"The value of {key_1} is unexpected"
         assert type(get) is type(expect), f"The type of {key_1} is unexpected"
+
+
+def test_yaml_processor_remove(data):
+    processor = YamlFile(data / "yaml.yaml")
+    test_key = "trunk_A.branch_A.leaf_A"
+    assert processor.get_key(test_key) == 0
+    processor.remove_key(test_key)
+    assert processor.get_key(test_key) is None

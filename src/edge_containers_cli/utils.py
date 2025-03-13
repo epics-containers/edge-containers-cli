@@ -147,6 +147,24 @@ class YamlFile:
             curser = int(curser)
         return curser
 
+    def remove_key(self, key_path: str):
+        curser = self._yaml_data
+        keys = key_path.split(".")
+        element = keys[-1]
+
+        # Iterate through mappings to element
+        for key in keys:
+            if key == element:
+                del curser[key]
+                break
+            try:
+                curser = curser[key]
+            except KeyError:
+                log.debug(f"Entry '{key}' in '{key_path}' not found")
+                return None
+
+        log.debug(f"Removed '{element}' from '{key_path}'")
+
     def set_key(
         self, key_path: str, value: str | bool | int | dict[str, str | bool | int]
     ):

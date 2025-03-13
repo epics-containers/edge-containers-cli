@@ -48,6 +48,27 @@ def set_values(
             raise GitError(str(e)) from e
 
 
+def del_key(repo_url: str, file: Path, key: str) -> None:
+    """
+    sets a key value pair in a yaml file and push the changes
+    """
+    with new_workdir() as path:
+        try:
+            shell.run_command(f"git clone --depth=1 {repo_url} {path}")
+            with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
+                file_data = YamlFile(file)
+                file_data.remove_key(key)
+                file_data.dump_file()
+
+                commit_msg = f"Remove {key} in {file}"
+                shell.run_command("git add .")
+                shell.run_command(f'git commit -m "{commit_msg}"')
+                shell.run_command("git push", skip_on_dryrun=True)
+
+        except (FileNotFoundError, ShellError) as e:
+            raise GitError(str(e)) from e
+
+
 def create_version_map(
     repo: str, root_dir: Path, working_dir: Path, shared: list[str] | None = None
 ) -> dict[str, list[str]]:

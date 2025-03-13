@@ -24,7 +24,6 @@ class K8sCommands(Commands):
     """
 
     params_opt_out = {
-        "delete": ["commit"],
         "stop": ["commit"],
         "start": ["commit"],
     }
