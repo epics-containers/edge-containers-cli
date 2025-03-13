@@ -8,9 +8,11 @@ def test_delete(mock_run, ARGOCD):
     mock_run.set_seq(ARGOCD.checks + ARGOCD.delete)
     mock_run.run_cli("delete bl01t-ea-test-01")
 
+
 # def test_delete_commit(mock_run, ARGOCD):
 #     mock_run.set_seq(ARGOCD.checks + ARGOCD.delete)
 #     mock_run.run_cli("delete bl01t-ea-test-01 --commit")
+
 
 def test_deploy(mock_run, ARGOCD):
     mock_run.set_seq(ARGOCD.checks + ARGOCD.deploy)
