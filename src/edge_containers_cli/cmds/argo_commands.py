@@ -19,10 +19,11 @@ from edge_containers_cli.cmds.commands import (
     ServicesSchema,
 )
 from edge_containers_cli.definitions import ECContext
-from edge_containers_cli.git import set_values
-from edge_containers_cli.globals import TIME_FORMAT
+from edge_containers_cli.git import set_values, create_version_map
+from edge_containers_cli import globals
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
+from edge_containers_cli.utils import new_workdir
 
 
 def extract_ns_app(target: str) -> tuple[str, str]:
@@ -52,14 +53,18 @@ def do_retry(cmd):
 
 
 @do_retry
-def patch_value(target: str, key: str, value: str | bool | int):
+def patch_value(
+    target: str, key: str, value: str | bool | int | dict[str, str | bool | int]
+):
     cmd_temp_ = f"argocd app set {target} -p {key}={value}"
     shell.run_command(cmd_temp_, skip_on_dryrun=True)
     # Rely on argocd autosync to get the cluster into the right state
 
 
 @do_retry
-def push_value(target: str, key: str, value: str | bool | int):
+def push_value(
+    target: str, key: str, value: str | bool | int | dict[str, str | bool | int]
+):
     # Get source details
     app_resp = shell.run_command(
         f"argocd app get {target} -o yaml",
@@ -83,16 +88,56 @@ def push_value(target: str, key: str, value: str | bool | int):
     # Rely on argocd autosync to get the cluster into the right state
 
 
+def get_services_repo(deployment_repo_url: str) -> str:
+    services_repo_url = ""
+    return services_repo_url
+
+
 class ArgoCommands(Commands):
     """
     A class for implementing the Kubernetes based commands
     """
+
+    params_opt_out = {
+        "deploy": ["args", "wait"],
+    }
 
     def __init__(
         self,
         ctx: ECContext,
     ):
         super().__init__(ctx)
+
+    def delete(self, service_name: str, commit=False) -> None:
+        self._check_service(service_name)
+        if commit:
+            push_value(self.target, f"ec_services.{service_name}.removed", True)
+        else:
+            patch_value(self.target, f"ec_services.{service_name}.removed", True)
+
+    def deploy(self, service_name: str, version: str, args: str) -> None:
+        with new_workdir() as path:
+            version_map = create_version_map(
+                self.repo,
+                Path(globals.SERVICES_DIR),
+                path,
+                shared=[globals.SHARED_VALUES],
+            )
+        svc_list = version_map.keys()
+        version_list = version_map[service_name]
+
+        if not service_name in svc_list:
+            raise CommandError(f"Service '{service_name}' not found in {self.repo}")
+
+        if not version in version_list:
+            raise CommandError(f"Service version '{version}' not found in {self.repo}")
+
+        deploy_dict: dict[str, str | bool | int] = {
+            "targetRevision": version,
+            "enabled": True,
+        }
+
+        push_value(self.target, f"ec_services.{service_name}", deploy_dict)
 
     def logs(self, service_name, prev):
         self._logs(service_name, prev)
@@ -188,7 +233,7 @@ class ArgoCommands(Commands):
                                 )
                                 service_data["ready"].append(is_ready)
                                 service_data["deployed"].append(
-                                    datetime.strftime(time_stamp, TIME_FORMAT)
+                                    datetime.strftime(time_stamp, globals.TIME_FORMAT)
                                 )
 
         services_df = polars.from_dict(service_data, schema=ServicesSchema)

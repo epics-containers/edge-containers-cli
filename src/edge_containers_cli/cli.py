@@ -81,6 +81,7 @@ def deploy(
     args: str = typer.Option(
         "", help="Additional args for helm or docker, 'must be quoted'"
     ),
+    commit: bool = typer.Option(False, help="Commits the values to the git repo"),
 ):
     """
     Add a service to the cluster from its source repository

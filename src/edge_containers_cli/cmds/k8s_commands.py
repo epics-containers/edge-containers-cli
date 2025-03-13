@@ -24,6 +24,7 @@ class K8sCommands(Commands):
     """
 
     params_opt_out = {
+        "delete": ["commit"],
         "stop": ["commit"],
         "start": ["commit"],
     }
@@ -41,7 +42,7 @@ class K8sCommands(Commands):
             skip_on_dryrun=True,
         )
 
-    def delete(self, service_name):
+    def delete(self, service_name, commit=False):
         self._check_service(service_name)
         shell.run_command(
             f"helm delete -n {self.target} {service_name}", skip_on_dryrun=True

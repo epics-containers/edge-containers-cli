@@ -17,9 +17,14 @@ class GitError(Exception):
     pass
 
 
-def set_values(repo_url: str, file: Path, key: str, value: str | bool | int) -> None:
+def set_values(
+    repo_url: str,
+    file: Path,
+    key: str,
+    value: str | bool | int | dict[str, str | bool | int],
+) -> None:
     """
-    sets an existing key value pair in a yaml file and push the changes
+    sets a key value pair in a yaml file and push the changes
     """
     with new_workdir() as path:
         try:

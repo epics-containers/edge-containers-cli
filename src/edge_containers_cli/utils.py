@@ -147,7 +147,9 @@ class YamlFile:
             curser = int(curser)
         return curser
 
-    def set_key(self, key_path: str, value: str | bool | int):
+    def set_key(
+        self, key_path: str, value: str | bool | int | dict[str, str | bool | int]
+    ):
         curser = self._yaml_data
         keys = key_path.split(".")
         element = keys[-1]

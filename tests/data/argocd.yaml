@@ -24,6 +24,17 @@ checks:
       status:
         readyReplicas: 1
 
+delete:
+  - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.removed=True
+    rsp: ""
+
+deploy:
+  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/ec_tests
+    rsp: ""
+  - cmd: argocd app list -l "ec_service=true" --app-namespace namespace -o yaml
+    rsp: ""
+
+
 logs:
   - cmd: argocd app logs namespace/bl01t-ea-test-01
     rsp: ""
