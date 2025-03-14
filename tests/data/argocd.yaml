@@ -25,15 +25,68 @@ checks:
         readyReplicas: 1
 
 delete:
-  - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.removed=True
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: git add .
+    rsp: ""
+  - cmd: git commit -m "Remove ec_services.bl01t-ea-test-01 in apps/values.yaml"
+    rsp: ""
+  - cmd: git push
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
 deploy:
-  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/ec_tests
-    rsp: ""
-  - cmd: argocd app list -l "ec_service=true" --app-namespace namespace -o yaml
+  - cmd: argocd app get namespace/bl01t
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/.*
+    rsp: Cloning into /tmp/xxxx...
+  - cmd: git tag --sort=committerdate
+    rsp: |
+      1.0
+      2.0
+      3.0
+  - cmd: git ls-tree -r 1.0 --name-only
+    rsp: |
+      services/bl01t-ea-test-01
+      services/bl01t-ea-test-02
+  - cmd: git diff --name-only 1.0 2.0
+    rsp: |
+      services/dls-aravis
+  - cmd: git ls-tree 2.0 -r | grep 120000
+    rsp: 120000 blob test-hash services/bl01t-ea-test-02/charts/dls-aravis
+  - cmd: git cat-file -p test-hash
+    rsp: ../../dls-aravis/
+  - cmd: git diff --name-only 2.0 3.0
+    rsp: |
+      services/values.yaml
+  - cmd: git ls-tree 3.0 -r | grep 120000
     rsp: ""
 
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: git add .
+    rsp: ""
+  - cmd: git commit -m "Set ec_services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
+    rsp: ""
+  - cmd: git push
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t --refresh
+    rsp: ""
 
 logs:
   - cmd: argocd app logs namespace/bl01t-ea-test-01

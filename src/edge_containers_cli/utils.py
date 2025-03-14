@@ -10,14 +10,15 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import TypeVar
+from typing import Union
 
 from ruamel.yaml import YAML, scalarint
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
 
-T = TypeVar("T")
+YamlPrimatives = Union[str, bool, int, None]
+YamlTypes = Union[YamlPrimatives, dict[str, YamlPrimatives]]
 
 
 @contextlib.contextmanager
@@ -116,6 +117,10 @@ def read_cached_dict(cache_folder: Path, cache_file: str) -> dict:
     return read_dict
 
 
+class YamlFileError(Exception):
+    pass
+
+
 class YamlFile:
     def __init__(self, file: Path) -> None:
         self.file = file
@@ -127,20 +132,19 @@ class YamlFile:
         with open(output_path if output_path else self.file, "wb") as file_w:
             self._processor.dump(self._yaml_data, file_w)
 
-    def get_key(self, key_path: str) -> str | bool | int | None:
+    def get_key(self, key_path: str) -> YamlTypes:
         curser = self._yaml_data
         prev_key = ""
         for key in key_path.split("."):
             try:
                 curser = curser[key]
-            except KeyError:
-                log.debug(f"Entry '{key}' in '{key_path}' not found")
-                return None
-            except TypeError:
-                log.debug(
+            except KeyError as e:
+                raise YamlFileError(f"Entry '{key}' in '{key_path}' not found") from e
+
+            except TypeError as e:
+                raise YamlFileError(
                     f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
-                )
-                return None
+                ) from e
             prev_key = key
 
         if type(curser) is scalarint.ScalarInt:
@@ -149,6 +153,7 @@ class YamlFile:
 
     def remove_key(self, key_path: str):
         curser = self._yaml_data
+        prev_key = ""
         keys = key_path.split(".")
         element = keys[-1]
 
@@ -159,16 +164,23 @@ class YamlFile:
                 break
             try:
                 curser = curser[key]
-            except KeyError:
-                log.debug(f"Entry '{key}' in '{key_path}' not found")
-                return None
+            except KeyError as e:
+                raise YamlFileError(f"Entry '{key}' in '{key_path}' not found") from e
+            except TypeError as e:
+                raise YamlFileError(
+                    f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
+                ) from e
+            prev_key = key
 
         log.debug(f"Removed '{element}' from '{key_path}'")
 
     def set_key(
-        self, key_path: str, value: str | bool | int | dict[str, str | bool | int]
+        self,
+        key_path: str,
+        value: YamlTypes,
     ):
         curser = self._yaml_data
+        prev_key = ""
         keys = key_path.split(".")
         element = keys[-1]
 
@@ -177,10 +189,18 @@ class YamlFile:
             if key == element:
                 break  # Exit early to have pointer into parent structure
 
-            if not curser[key]:  # Handle empty keys as empty dicts
-                log.debug(f"Empty key '{element}' in '{key_path}'")
-                curser[key] = {element: None}
-            curser = curser[key]
+            try:
+                if curser[key] is None:  # Handle empty keys as empty dicts
+                    log.debug(f"Empty key '{element}' in '{key_path}'")
+                    curser[key] = {element: None}
+                curser = curser[key]
+            except KeyError as e:
+                raise YamlFileError(f"Entry '{key}' in '{key_path}' not found") from e
+            except TypeError as e:
+                raise YamlFileError(
+                    f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
+                ) from e
+            prev_key = key
 
         # Set element if exists or create it
         try:
@@ -189,7 +209,6 @@ class YamlFile:
             else:
                 curser[element] = value
         except KeyError:
-            # Create element if does not exist
             log.debug(f"Entry '{element}' in '{key_path}' not found - Creating")
             curser[element] = value
 

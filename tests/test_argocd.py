@@ -4,18 +4,18 @@ from pathlib import Path
 from tests.conftest import TMPDIR
 
 
-def test_delete(mock_run, ARGOCD):
+def test_delete(mock_run, ARGOCD, data: Path):
     mock_run.set_seq(ARGOCD.checks + ARGOCD.delete)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
     mock_run.run_cli("delete bl01t-ea-test-01")
 
 
-# def test_delete_commit(mock_run, ARGOCD):
-#     mock_run.set_seq(ARGOCD.checks + ARGOCD.delete)
-#     mock_run.run_cli("delete bl01t-ea-test-01 --commit")
-
-
-def test_deploy(mock_run, ARGOCD):
-    mock_run.set_seq(ARGOCD.checks + ARGOCD.deploy)
+def test_deploy(mock_run, ARGOCD, data: Path):
+    mock_run.set_seq(ARGOCD.deploy)
+    mock_run.set_seq(ARGOCD.checks + ARGOCD.delete)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
     mock_run.run_cli("deploy bl01t-ea-test-01 main")
 
 

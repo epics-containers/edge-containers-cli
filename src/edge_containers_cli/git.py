@@ -10,21 +10,21 @@ from natsort import natsorted
 
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
-from edge_containers_cli.utils import YamlFile, chdir, new_workdir
+from edge_containers_cli.utils import YamlFile, YamlTypes, chdir, new_workdir
 
 
 class GitError(Exception):
     pass
 
 
-def set_values(
+def set_value(
     repo_url: str,
     file: Path,
     key: str,
-    value: str | bool | int | dict[str, str | bool | int],
+    value: YamlTypes,
 ) -> None:
     """
-    sets a key value pair in a yaml file and push the changes
+    sets a key,value pair in a yaml file and push the changes
     """
     with new_workdir() as path:
         try:
@@ -50,7 +50,7 @@ def set_values(
 
 def del_key(repo_url: str, file: Path, key: str) -> None:
     """
-    sets a key value pair in a yaml file and push the changes
+    remove a key from a yaml file and push the changes
     """
     with new_workdir() as path:
         try:

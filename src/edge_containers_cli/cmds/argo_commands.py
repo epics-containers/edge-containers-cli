@@ -20,10 +20,10 @@ from edge_containers_cli.cmds.commands import (
     ServicesSchema,
 )
 from edge_containers_cli.definitions import ECContext
-from edge_containers_cli.git import create_version_map, del_key, set_values
+from edge_containers_cli.git import create_version_map, del_key, set_value
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
-from edge_containers_cli.utils import new_workdir
+from edge_containers_cli.utils import YamlTypes, new_workdir
 
 
 def extract_ns_app(target: str) -> tuple[str, str]:
@@ -53,18 +53,14 @@ def do_retry(cmd):
 
 
 @do_retry
-def patch_value(
-    target: str, key: str, value: str | bool | int | dict[str, str | bool | int]
-):
+def patch_value(target: str, key: str, value: YamlTypes):
     cmd_temp_ = f"argocd app set {target} -p {key}={value}"
     shell.run_command(cmd_temp_, skip_on_dryrun=True)
     # Rely on argocd autosync to get the cluster into the right state
 
 
 @do_retry
-def push_value(
-    target: str, key: str, value: str | bool | int | dict[str, str | bool | int]
-):
+def push_value(target: str, key: str, value: YamlTypes):
     # Get source details
     app_resp = shell.run_command(
         f"argocd app get {target} -o yaml",
@@ -73,12 +69,7 @@ def push_value(
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    set_values(
-        repo_url,
-        path / "values.yaml",
-        key,
-        value,
-    )
+    set_value(repo_url, path / "values.yaml", key, value)
 
     # Free a possible patched value & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
@@ -89,7 +80,7 @@ def push_value(
 
 
 @do_retry
-def push_remove(target: str, key: str):
+def push_remove_key(target: str, key: str):
     # Get source details
     app_resp = shell.run_command(
         f"argocd app get {target} -o yaml",
@@ -98,11 +89,7 @@ def push_remove(target: str, key: str):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    del_key(
-        repo_url,
-        path / "values.yaml",
-        key,
-    )
+    del_key(repo_url, path / "values.yaml", key)
 
     # Free a possible patched value & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
@@ -134,7 +121,7 @@ class ArgoCommands(Commands):
 
     def delete(self, service_name: str) -> None:
         self._check_service(service_name)
-        push_remove(self.target, f"ec_services.{service_name}")
+        push_remove_key(self.target, f"ec_services.{service_name}")
 
     def deploy(self, service_name: str, version: str, args: str) -> None:
         with new_workdir() as path:
