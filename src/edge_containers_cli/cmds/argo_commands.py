@@ -131,21 +131,16 @@ class ArgoCommands(Commands):
                 path,
                 shared=[globals.SHARED_VALUES],
             )
-        svc_list = version_map.keys()
-        version_list = version_map[service_name]
+            svc_list = version_map.keys()
+            if service_name not in svc_list:
+                raise CommandError(f"Service '{service_name}' not found in {self.repo}")
 
-        if service_name not in svc_list:
-            raise CommandError(f"Service '{service_name}' not found in {self.repo}")
+            deploy_dict: dict[str, str | bool | int] = {
+                "enabled": True,
+                "targetRevision": version,
+            }
 
-        if version not in version_list:
-            raise CommandError(f"Service version '{version}' not found in {self.repo}")
-
-        deploy_dict: dict[str, str | bool | int] = {
-            "enabled": True,
-            "targetRevision": version,
-        }
-
-        push_value(self.target, f"ec_services.{service_name}", deploy_dict)
+            push_value(self.target, f"ec_services.{service_name}", deploy_dict)
 
     def logs(self, service_name, prev):
         self._logs(service_name, prev)

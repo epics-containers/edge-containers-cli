@@ -13,8 +13,8 @@ def test_delete(mock_run, ARGOCD, data: Path):
 
 def test_deploy(mock_run, ARGOCD, data: Path):
     mock_run.set_seq(ARGOCD.deploy)
-    mock_run.set_seq(ARGOCD.checks + ARGOCD.delete)
     TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
     mock_run.run_cli("deploy bl01t-ea-test-01 main")
 

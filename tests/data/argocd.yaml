@@ -74,16 +74,21 @@ deploy:
       services/values.yaml
   - cmd: git ls-tree 3.0 -r | grep 120000
     rsp: ""
-
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
   - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Set ec_services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
+  - cmd: 'git commit -m "Set ec_services.bl01t-ea-test-01=*'
     rsp: ""
   - cmd: git push
     rsp: ""
-  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
+  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01
     rsp: ""
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
