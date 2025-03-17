@@ -135,7 +135,7 @@ class ArgoCommands(Commands):
             if service_name not in svc_list:
                 raise CommandError(f"Service '{service_name}' not found in {self.repo}")
 
-            deploy_dict: dict[str, str | bool | int] = {
+            deploy_dict: YamlTypes = {
                 "enabled": True,
                 "targetRevision": version,
             }
