@@ -278,3 +278,30 @@ def template(
     """
     args = f"{args} --debug"
     backend.commands.template(svc_instance, args)
+
+
+def drop_methods(ctx: typer.Context, to_drop: list[str]):
+    """Dynamically drop any method not implemented"""
+    not_implemented = [mthd.replace("_", "-") for mthd in to_drop]
+    typer_commands = ctx.command.commands  # type: ignore
+    for command in not_implemented:
+        if command in typer_commands:
+            typer_commands.pop(command)
+
+
+def drop_options(ctx: typer.Context, to_drop: dict[str, list[str]]):
+    """Dynamically drop any cli options as specified"""
+    typer_commands = ctx.command.commands  # type: ignore
+    for cmd_name, drop_params in to_drop.items():
+        for i, param in enumerate(typer_commands[cmd_name].params):
+            if param.name in drop_params:
+                typer_commands[cmd_name].params.pop(i)
+
+
+def set_optional(ctx: typer.Context, to_set: dict[str, list[str]]):
+    """Dynamically set any cli options optional as specified"""
+    typer_commands = ctx.command.commands  # type: ignore
+    for cmd_name, optional_params in to_set.items():
+        for i, param in enumerate(typer_commands[cmd_name].params):
+            if param.name in optional_params:
+                typer_commands[cmd_name].params[i].required = False

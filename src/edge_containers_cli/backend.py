@@ -68,6 +68,9 @@ class Backend:
     def get_notimplemented_params(self) -> dict[str, list[str]]:
         return self.Commands.params_opt_out
 
+    def get_optional_params(self) -> dict[str, list[str]]:
+        return self.Commands.params_optional
+
 
 backend = Backend()
 

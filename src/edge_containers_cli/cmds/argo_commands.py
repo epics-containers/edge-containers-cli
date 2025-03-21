@@ -113,6 +113,8 @@ class ArgoCommands(Commands):
         "deploy": ["args", "wait"],
     }
 
+    params_optional = {"deploy": ["version"]}
+
     def __init__(
         self,
         ctx: ECContext,
@@ -137,8 +139,9 @@ class ArgoCommands(Commands):
 
             deploy_dict: YamlTypes = {
                 "enabled": True,
-                "targetRevision": version,
             }
+            if version:
+                deploy_dict["targetRevision"] = version
 
             push_value(self.target, f"ec_services.{service_name}", deploy_dict)
 

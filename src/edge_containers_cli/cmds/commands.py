@@ -39,7 +39,8 @@ class Commands(ABC):
     Methods not exposed to the CLI should be private
     """
 
-    params_opt_out: dict[str, list[str]] = {}  # Optionally drop parameters from the CLI
+    params_opt_out: dict[str, list[str]] = {}  # Drop parameters from the CLI
+    params_optional: dict[str, list[str]] = {}  # Set optional parameters from the CLI
 
     def __init__(self, ctx: ECContext):
         self._target = ctx.target
