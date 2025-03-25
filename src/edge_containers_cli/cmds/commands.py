@@ -1,10 +1,15 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
 
 import polars
+from natsort import natsorted
 
+from edge_containers_cli import globals
 from edge_containers_cli.definitions import ENV, ECContext
+from edge_containers_cli.git import create_version_map
 from edge_containers_cli.logging import log
+from edge_containers_cli.utils import new_workdir
 
 
 class CommandError(Exception):
@@ -109,10 +114,21 @@ class Commands(ABC):
     def delete(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def deploy(self, service_name: str, version: str, args: str) -> None:
+    def deploy(
+        self,
+        service_name: str,
+        version: str,
+        args: str,
+        confirm_callback: Callable[[str], None] | None = None,
+    ) -> None:
         raise NotImplementedError
 
-    def deploy_local(self, svc_instance: Path, args: str) -> None:
+    def deploy_local(
+        self,
+        svc_instance: Path,
+        args: str,
+        confirm_callback: Callable[[str], None] | None = None,
+    ) -> None:
         raise NotImplementedError
 
     def exec(self, service_name: str) -> None:
@@ -172,3 +188,27 @@ class Commands(ABC):
             pass
         else:
             raise CommandError(f"Service '{service_name}' not found in {self.target}")
+
+    def _get_latest_version(self, service_name) -> str:
+        with new_workdir() as path:
+            version_map = create_version_map(
+                self.repo,
+                Path(globals.SERVICES_DIR),
+                path,
+                shared=[globals.SHARED_VALUES],
+            )
+        svc_list = version_map.keys()
+        log.debug(f"Found the following services: {svc_list}")
+        if service_name not in svc_list:
+            raise CommandError(f"Service '{service_name}' not found in {self.repo}")
+
+        version_list = natsorted(version_map[service_name])
+        log.debug(f"Found the following versions of {service_name}: {version_list}")
+        try:
+            version = version_list[-1]
+        except IndexError as err:
+            raise CommandError(
+                f"No versions of '{service_name}' found in {self.repo}"
+            ) from err
+
+        return version

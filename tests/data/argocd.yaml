@@ -45,13 +45,7 @@ delete:
     rsp: ""
 
 deploy:
-  - cmd: argocd app get namespace/bl01t
-    rsp: |
-      spec:
-        source:
-          repoURL: https://github.com/test/example-deployment.git
-          path: apps
-  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/.*
+  - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/.*
     rsp: Cloning into /tmp/xxxx...
   - cmd: git tag --sort=committerdate
     rsp: |
@@ -74,6 +68,12 @@ deploy:
       services/values.yaml
   - cmd: git ls-tree 3.0 -r | grep 120000
     rsp: ""
+  - cmd: argocd app get namespace/bl01t
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:

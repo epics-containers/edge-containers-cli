@@ -1,5 +1,5 @@
 instances:
-  - cmd: git clone https://github.com/epics-containers/bl01t /tmp/.*
+  - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/.*
     rsp: Cloning into /tmp/xxxx...
   - cmd: git tag --sort=committerdate
     rsp: |

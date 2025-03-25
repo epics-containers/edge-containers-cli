@@ -20,10 +20,10 @@ from edge_containers_cli.cmds.commands import (
     ServicesSchema,
 )
 from edge_containers_cli.definitions import ECContext
-from edge_containers_cli.git import create_version_map, del_key, set_value
+from edge_containers_cli.git import del_key, set_value
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
-from edge_containers_cli.utils import YamlTypes, new_workdir
+from edge_containers_cli.utils import YamlTypes
 
 
 def extract_ns_app(target: str) -> tuple[str, str]:
@@ -113,8 +113,6 @@ class ArgoCommands(Commands):
         "deploy": ["args", "wait"],
     }
 
-    params_optional = {"deploy": ["version"]}
-
     def __init__(
         self,
         ctx: ECContext,
@@ -125,25 +123,15 @@ class ArgoCommands(Commands):
         self._check_service(service_name)
         push_remove_key(self.target, f"ec_services.{service_name}")
 
-    def deploy(self, service_name: str, version: str, args: str) -> None:
-        with new_workdir() as path:
-            version_map = create_version_map(
-                self.repo,
-                Path(globals.SERVICES_DIR),
-                path,
-                shared=[globals.SHARED_VALUES],
-            )
-            svc_list = version_map.keys()
-            if service_name not in svc_list:
-                raise CommandError(f"Service '{service_name}' not found in {self.repo}")
+    def deploy(self, service_name, version, args, confirm_callback=None) -> None:
+        latest_version = self._get_latest_version(service_name)
+        if not version:
+            version = latest_version
+        if confirm_callback:
+            confirm_callback(version)
+        deploy_dict: YamlTypes = {"enabled": True, "targetRevision": version}
 
-            deploy_dict: YamlTypes = {
-                "enabled": True,
-            }
-            if version:
-                deploy_dict["targetRevision"] = version
-
-            push_value(self.target, f"ec_services.{service_name}", deploy_dict)
+        push_value(self.target, f"ec_services.{service_name}", deploy_dict)
 
     def logs(self, service_name, prev):
         self._logs(service_name, prev)

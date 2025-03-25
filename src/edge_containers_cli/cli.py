@@ -72,7 +72,7 @@ def deploy(
         ..., help="Name of the service to deploy", autocompletion=avail_services
     ),
     version: str = typer.Argument(
-        ...,
+        None,
         help="Version tag of the service to deploy",
         autocompletion=avail_versions,
     ),
@@ -85,13 +85,16 @@ def deploy(
     """
     Add a service to the cluster from its source repository
     """
-    confirmation(
-        f"Deploy {service_name.lower()} "
-        f"of version `{version}` to target `{backend.commands.target}`",
-        yes,
-    )
+
+    def confirm_callback(svc_version):
+        confirmation(
+            f"Deploy {service_name.lower()} "
+            f"of version `{svc_version}` to target `{backend.commands.target}`",
+            yes,
+        )
+
     args = args if not wait else args + " --wait"
-    backend.commands.deploy(service_name, version, args)
+    backend.commands.deploy(service_name, version, args, confirm_callback)
 
 
 @cli.command()
@@ -110,12 +113,15 @@ def deploy_local(
     """
     Add a local service helm chart directly to the cluster with dated beta version
     """
-    confirmation(
-        f"Deploy local {svc_instance.name.lower()} "
-        f"from {svc_instance} to target `{backend.commands.target}`",
-        yes,
-    )
-    backend.commands.deploy_local(svc_instance, args)
+
+    def confirm_callback(svc_version):
+        confirmation(
+            f"Deploy local {svc_instance.name.lower()} of version `{svc_version}` "
+            f"from {svc_instance} to target `{backend.commands.target}`",
+            yes,
+        )
+
+    backend.commands.deploy_local(svc_instance, args, confirm_callback)
 
 
 @cli.command()
