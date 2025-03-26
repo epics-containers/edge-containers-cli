@@ -4,6 +4,7 @@ implements commands for deploying and managing service instances suing argocd
 Relies on the Helm class for deployment aspects.
 """
 
+import re
 import webbrowser
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +30,18 @@ from edge_containers_cli.utils import YamlTypes
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
     return namespace, app
+
+
+def get_patches(target) -> dict:
+    app_resp = shell.run_command(
+        f"argocd app get --show-params {target} -o json",
+    )
+    app_dicts = YAML(typ="safe").load(app_resp)
+    try:
+        patch_dict = app_dicts["spec"]["source"]["helm"]["parameters"]
+    except KeyError:
+        patch_dict = {}
+    return patch_dict
 
 
 def do_retry(cmd):
@@ -91,9 +104,14 @@ def push_remove_key(target: str, key: str):
 
     del_key(repo_url, path / "values.yaml", key)
 
-    # Free a possible patched value & refresh repo
+    # Free a possible patched value, its children & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
     shell.run_command(cmd_unset, skip_on_dryrun=True)
+    app_patches = get_patches(target)
+    for patch in app_patches:
+        if re.match(rf"{key}\..*", patch["name"]):
+            cmd_unset_child = f"argocd app unset {target} -p {patch['name']}"
+            shell.run_command(cmd_unset_child, skip_on_dryrun=True)
     cmd_refresh = f"argocd app get {target} --refresh"
     shell.run_command(cmd_refresh, skip_on_dryrun=True)
     # Rely on argocd autosync to get the cluster into the right state
@@ -192,7 +210,10 @@ class ArgoCommands(Commands):
 
         if app_dicts:
             for app in app_dicts:
-                resources_dict = app["status"]["resources"]
+                try:
+                    resources_dict = app["status"]["resources"]
+                except KeyError:
+                    continue
 
                 for resource in resources_dict:
                     is_ready = False

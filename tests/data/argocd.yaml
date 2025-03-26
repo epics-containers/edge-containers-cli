@@ -41,6 +41,8 @@ delete:
     rsp: ""
   - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01
     rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
