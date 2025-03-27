@@ -40,7 +40,10 @@ cli = ErrorHandlingTyper(pretty_exceptions_show_locals=False)
 @cli.command()
 def attach(
     service_name: str = typer.Argument(
-        ..., help="Name of the service to attach to", autocompletion=running_svc
+        ...,
+        help="Name of the service to attach to",
+        autocompletion=running_svc,
+        show_default=False,
     ),
 ):
     """
@@ -52,7 +55,10 @@ def attach(
 @cli.command()
 def delete(
     service_name: str = typer.Argument(
-        ..., help="Name of the service to delete", autocompletion=all_svc
+        ...,
+        help="Name of the service to delete",
+        autocompletion=all_svc,
+        show_default=False,
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
 ):
@@ -69,12 +75,16 @@ def delete(
 @cli.command()
 def deploy(
     service_name: str = typer.Argument(
-        ..., help="Name of the service to deploy", autocompletion=avail_services
+        ...,
+        help="Name of the service to deploy",
+        autocompletion=avail_services,
+        show_default=False,
     ),
     version: str = typer.Argument(
         "latest tag",
         help="Version tag or branch of the service to deploy",
         autocompletion=avail_versions,
+        show_default=False,
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
@@ -107,6 +117,7 @@ def deploy_local(
         file_okay=False,
         resolve_path=True,
         autocompletion=force_plain_completion,
+        show_default=False,
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
@@ -138,6 +149,7 @@ def exec(
         ...,
         help="Name of the service container to run in",
         autocompletion=running_svc,
+        show_default=False,
     ),
 ):
     """Execute a bash prompt in a running container"""
@@ -147,7 +159,10 @@ def exec(
 @cli.command()
 def instances(
     service_name: str = typer.Argument(
-        ..., help="Name of the service to inspect", autocompletion=avail_services
+        ...,
+        help="Name of the service to inspect",
+        autocompletion=avail_services,
+        show_default=False,
     ),
 ):
     """List all versions of the specified service in the repository"""
@@ -179,6 +194,7 @@ def log_history(
         ...,
         help="Name of the service to inspect",
         autocompletion=all_svc,
+        show_default=False,
     ),
 ):
     """Open historical logs for a service"""
@@ -188,7 +204,10 @@ def log_history(
 @cli.command()
 def logs(
     service_name: str = typer.Argument(
-        ..., help="Name of the service to inspect", autocompletion=running_svc
+        ...,
+        help="Name of the service to inspect",
+        autocompletion=running_svc,
+        show_default=False,
     ),
     prev: bool = typer.Option(
         False,
@@ -229,7 +248,10 @@ def ps(
 @cli.command()
 def restart(
     service_name: str = typer.Argument(
-        ..., help="Name of the container to restart", autocompletion=running_svc
+        ...,
+        help="Name of the container to restart",
+        autocompletion=running_svc,
+        show_default=False,
     ),
 ):
     """Restart a service"""
@@ -239,7 +261,10 @@ def restart(
 @cli.command()
 def start(
     service_name: str = typer.Argument(
-        ..., help="Name of the service container to start", autocompletion=all_svc
+        ...,
+        help="Name of the service container to start",
+        autocompletion=all_svc,
+        show_default=False,
     ),
     commit: bool = typer.Option(False, help="Commits the values to the git repo"),
 ):
@@ -257,6 +282,7 @@ def stop(
         ...,
         help="Name of the service container to stop",
         autocompletion=running_svc,
+        show_default=False,
     ),
     commit: bool = typer.Option(False, help="Commits the values to the git repo"),
 ):
@@ -277,6 +303,7 @@ def template(
         file_okay=False,
         resolve_path=True,
         autocompletion=force_plain_completion,
+        show_default=False,
     ),
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
