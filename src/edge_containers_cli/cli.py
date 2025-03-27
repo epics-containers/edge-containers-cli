@@ -72,8 +72,8 @@ def deploy(
         ..., help="Name of the service to deploy", autocompletion=avail_services
     ),
     version: str = typer.Argument(
-        None,
-        help="Version tag of the service to deploy",
+        "latest tag",
+        help="Version tag or branch of the service to deploy",
         autocompletion=avail_versions,
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
@@ -94,6 +94,7 @@ def deploy(
         )
 
     args = args if not wait else args + " --wait"
+    version = version if version != "latest tag" else ""
     backend.commands.deploy(service_name, version, args, confirm_callback)
 
 
