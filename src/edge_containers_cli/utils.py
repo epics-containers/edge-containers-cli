@@ -213,3 +213,10 @@ class YamlFile:
             curser[element] = value
 
         log.debug(f"Set '{element}' in '{key_path}' to {value}")
+
+
+def is_partial_match(query: str, target_list: list[str]) -> bool:
+    for item in target_list:
+        if query in item:
+            return True
+    return False
