@@ -43,7 +43,7 @@ dev = [
 ]
 
 [project.scripts]
-ec = "edge_containers_cli.__main__:cli"
+ec = "edge_containers_cli.__main__:main"
 
 [project.urls]
 GitHub = "https://github.com/epics-containers/edge-containers-cli"

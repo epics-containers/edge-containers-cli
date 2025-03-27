@@ -1,3 +1,4 @@
+import sys
 from typing import Optional
 
 import typer
@@ -13,6 +14,8 @@ from .shell import init_shell
 from .utils import init_cleanup
 
 __all__ = ["main"]
+
+DEFAULT_BACKEND = ECBackends.ARGOCD
 
 
 def version_callback(value: bool):
@@ -30,7 +33,7 @@ def backend_callback(ctx: typer.Context, backend: ECBackends):
 
 
 @cli.callback()
-def main(
+def _main(
     ctx: typer.Context,
     version: Optional[bool] = typer.Option(
         None,
@@ -54,7 +57,7 @@ def main(
         envvar=ENV.target.value,
     ),
     backend: ECBackends = typer.Option(
-        ECBackends.ARGOCD,
+        DEFAULT_BACKEND,
         "-b",
         "--backend",
         callback=backend_callback,
@@ -110,7 +113,23 @@ def main(
     ec_backend.set_context(context)
 
 
+def force_backend_callback():
+    """
+    Typer does not execute option callbacks before running --help unless the
+    option is explicitly provided
+    """
+    if "--help" in sys.argv:
+        if "-b" not in sys.argv:
+            sys.argv.insert(1, ECBackends.ARGOCD)
+            sys.argv.insert(1, "-b")
+
+
+def main():
+    force_backend_callback()
+    cli()
+
+
 # test with:
 #     python -m edge_containers_cli
 if __name__ == "__main__":
-    cli()
+    main()
