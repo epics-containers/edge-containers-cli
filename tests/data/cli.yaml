@@ -27,10 +27,10 @@ instances:
       100644 blob 8241e61b9613d1e14ce50640340429d1f2a8f46c    services/dls-aravis/Chart.yaml
       120000 blob 367e2aae38dd9ed05fdf33636a6b81314e3fbf75    services/dls-aravis/templates
   - cmd: git cat-file -p 367e2aae38dd9ed05fdf33636a6b81314e3fbf75
-    rsp: ../../shared/
+    rsp: ../../shared/templates
   - cmd: git diff 2.0 3.0 --name-only
     rsp: |
-      services/dls/templates
+      shared/templates
   - cmd: git ls-tree -r 3.0
     rsp: |
       100644 blob 13bcbf79241ecdb006a5a8304c5d9d8f293ddab8    services/.ioc_template/Chart.yaml
