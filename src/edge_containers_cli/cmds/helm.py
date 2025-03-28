@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
 
@@ -50,19 +51,25 @@ class Helm:
         for package in service_path.glob("*.tgz"):
             package.unlink(missing_ok=True)
 
-    def deploy_local(self, service_path: Path):
+    def deploy_local(
+        self, service_path: Path, confirm_callback: Callable[[str], None] | None = None
+    ):
         """
         Deploy a local helm chart directly to the cluster with dated beta version
         """
 
+        if confirm_callback:
+            confirm_callback(self.version)
         validate_instance_path(service_path)
         self.cleanup_chart(service_path)
         self._do_deploy(service_path)
 
-    def deploy(self):
+    def deploy(self, confirm_callback: Callable[[str], None] | None = None):
         """
         Clone a helm chart and deploy it to the cluster
         """
+        if confirm_callback:
+            confirm_callback(self.version)
         shell.run_command(
             f"git clone {self.repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",

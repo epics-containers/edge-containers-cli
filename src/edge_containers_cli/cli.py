@@ -57,10 +57,10 @@ def delete(
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
 ):
     """
-    Remove a helm deployment from the cluster
+    Remove a service from the cluster
     """
     confirmation(
-        f"Remove all versions of {service_name} from the target `{backend.commands.target}`",
+        f"Remove {service_name} from the target `{backend.commands.target}`",
         yes,
     )
     backend.commands.delete(service_name)
@@ -72,8 +72,8 @@ def deploy(
         ..., help="Name of the service to deploy", autocompletion=avail_services
     ),
     version: str = typer.Argument(
-        ...,
-        help="Version tag of the service to deploy",
+        "latest tag",
+        help="Version tag or branch of the service to deploy",
         autocompletion=avail_versions,
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
@@ -83,15 +83,19 @@ def deploy(
     ),
 ):
     """
-    Pull an service helm chart version from the domain repo and deploy it to the cluster
+    Add a service to the cluster from its source repository
     """
-    confirmation(
-        f"Deploy {service_name.lower()} "
-        f"of version `{version}` to target `{backend.commands.target}`",
-        yes,
-    )
+
+    def confirm_callback(svc_version):
+        confirmation(
+            f"Deploy {service_name.lower()} "
+            f"of version `{svc_version}` to target `{backend.commands.target}`",
+            yes,
+        )
+
     args = args if not wait else args + " --wait"
-    backend.commands.deploy(service_name, version, args)
+    version = version if version != "latest tag" else ""
+    backend.commands.deploy(service_name, version, args, confirm_callback)
 
 
 @cli.command()
@@ -108,14 +112,17 @@ def deploy_local(
     args: str = typer.Option("", help="Additional args for helm, 'must be quoted'"),
 ):
     """
-    Deploy a local service helm chart directly to the cluster with dated beta version
+    Add a local service helm chart directly to the cluster with dated beta version
     """
-    confirmation(
-        f"Deploy local {svc_instance.name.lower()} "
-        f"from {svc_instance} to target `{backend.commands.target}`",
-        yes,
-    )
-    backend.commands.deploy_local(svc_instance, args)
+
+    def confirm_callback(svc_version):
+        confirmation(
+            f"Deploy local {svc_instance.name.lower()} of version `{svc_version}` "
+            f"from {svc_instance} to target `{backend.commands.target}`",
+            yes,
+        )
+
+    backend.commands.deploy_local(svc_instance, args, confirm_callback)
 
 
 @cli.command()
@@ -154,8 +161,8 @@ def instances(
     )
 
 
-@cli.command()
-def list():
+@cli.command(name="list")
+def _list():
     """List all services available in the service repository"""
     print(
         list_all(
@@ -174,7 +181,7 @@ def log_history(
         autocompletion=all_svc,
     ),
 ):
-    """Open historical logs for an service"""
+    """Open historical logs for a service"""
     backend.commands.log_history(service_name)
 
 
@@ -190,7 +197,7 @@ def logs(
         help="Show log from the previous instance of the service",
     ),
 ):
-    """Show logs for current and previous instances of an service"""
+    """Show logs for current and previous instances of a service"""
     backend.commands.logs(service_name, prev)
 
 
@@ -200,7 +207,7 @@ def monitor(
         False, "-r", "--running-only", help="list only services that are running"
     ),
 ):
-    """Open monitor TUI."""
+    """Open monitor TUI"""
     from edge_containers_cli.cmds.monitor import (
         MonitorApp,  # Lazy import for performace
     )
@@ -278,3 +285,30 @@ def template(
     """
     args = f"{args} --debug"
     backend.commands.template(svc_instance, args)
+
+
+def drop_methods(ctx: typer.Context, to_drop: list[str]):
+    """Dynamically drop any method not implemented"""
+    not_implemented = [mthd.replace("_", "-") for mthd in to_drop]
+    typer_commands = ctx.command.commands  # type: ignore
+    for command in not_implemented:
+        if command in typer_commands:
+            typer_commands.pop(command)
+
+
+def drop_options(ctx: typer.Context, to_drop: dict[str, list[str]]):
+    """Dynamically drop any cli options as specified"""
+    typer_commands = ctx.command.commands  # type: ignore
+    for cmd_name, drop_params in to_drop.items():
+        for i, param in enumerate(typer_commands[cmd_name].params):
+            if param.name in drop_params:
+                typer_commands[cmd_name].params.pop(i)
+
+
+def set_optional(ctx: typer.Context, to_set: dict[str, list[str]]):
+    """Dynamically set any cli options optional as specified"""
+    typer_commands = ctx.command.commands  # type: ignore
+    for cmd_name, optional_params in to_set.items():
+        for i, param in enumerate(typer_commands[cmd_name].params):
+            if param.name in optional_params:
+                typer_commands[cmd_name].params[i].required = False

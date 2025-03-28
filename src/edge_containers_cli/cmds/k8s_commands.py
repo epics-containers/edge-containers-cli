@@ -11,7 +11,11 @@ from io import StringIO
 import polars
 from ruamel.yaml import YAML
 
-from edge_containers_cli.cmds.commands import CommandError, Commands, ServicesDataFrame
+from edge_containers_cli.cmds.commands import (
+    CommandError,
+    Commands,
+    ServicesDataFrame,
+)
 from edge_containers_cli.cmds.helm import Helm
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.globals import TIME_FORMAT
@@ -41,13 +45,17 @@ class K8sCommands(Commands):
             skip_on_dryrun=True,
         )
 
-    def delete(self, service_name):
+    def delete(self, service_name, commit=False):
         self._check_service(service_name)
         shell.run_command(
             f"helm delete -n {self.target} {service_name}", skip_on_dryrun=True
         )
 
-    def deploy(self, service_name, version, args):
+    def deploy(self, service_name, version, args, confirm_callback=None):
+        latest_version = self._get_latest_version(service_name)
+        if not version:
+            version = latest_version
+
         chart = Helm(
             self.target,
             service_name,
@@ -55,12 +63,12 @@ class K8sCommands(Commands):
             version,
             repo=self.repo,
         )
-        chart.deploy()
+        chart.deploy(confirm_callback)
 
-    def deploy_local(self, svc_instance, args):
+    def deploy_local(self, svc_instance, args, confirm_callback=None):
         service_name = svc_instance.name.lower()
         chart = Helm(self.target, service_name, args=args)
-        chart.deploy_local(svc_instance)
+        chart.deploy_local(svc_instance, confirm_callback)
 
     def exec(self, service_name):
         self._check_service(service_name)

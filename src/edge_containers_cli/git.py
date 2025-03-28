@@ -10,34 +10,69 @@ from natsort import natsorted
 
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
-from edge_containers_cli.utils import YamlFile, chdir, new_workdir
+from edge_containers_cli.utils import (
+    YamlFile,
+    YamlFileError,
+    YamlTypes,
+    chdir,
+    new_workdir,
+)
 
 
 class GitError(Exception):
     pass
 
 
-def set_values(repo_url: str, file: Path, key: str, value: str | bool | int) -> None:
+def set_value(
+    repo_url: str,
+    file: Path,
+    key: str,
+    value: YamlTypes,
+) -> None:
     """
-    sets an existing key value pair in a yaml file and push the changes
+    sets a key,value pair in a yaml file and push the changes
     """
     with new_workdir() as path:
         try:
             shell.run_command(f"git clone --depth=1 {repo_url} {path}")
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
+                try:
+                    value_repo = file_data.get_key(key)
+                    if value_repo == value:
+                        log.debug(f"{key} already set as {value}")
+                        return None
+                except YamlFileError:
+                    pass
 
-                value_repo = file_data.get_key(key)
-                if value_repo == value:
-                    log.debug(f"{key} already set as {value}")
-                else:
-                    file_data.set_key(key, value)
-                    file_data.dump_file()
+                file_data.set_key(key, value)
+                file_data.dump_file()
 
-                    commit_msg = f"Set {key}={value} in {file}"
-                    shell.run_command("git add .")
-                    shell.run_command(f'git commit -m "{commit_msg}"')
-                    shell.run_command("git push", skip_on_dryrun=True)
+                commit_msg = f"Set {key}={value} in {file}"
+                shell.run_command("git add .")
+                shell.run_command(f'git commit -m "{commit_msg}"')
+                shell.run_command("git push", skip_on_dryrun=True)
+
+        except (FileNotFoundError, ShellError) as e:
+            raise GitError(str(e)) from e
+
+
+def del_key(repo_url: str, file: Path, key: str) -> None:
+    """
+    remove a key from a yaml file and push the changes
+    """
+    with new_workdir() as path:
+        try:
+            shell.run_command(f"git clone --depth=1 {repo_url} {path}")
+            with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
+                file_data = YamlFile(file)
+                file_data.remove_key(key)
+                file_data.dump_file()
+
+                commit_msg = f"Remove {key} in {file}"
+                shell.run_command("git add .")
+                shell.run_command(f'git commit -m "{commit_msg}"')
+                shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
             raise GitError(str(e)) from e

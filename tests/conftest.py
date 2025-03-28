@@ -180,6 +180,7 @@ def K8S(mocker, data):
             "EC_TARGET": "bl01t",
             "EC_CLI_BACKEND": "K8S",
             "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t-services",
+            "EC_DEBUG": "True",
         },
     )
     file = Path(__file__).parent / "data" / "k8s.yaml"
@@ -192,7 +193,7 @@ def CLI(mocker, data):
     mocker.patch.dict(
         os.environ,
         {
-            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t",
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t-services",
         },
     )
     file = Path(__file__).parent / "data" / "cli.yaml"
@@ -208,6 +209,8 @@ def ARGOCD(mocker, data):
             "EC_LOG_URL": "https://graylog2.diamond.ac.uk/{service_name}*",
             "EC_TARGET": "namespace/bl01t",
             "EC_CLI_BACKEND": "ARGOCD",
+            "EC_SERVICES_REPO": "https://github.com/epics-containers/bl01t-services",
+            "EC_DEBUG": "True",
         },
     )
     file = Path(__file__).parent / "data" / "argocd.yaml"
