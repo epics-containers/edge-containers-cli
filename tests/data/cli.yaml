@@ -25,7 +25,7 @@ instances:
       100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
       100644 blob c473ca76143b9b7281e5dd455dbd01fb25edae7b    services/bl01t-ea-test-02/Chart.yaml
       100644 blob 8241e61b9613d1e14ce50640340429d1f2a8f46c    services/dls-aravis/Chart.yaml
-      120000 blob 367e2aae38dd9ed05fdf33636a6b81314e3fbf75    services/dls/templates
+      120000 blob 367e2aae38dd9ed05fdf33636a6b81314e3fbf75    services/dls-aravis/templates
   - cmd: git cat-file -p 367e2aae38dd9ed05fdf33636a6b81314e3fbf75
     rsp: ../../shared/
   - cmd: git diff 2.0 3.0 --name-only
@@ -37,7 +37,7 @@ instances:
       100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
       100644 blob c473ca76143b9b7281e5dd455dbd01fb25edae7b    services/bl01t-ea-test-02/Chart.yaml
       100644 blob 8241e61b9613d1e14ce50640340429d1f2a8f46c    services/dls-aravis/Chart.yaml
-      120000 blob 367e2aae38dd9ed05fdf33636a6b81314e3fbf75    services/dls/templates
+      120000 blob 367e2aae38dd9ed05fdf33636a6b81314e3fbf75    services/dls-aravis/templates
   - cmd: git diff 3.0 4.0 --name-only
     rsp: |
       services/values.yaml
@@ -47,4 +47,4 @@ instances:
       100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
       100644 blob c473ca76143b9b7281e5dd455dbd01fb25edae7b    services/bl01t-ea-test-02/Chart.yaml
       100644 blob 8241e61b9613d1e14ce50640340429d1f2a8f46c    services/dls-aravis/Chart.yaml
-      120000 blob 367e2aae38dd9ed05fdf33636a6b81314e3fbf75    services/dls/templates
+      120000 blob 367e2aae38dd9ed05fdf33636a6b81314e3fbf75    services/dls-aravis/templates
