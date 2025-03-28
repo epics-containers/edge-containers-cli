@@ -1,3 +1,4 @@
+import os
 import sys
 from typing import Optional
 
@@ -120,7 +121,8 @@ def force_backend_callback():
     """
     if "--help" in sys.argv:
         if "-b" not in sys.argv:
-            sys.argv.insert(1, ECBackends.ARGOCD)
+            backend = os.environ.get("EC_CLI_BACKEND", DEFAULT_BACKEND)
+            sys.argv.insert(1, backend)
             sys.argv.insert(1, "-b")
 
 
