@@ -159,7 +159,7 @@ def create_version_map(
                 )
                 changed_files = shell.run_command(cmd).split()
 
-            cmd = f"git ls-tree {tags_list[tag_no]} -r"
+            cmd = f"git ls-tree -r {tags_list[tag_no]}"
             cmd_res = str(shell.run_command(cmd, error_OK=True))
             symlink_object_map = {}
             service_list = []

@@ -16,7 +16,7 @@ def test_deploy(mock_run, ARGOCD, data: Path):
     TMPDIR.mkdir()
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
-    mock_run.run_cli("deploy bl01t-ea-test-01 main")
+    mock_run.run_cli("deploy bl01t-ea-test-01")
 
 
 def test_logs(mock_run, ARGOCD):

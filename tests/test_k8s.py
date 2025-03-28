@@ -30,7 +30,7 @@ def test_deploy(mock_run, K8S, data: Path):
     mock_run.set_seq(K8S.deploy)
     # prep what deploy expects to find after it cloned bl01t repo
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
-    mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+    mock_run.run_cli("deploy bl01t-ea-test-01")
 
 
 def test_exec(mock_run, K8S):

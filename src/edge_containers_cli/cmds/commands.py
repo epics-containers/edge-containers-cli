@@ -195,7 +195,7 @@ class Commands(ABC):
                 self.repo,
                 Path(globals.SERVICES_DIR),
                 path,
-                shared=[globals.SHARED_VALUES],
+                shared_files=[globals.SHARED_VALUES],
             )
         svc_list = version_map.keys()
         log.debug(f"Found the following services: {svc_list}")
