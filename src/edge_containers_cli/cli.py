@@ -171,7 +171,7 @@ def instances(
             service_name,
             backend.commands.repo,
             Path(globals.SERVICES_DIR),
-            shared=[globals.SHARED_VALUES],
+            shared_files=[globals.SHARED_VALUES],
         )
     )
 
@@ -183,7 +183,7 @@ def _list():
         list_all(
             backend.commands.repo,
             Path(globals.SERVICES_DIR),
-            shared=[globals.SHARED_VALUES],
+            shared_files=[globals.SHARED_VALUES],
         )
     )
 

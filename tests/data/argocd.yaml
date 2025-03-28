@@ -53,23 +53,17 @@ deploy:
     rsp: |
       1.0
       2.0
-      3.0
   - cmd: git ls-tree -r 1.0 --name-only
     rsp: |
       services/bl01t-ea-test-01
-      services/bl01t-ea-test-02
-  - cmd: git diff --name-only 1.0 2.0
+  - cmd: git ls-tree -r 1.0
     rsp: |
-      services/dls-aravis
-  - cmd: git ls-tree 2.0 -r | grep 120000
-    rsp: 120000 blob test-hash services/bl01t-ea-test-02/charts/dls-aravis
-  - cmd: git cat-file -p test-hash
-    rsp: ../../dls-aravis/
-  - cmd: git diff --name-only 2.0 3.0
-    rsp: |
-      services/values.yaml
-  - cmd: git ls-tree 3.0 -r | grep 120000
+      100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
+  - cmd: git diff 1.0 2.0 --name-only
     rsp: ""
+  - cmd: git ls-tree -r 2.0
+    rsp: |
+      100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
   - cmd: argocd app get namespace/bl01t
     rsp: |
       spec:
