@@ -18,7 +18,7 @@ RUN VERSION=v2.14.10 && \
 
 # kubectl - see https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
 RUN VERSION=v1.32.3 && \
-    curl -sSL https://dl.k8s.io/release/$VERSION/bin/linux/amd64/kubectl && \
+    curl -sSLO https://dl.k8s.io/release/$VERSION/bin/linux/amd64/kubectl && \
     echo "ab209d0c5134b61486a0486585604a616a5bb2fc07df46d304b3c95817b2d79f kubectl" | sha256sum -c && \
     install -m 555 kubectl /usr/local/bin/kubectl && \
     rm kubectl
