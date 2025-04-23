@@ -22,8 +22,7 @@ PyPI            | `pip install edge-containers-cli`
 Releases        | <https://github.com/epics-containers/edge-containers-cli/releases>
 
 
-To discover the CLI commands, create a python virtual environment,
-and perform the following:
+To discover the CLI commands, create a python virtual environment, and perform the following:
 
     pip install edge-containers-cli
     ec --version
