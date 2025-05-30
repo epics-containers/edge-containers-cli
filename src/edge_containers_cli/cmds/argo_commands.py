@@ -151,6 +151,24 @@ class ArgoCommands(Commands):
 
         push_value(self.target, f"ec_services.{service_name}", deploy_dict)
 
+    def exec(self, service_name):
+        # this command uses kubectl. TODO is there an argocd cli equivalent?
+        self._check_service(service_name)
+        # namespace for kubectl is the first part of the argocd root app name
+        # TODO this is very specific to the nameing conventions used at DLS
+        # and is a bit rubbish - we probably should also provide the namespace
+        # as an environment variable - but I'd prefer a pure argocd solution
+        # if possible
+        target = f"{self.target.split('/')[1]}-beamline"
+        shell.run_interactive(
+            f"kubectl -it -n {target} exec {service_name}-0 -- bash",
+            skip_on_dryrun=True,
+        )
+
+    def attach(self, service_name):
+        self._check_service(service_name)
+        self.exec("ioc-attach")
+
     def logs(self, service_name, prev):
         self._logs(service_name, prev)
 
