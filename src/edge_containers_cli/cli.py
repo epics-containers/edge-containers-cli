@@ -99,7 +99,7 @@ def deploy(
     def confirm_callback(svc_version):
         confirmation(
             f"Deploy {service_name.lower()} "
-            f"of version `{svc_version}` to target `{backend.commands.target}`",
+            f" version `{svc_version}` to target `{backend.commands.target}`",
             yes,
         )
 
