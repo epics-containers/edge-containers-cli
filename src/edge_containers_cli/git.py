@@ -234,3 +234,20 @@ def list_instances(
         sorted_list = natsorted(svc_list)[::-1]
         services_df = polars.from_dict({"version": sorted_list})
         return services_df
+
+
+def check_exists(path: Path, repo: str, tag: str) -> bool:
+    """
+    Check if a path exists within the given repository and tag/branch.
+    """
+    with new_workdir() as working_dir:
+        try:
+            shell.run_command(f"git clone {repo} -b {tag} {working_dir}")
+        except ShellError:
+            log.debug(f"Branch or tag '{tag}' does not exist in repo '{repo}'.")
+            return False
+        full_path = Path(working_dir) / path
+        if not full_path.exists():
+            log.debug(f"'{path}' does not exist in repo '{repo}', tag {tag}.")
+            return False
+    return True

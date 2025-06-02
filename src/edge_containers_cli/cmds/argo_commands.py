@@ -21,7 +21,7 @@ from edge_containers_cli.cmds.commands import (
     ServicesSchema,
 )
 from edge_containers_cli.definitions import ECContext
-from edge_containers_cli.git import del_key, set_value
+from edge_containers_cli.git import check_exists, del_key, set_value
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import YamlTypes
@@ -142,9 +142,17 @@ class ArgoCommands(Commands):
         push_remove_key(self.target, f"ec_services.{service_name}")
 
     def deploy(self, service_name, version, args, confirm_callback=None) -> None:
-        latest_version = self._get_latest_version(service_name)
         if not version:
+            latest_version = self._get_latest_version(service_name)
             version = latest_version
+
+        service_path = Path(globals.SERVICES_DIR) / service_name
+        if not check_exists(service_path, self.repo, version):
+            raise CommandError(
+                f"Service '{service_name}' not found in repo "
+                f"'{self.repo}' with branch/tag '{version}'"
+            )
+
         if confirm_callback:
             confirm_callback(version)
         deploy_dict: YamlTypes = {"enabled": True, "targetRevision": version}

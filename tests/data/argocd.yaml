@@ -64,6 +64,8 @@ deploy:
   - cmd: git ls-tree -r 2.0
     rsp: |
       100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
+  - cmd: git clone https://github.com/epics-containers/bl01t-services -b 1.0 /tmp/ec_tests
+    rsp: ""
   - cmd: argocd app get namespace/bl01t
     rsp: |
       spec:

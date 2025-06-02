@@ -52,8 +52,8 @@ class K8sCommands(Commands):
         )
 
     def deploy(self, service_name, version, args, confirm_callback=None):
-        latest_version = self._get_latest_version(service_name)
         if not version:
+            latest_version = self._get_latest_version(service_name)
             version = latest_version
 
         chart = Helm(
