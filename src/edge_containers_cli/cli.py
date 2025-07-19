@@ -88,6 +88,12 @@ def deploy(
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+    branch: str = typer.Option(
+        "main",
+        "--branch",
+        "-b",
+        help="Branch to deploy to. ArgoCD only",
+    ),
     args: str = typer.Option(
         "", help="Additional args for helm or docker, 'must be quoted'"
     ),
@@ -105,7 +111,7 @@ def deploy(
 
     args = args if not wait else args + " --wait"
     version = version if version != "latest tag" else ""
-    backend.commands.deploy(service_name, version, args, confirm_callback)
+    backend.commands.deploy(service_name, version, branch, args, confirm_callback)
 
 
 @cli.command()

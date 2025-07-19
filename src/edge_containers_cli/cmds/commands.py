@@ -119,6 +119,7 @@ class Commands(ABC):
         service_name: str,
         version: str,
         args: str,
+        branch: str,
         confirm_callback: Callable[[str], None] | None = None,
     ) -> None:
         raise NotImplementedError

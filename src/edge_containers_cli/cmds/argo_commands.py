@@ -141,7 +141,9 @@ class ArgoCommands(Commands):
         self._check_service(service_name)
         push_remove_key(self.target, f"ec_services.{service_name}")
 
-    def deploy(self, service_name, version, args, confirm_callback=None) -> None:
+    def deploy(
+        self, service_name, version, args, branch, confirm_callback=None
+    ) -> None:
         if not version:
             latest_version = self._get_latest_version(service_name)
             version = latest_version
