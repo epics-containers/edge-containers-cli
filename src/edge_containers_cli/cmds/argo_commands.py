@@ -73,7 +73,7 @@ def patch_value(target: str, key: str, value: YamlTypes):
 
 
 @do_retry
-def push_value(target: str, key: str, value: YamlTypes):
+def push_value(target: str, key: str, value: YamlTypes, branch):
     # Get source details
     app_resp = shell.run_command(
         f"argocd app get {target} -o yaml",
@@ -82,7 +82,7 @@ def push_value(target: str, key: str, value: YamlTypes):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    set_value(repo_url, path / "values.yaml", key, value)
+    set_value(repo_url, path / "values.yaml", key, value, branch)
 
     # Free a possible patched value & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
@@ -159,7 +159,7 @@ class ArgoCommands(Commands):
             confirm_callback(version)
         deploy_dict: YamlTypes = {"enabled": True, "targetRevision": version}
 
-        push_value(self.target, f"ec_services.{service_name}", deploy_dict)
+        push_value(self.target, f"ec_services.{service_name}", deploy_dict, branch)
 
     def logs(self, service_name, prev):
         self._logs(service_name, prev)

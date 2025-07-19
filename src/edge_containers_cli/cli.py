@@ -111,7 +111,7 @@ def deploy(
 
     args = args if not wait else args + " --wait"
     version = version if version != "latest tag" else ""
-    backend.commands.deploy(service_name, version, branch, args, confirm_callback)
+    backend.commands.deploy(service_name, version, args, branch, confirm_callback)
 
 
 @cli.command()

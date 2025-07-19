@@ -30,13 +30,14 @@ def set_value(
     file: Path,
     key: str,
     value: YamlTypes,
+    branch: str,
 ) -> None:
     """
     sets a key,value pair in a yaml file and push the changes
     """
     with new_workdir() as path:
         try:
-            shell.run_command(f"git clone --depth=1 {repo_url} {path}")
+            shell.run_command(f"git clone --depth=1 {repo_url} {path} -b{branch}")
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
                 try:
