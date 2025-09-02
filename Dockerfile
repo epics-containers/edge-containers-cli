@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # The runtime stage installs runtime deps then copies in built assets
 # This time we remove the apt lists to save disk space
-FROM ubuntu:noble as runtime
+FROM ubuntu:noble AS runtime
 
 # Add apt-get system dependecies for runtime here if needed
 
