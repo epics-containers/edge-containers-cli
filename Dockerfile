@@ -1,17 +1,42 @@
-# This container is used for deploying ec as an apptainer container including
-# the CLI tools it uses. See https://github.com/DiamondLightSource/deploy-tools
-ARG PYTHON_VERSION=3.12
-FROM python:${PYTHON_VERSION} AS developer
+# The developer stage is used as a devcontainer including dev versions
+# of the build dependencies
+FROM ghcr.io/diamondlightsource/ubuntu-devcontainer:noble AS developer
 
-# Set up a virtual environment and put it in PATH
-RUN python -m venv /venv
-ENV PATH=/venv/bin:$PATH
+# Add any system dependencies for the developer/build environment here
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    graphviz \
+    && rm -rf /var/lib/apt/lists/*
 
-# install the context into the venv
-COPY . /context
-WORKDIR /context
-RUN touch dev-requirements.txt && \
-    pip install -c dev-requirements.txt .
+# The build stage makes some assets using the developer tools
+FROM developer AS build
+# Copy only dependency files first
+COPY pyproject.toml uv.lock /assets/
+WORKDIR /assets
 
+# Install the project's dependencies using the lockfile and settings
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project --no-dev
+
+# Then, add the rest of the project source code and install it
+# Installing separately from its dependencies allows optimal layer caching
+COPY . /assets/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
+
+# The runtime stage installs runtime deps then copies in built assets
+# This time we remove the apt lists to save disk space
+FROM ubuntu:noble as runtime
+
+# Add apt-get system dependecies for runtime here if needed
+
+COPY --from=build /assets /
+
+# We need to keep the venv at the same absolute path as in the build stage
+COPY --from=build /assets/.venv/ .venv/
+ENV PATH=.venv/bin:$PATH
+
+# Change this entrypoint if it is not the same as the repo
 ENTRYPOINT ["ec"]
 CMD ["--version"]
