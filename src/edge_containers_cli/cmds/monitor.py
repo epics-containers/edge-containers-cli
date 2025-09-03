@@ -38,7 +38,7 @@ from edge_containers_cli.definitions import ECLogLevels, emoji
 from edge_containers_cli.logging import log
 
 
-class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
+class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):  # type: ignore
     BINDINGS = [
         Binding("y,enter", "option_yes", "Yes"),
         Binding("n,c,escape", "option_cancel", "Cancel"),
@@ -71,7 +71,7 @@ class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
         self.dismiss(False)
 
 
-class LogsScreen(ModalScreen, inherit_bindings=False):
+class LogsScreen(ModalScreen, inherit_bindings=False):  # type: ignore
     """Screen to display IOC logs."""
 
     BINDINGS = [
