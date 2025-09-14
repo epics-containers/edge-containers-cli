@@ -21,6 +21,9 @@ dependencies = [
     "jinja2",
     "polars-lts-cpu",
     "textual",
+    # urllib>=2.4.0 fails to validate DLS Kubernetes certificates
+    # https://github.com/kubernetes-client/python/issues/2394
+    "urllib3<2.4.0",
 ]
 
 dynamic = ["version"]
@@ -58,7 +61,7 @@ version_file = "src/edge_containers_cli/_version.py"
 
 [tool.pyright]
 typeCheckingMode = "standard"
-reportMissingImports = false # Ignore missing stubs in imported modules
+reportMissingImports = false  # Ignore missing stubs in imported modules
 
 [tool.pytest.ini_options]
 # Run pytest with all our checkers, and don't spam us with massive tracebacks on error
