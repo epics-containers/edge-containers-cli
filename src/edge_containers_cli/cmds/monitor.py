@@ -34,7 +34,7 @@ from textual.widgets.data_table import RowKey
 from textual.worker import get_current_worker
 
 from edge_containers_cli.cmds.commands import Commands
-from edge_containers_cli.definitions import ECLogLevels, emoji
+from edge_containers_cli.definitions import ECLogLevels, Emoji
 from edge_containers_cli.logging import log
 
 
@@ -239,7 +239,7 @@ class IocTable(Widget):
         self._indicator_lock = threading.Lock()
         self._service_indicators = {
             "name": [""],
-            emoji.exclaim: [""],
+            Emoji.exclaim: [""],
         }
         iocs_df = self._get_services_df(self.running_only)
         self.columns = iocs_df.columns
@@ -289,8 +289,8 @@ class IocTable(Widget):
         services_df = self.commands._get_services(running_only)  # noqa: SLF001
         services_df = services_df.with_columns(
             polars.when(polars.col("ready"))
-            .then(polars.lit(emoji.check_mark))
-            .otherwise(polars.lit(emoji.cross_mark))
+            .then(polars.lit(Emoji.check_mark))
+            .otherwise(polars.lit(Emoji.cross_mark))
             .alias("ready")
         )
         indicators_df = polars.DataFrame(self._service_indicators)
@@ -305,10 +305,10 @@ class IocTable(Widget):
         with self._indicator_lock:
             if name in self._service_indicators["name"]:
                 index = self._service_indicators["name"].index(name)
-                self._service_indicators[emoji.exclaim][index] = indicator
+                self._service_indicators[Emoji.exclaim][index] = indicator
             else:
                 self._service_indicators["name"].append(name)
-                self._service_indicators[emoji.exclaim].append(indicator)
+                self._service_indicators[Emoji.exclaim].append(indicator)
 
     def watch_sort_column_id(self, sort_column_id: str) -> None:
         """Called when the sort_column_id attribute changes."""
@@ -479,9 +479,9 @@ class MonitorApp(App):
 
             def do_task(command, service_name):
                 def _do_task():
-                    table.update_indicator_threadsafe(service_name, emoji.road_works)
+                    table.update_indicator_threadsafe(service_name, Emoji.road_works)
                     command(service_name)
-                    table.update_indicator_threadsafe(service_name, emoji.none)
+                    table.update_indicator_threadsafe(service_name, Emoji.none)
                     self.busy_services.remove(service_name)
 
                 return _do_task
@@ -496,7 +496,7 @@ class MonitorApp(App):
                         log.info(f"Scheduled: {action} {service_name}")
                         self.busy_services.add(service_name)
                         table.update_indicator_threadsafe(
-                            service_name, emoji.hour_glass
+                            service_name, Emoji.hour_glass
                         )
                         self._queue.put(do_task(command, service_name))
 
@@ -523,7 +523,7 @@ class MonitorApp(App):
         """Display the logs of the IOC that is currently highlighted."""
         if service_name := self._get_service_name():
             # Convert to corresponding bool
-            ready = self._get_highlighted_cell("ready") == emoji.check_mark
+            ready = self._get_highlighted_cell("ready") == Emoji.check_mark
 
             if ready:
                 command = self.commands._get_logs  # noqa: SLF001

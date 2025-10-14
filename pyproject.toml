@@ -148,6 +148,8 @@ lint.ignore = [
     "E501",  # Line too long, should be fixed by black.
     "B008",  # Do not perform function calls in argument defaults.
     "UP007", # Do not complain about Optional[] (TODO: remove once typer is patched)
+    "N803",  # Argument name should be lowercase
+    "N802",  # Function name should be lowercase
 ]
 lint.select = [
     "B",   # flake8-bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b

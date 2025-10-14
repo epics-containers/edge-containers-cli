@@ -34,7 +34,7 @@ class ECContext:
     log_url: str = ""
 
 
-class emoji(str, Enum):
+class Emoji(str, Enum):
     none = ""
     road_works = "\U0001f6a7"
     exclaim = "\U00002755"
