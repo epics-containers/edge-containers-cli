@@ -5,6 +5,8 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=1000"] # uv.lock is more than 500kB
       - id: check-yaml
+        # omit helm templates which are not valid yaml
+        exclude: ^.*configmap.yaml$
       - id: check-merge-conflict
       - id: end-of-file-fixer
 
