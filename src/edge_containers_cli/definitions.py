@@ -19,6 +19,7 @@ class ECLogLevels(str, Enum):
 class ENV(str, Enum):
     repo = "EC_SERVICES_REPO"
     target = "EC_TARGET"
+    login = "EC_LOGIN"
     backend = "EC_CLI_BACKEND"
     verbose = "EC_VERBOSE"
     dryrun = "EC_DRYRUN"

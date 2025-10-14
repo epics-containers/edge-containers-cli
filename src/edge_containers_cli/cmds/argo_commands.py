@@ -4,6 +4,7 @@ implements commands for deploying and managing service instances suing argocd
 Relies on the Helm class for deployment aspects.
 """
 
+import os
 import re
 import webbrowser
 from datetime import datetime
@@ -11,6 +12,7 @@ from pathlib import Path
 from time import sleep
 
 import polars
+import typer
 from ruamel.yaml import YAML
 
 from edge_containers_cli import globals
@@ -20,7 +22,7 @@ from edge_containers_cli.cmds.commands import (
     ServicesDataFrame,
     ServicesSchema,
 )
-from edge_containers_cli.definitions import ECContext
+from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.git import check_exists, del_key, set_value
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
@@ -279,12 +281,26 @@ class ArgoCommands(Commands):
         """
         Verify we have a good namespace that exists in the cluster
         """
+        retries = 2
+
         cmd = f"argocd app get {self._target}"
         try:
             shell.run_command(cmd, error_OK=False)
         except ShellError as e:
-            if "code = Unauthenticated" in str(e):
-                raise CommandError("Not authenticated to argocd server") from e
+            if "Unauthenticated" in str(e) or "unspecified" in str(e):
+                retries -= 1
+                login = os.environ.get(ENV.login.value)
+                if retries <= 0 or not login:
+                    raise CommandError("Not authenticated to argocd server") from e
+
+                # try to log in
+                if not login or not typer.confirm("Login to ArgoCD?", default=True):
+                    raise typer.Abort() from e
+                shell.run_command(login, error_OK=False, skip_on_dryrun=True)
+
+                # retry validation
+                self._validate_target()
+
             elif "code = PermissionDenied" in str(e):
                 raise CommandError(f"Target '{self._target}' not found") from e
             else:
