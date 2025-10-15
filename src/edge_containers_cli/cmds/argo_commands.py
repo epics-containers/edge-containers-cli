@@ -197,7 +197,6 @@ class ArgoCommands(Commands):
             raise CommandError(f"{service_name} does not support stop/start")
 
     def restart(self, service_name):
-        self._check_service(service_name)
         self._check_stoppable(service_name)
         namespace, app = extract_ns_app(self.target)
         cmd = (
@@ -206,7 +205,6 @@ class ArgoCommands(Commands):
         shell.run_command(cmd, skip_on_dryrun=True)
 
     def start(self, service_name, commit=False):
-        self._check_service(service_name)
         self._check_stoppable(service_name)
         if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", True)
@@ -214,7 +212,6 @@ class ArgoCommands(Commands):
             patch_value(self.target, f"ec_services.{service_name}.enabled", True)
 
     def stop(self, service_name, commit=False):
-        self._check_service(service_name)
         self._check_stoppable(service_name)
         if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", False)

@@ -1,7 +1,7 @@
 checks:
   - cmd: argocd app get namespace/bl01t
     rsp: ""
-  - cmd: argocd app list -l "ec_service=true" --app-namespace namespace -o yaml
+  - cmd: argocd app list --app-namespace namespace -o yaml
     rsp: |
       - metadata:
           creationTimestamp: "2024-07-12T13:42:50Z"
@@ -100,10 +100,28 @@ log_history:
     rsp: True
 
 restart:
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        labels:
+          enabled: true
   - cmd: argocd app delete-resource namespace/bl01t-ea-test-01 --kind StatefulSet
     rsp: ""
 
 start_commit:
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        labels:
+          enabled: true
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:
@@ -124,10 +142,28 @@ start_commit:
     rsp: ""
 
 start:
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        labels:
+          enabled: true
   - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=True
     rsp: ""
 
 stop_commit:
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        labels:
+          enabled: true
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:
@@ -142,5 +178,14 @@ stop_commit:
     rsp: ""
 
 stop:
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        labels:
+          enabled: true
   - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=False
     rsp: ""
