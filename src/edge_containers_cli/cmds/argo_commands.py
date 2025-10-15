@@ -172,6 +172,15 @@ class ArgoCommands(Commands):
     def ps(self, running_only):
         self._ps(running_only)
 
+    # def _stoppable(self, service_name) -> bool:
+    #     self._check_service(service_name)
+
+    #     labels = manifest["metadata"].get("labels")
+    #     if labels:
+    #         stoppable = "enabled" in labels
+
+    #     raise CommandError(f"{service_name} does not support stop/start")
+
     def restart(self, service_name):
         self._check_service(service_name)
         namespace, app = extract_ns_app(self.target)
@@ -214,7 +223,7 @@ class ArgoCommands(Commands):
             "deployed": [],
         }
         app_resp = shell.run_command(
-            f'argocd app list -l "ec_service=true" --app-namespace {namespace} -o yaml',
+            f"argocd app list --app-namespace {namespace} -o yaml",
         )
         app_dicts = YAML(typ="safe").load(app_resp)
 
@@ -227,7 +236,7 @@ class ArgoCommands(Commands):
 
                 for resource in resources_dict:
                     is_ready = False
-                    if resource["kind"] == "StatefulSet":
+                    if resource["kind"] in ["StatefulSet", "Deployment"]:
                         name = app["metadata"]["name"]
 
                         # check if replicas ready
@@ -240,7 +249,10 @@ class ArgoCommands(Commands):
                                 continue
                             kind = manifest["kind"]
                             resource_name = manifest["metadata"]["name"]
-                            if kind == "StatefulSet" and resource_name == name:
+                            if (
+                                kind in ["StatefulSet", "Deployment"]
+                                and resource_name == name
+                            ):
                                 try:
                                     is_ready = bool(manifest["status"]["readyReplicas"])
                                 except (
