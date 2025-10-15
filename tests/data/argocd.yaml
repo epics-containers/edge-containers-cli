@@ -35,11 +35,11 @@ delete:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Remove ec_services.bl01t-ea-test-01 in apps/values.yaml"
+  - cmd: git commit -m "Remove services.bl01t-ea-test-01 in apps/values.yaml"
     rsp: ""
   - cmd: git push
     rsp: ""
-  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01
     rsp: ""
   - cmd: argocd app get --show-params namespace/bl01t -o json
     rsp: "{}"
@@ -82,11 +82,11 @@ deploy:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set ec_services.bl01t-ea-test-01=*'
+  - cmd: 'git commit -m "Set services.bl01t-ea-test-01=*'
     rsp: ""
   - cmd: git push
     rsp: ""
-  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01
     rsp: ""
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
@@ -132,11 +132,11 @@ start_commit:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Set ec_services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
+  - cmd: git commit -m "Set services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
     rsp: ""
   - cmd: git push
     rsp: ""
-  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
     rsp: ""
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
@@ -151,7 +151,7 @@ start:
         name: bl01t-ea-test-01
         labels:
           enabled: true
-  - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=True
+  - cmd: argocd app set namespace/bl01t -p services.bl01t-ea-test-01.enabled=True
     rsp: ""
 
 stop_commit:
@@ -172,7 +172,7 @@ stop_commit:
           path: apps
   - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
     rsp: ""
-  - cmd: argocd app unset namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
     rsp: ""
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
@@ -187,5 +187,5 @@ stop:
         name: bl01t-ea-test-01
         labels:
           enabled: true
-  - cmd: argocd app set namespace/bl01t -p ec_services.bl01t-ea-test-01.enabled=False
+  - cmd: argocd app set namespace/bl01t -p services.bl01t-ea-test-01.enabled=False
     rsp: ""

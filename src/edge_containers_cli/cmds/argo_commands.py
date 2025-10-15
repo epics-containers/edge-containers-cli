@@ -141,7 +141,7 @@ class ArgoCommands(Commands):
 
     def delete(self, service_name: str) -> None:
         self._check_service(service_name)
-        push_remove_key(self.target, f"ec_services.{service_name}")
+        push_remove_key(self.target, f"services.{service_name}")
 
     def deploy(self, service_name, version, args, confirm_callback=None) -> None:
         if not version:
@@ -159,7 +159,7 @@ class ArgoCommands(Commands):
             confirm_callback(version)
         deploy_dict: YamlTypes = {"enabled": True, "targetRevision": version}
 
-        push_value(self.target, f"ec_services.{service_name}", deploy_dict)
+        push_value(self.target, f"services.{service_name}", deploy_dict)
 
     def logs(self, service_name, prev):
         self._logs(service_name, prev)
@@ -207,16 +207,16 @@ class ArgoCommands(Commands):
     def start(self, service_name, commit=False):
         self._check_stoppable(service_name)
         if commit:
-            push_value(self.target, f"ec_services.{service_name}.enabled", True)
+            push_value(self.target, f"services.{service_name}.enabled", True)
         else:
-            patch_value(self.target, f"ec_services.{service_name}.enabled", True)
+            patch_value(self.target, f"services.{service_name}.enabled", True)
 
     def stop(self, service_name, commit=False):
         self._check_stoppable(service_name)
         if commit:
-            push_value(self.target, f"ec_services.{service_name}.enabled", False)
+            push_value(self.target, f"services.{service_name}.enabled", False)
         else:
-            patch_value(self.target, f"ec_services.{service_name}.enabled", False)
+            patch_value(self.target, f"services.{service_name}.enabled", False)
 
     def _get_logs(self, service_name, prev) -> str:
         namespace, app = extract_ns_app(self.target)
