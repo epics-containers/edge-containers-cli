@@ -172,17 +172,33 @@ class ArgoCommands(Commands):
     def ps(self, running_only):
         self._ps(running_only)
 
-    # def _stoppable(self, service_name) -> bool:
-    #     self._check_service(service_name)
+    def _check_stoppable(self, service_name) -> None:
+        self._check_service(service_name)
+        namespace, app = extract_ns_app(self.target)
+        stoppable = False
 
-    #     labels = manifest["metadata"].get("labels")
-    #     if labels:
-    #         stoppable = "enabled" in labels
+        # get the manifests and determine if there is an 'enabled' label
+        # which implies the service can be stopped/started
+        mani_resp = shell.run_command(
+            f"argocd app manifests {namespace}/{service_name} --source live",
+        )
+        for resource_manifest in mani_resp.split("---")[1:]:
+            manifest = YAML(typ="safe").load(resource_manifest)
+            if not manifest:
+                continue
+            kind = manifest["kind"]
+            resource_name = manifest["metadata"]["name"]
+            if kind in ["StatefulSet", "Deployment"] and resource_name == service_name:
+                labels = manifest["metadata"].get("labels")
+                if labels:
+                    stoppable = "enabled" in labels
 
-    #     raise CommandError(f"{service_name} does not support stop/start")
+        if not stoppable:
+            raise CommandError(f"{service_name} does not support stop/start")
 
     def restart(self, service_name):
         self._check_service(service_name)
+        self._check_stoppable(service_name)
         namespace, app = extract_ns_app(self.target)
         cmd = (
             f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet"
@@ -191,6 +207,7 @@ class ArgoCommands(Commands):
 
     def start(self, service_name, commit=False):
         self._check_service(service_name)
+        self._check_stoppable(service_name)
         if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", True)
         else:
@@ -198,6 +215,7 @@ class ArgoCommands(Commands):
 
     def stop(self, service_name, commit=False):
         self._check_service(service_name)
+        self._check_stoppable(service_name)
         if commit:
             push_value(self.target, f"ec_services.{service_name}.enabled", False)
         else:
