@@ -118,6 +118,8 @@ class DemoCommands(Commands):
 
     @demo_message
     def stop(self, service_name, commit=False):
+        # used to demo catching exceptions in the UI thread
+        raise CommandError(f"{service_name} does not support stop/start")
         self._stop(service_name, commit=commit)
 
     def _stop(self, service_name, commit=False):
