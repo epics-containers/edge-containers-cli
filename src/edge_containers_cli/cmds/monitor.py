@@ -35,6 +35,7 @@ from textual.worker import get_current_worker
 
 from edge_containers_cli.cmds.commands import CommandError, Commands
 from edge_containers_cli.definitions import ECLogLevels, Emoji
+from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
 
@@ -474,7 +475,7 @@ class MonitorApp(App):
                 job = self._queue.get(timeout=1)
                 job()
                 self._queue.task_done()
-            except (CommandError, ShellError) as e:
+            except (CommandError, ShellError, GitError) as e:
                 self.app.call_from_thread(
                     partial(self.push_screen, ErrorScreen(str(e)))
                 )

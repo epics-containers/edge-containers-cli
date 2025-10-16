@@ -204,14 +204,14 @@ class ArgoCommands(Commands):
         )
         shell.run_command(cmd, skip_on_dryrun=True)
 
-    def start(self, service_name, commit=False):
+    def start(self, service_name, commit=True):
         self._check_stoppable(service_name)
         if commit:
             push_value(self.target, f"services.{service_name}.enabled", True)
         else:
             patch_value(self.target, f"services.{service_name}.enabled", True)
 
-    def stop(self, service_name, commit=False):
+    def stop(self, service_name, commit=True):
         self._check_stoppable(service_name)
         if commit:
             push_value(self.target, f"services.{service_name}.enabled", False)
