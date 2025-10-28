@@ -1,6 +1,5 @@
 import os
 import sys
-from typing import Optional
 
 import typer
 
@@ -36,7 +35,7 @@ def backend_callback(ctx: typer.Context, backend: ECBackends):
 @cli.callback()
 def _main(
     ctx: typer.Context,
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         callback=version_callback,

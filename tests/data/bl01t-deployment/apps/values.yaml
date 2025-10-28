@@ -1,3 +1,3 @@
-ec_services:
+services:
   bl01t-ea-test-01:
     enabled: false

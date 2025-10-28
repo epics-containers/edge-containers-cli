@@ -4,6 +4,7 @@ implements commands for deploying and managing service instances suing argocd
 Relies on the Helm class for deployment aspects.
 """
 
+import os
 import re
 import webbrowser
 from datetime import datetime
@@ -11,6 +12,7 @@ from pathlib import Path
 from time import sleep
 
 import polars
+import typer
 from ruamel.yaml import YAML
 
 from edge_containers_cli import globals
@@ -20,7 +22,7 @@ from edge_containers_cli.cmds.commands import (
     ServicesDataFrame,
     ServicesSchema,
 )
-from edge_containers_cli.definitions import ECContext
+from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.git import check_exists, del_key, set_value
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
@@ -139,7 +141,7 @@ class ArgoCommands(Commands):
 
     def delete(self, service_name: str) -> None:
         self._check_service(service_name)
-        push_remove_key(self.target, f"ec_services.{service_name}")
+        push_remove_key(self.target, f"services.{service_name}")
 
     def deploy(self, service_name, version, args, confirm_callback=None) -> None:
         if not version:
@@ -157,7 +159,7 @@ class ArgoCommands(Commands):
             confirm_callback(version)
         deploy_dict: YamlTypes = {"enabled": True, "targetRevision": version}
 
-        push_value(self.target, f"ec_services.{service_name}", deploy_dict)
+        push_value(self.target, f"services.{service_name}", deploy_dict)
 
     def logs(self, service_name, prev):
         self._logs(service_name, prev)
@@ -170,27 +172,51 @@ class ArgoCommands(Commands):
     def ps(self, running_only):
         self._ps(running_only)
 
-    def restart(self, service_name):
+    def _check_stoppable(self, service_name) -> None:
         self._check_service(service_name)
+        namespace, app = extract_ns_app(self.target)
+        stoppable = False
+
+        # get the manifests and determine if there is an 'enabled' label
+        # which implies the service can be stopped/started
+        mani_resp = shell.run_command(
+            f"argocd app manifests {namespace}/{service_name} --source live",
+        )
+        for resource_manifest in mani_resp.split("---")[1:]:
+            manifest = YAML(typ="safe").load(resource_manifest)
+            if not manifest:
+                continue
+            kind = manifest["kind"]
+            resource_name = manifest["metadata"]["name"]
+            if kind in ["StatefulSet", "Deployment"] and resource_name == service_name:
+                labels = manifest["metadata"].get("labels")
+                if labels:
+                    stoppable = "enabled" in labels
+
+        if not stoppable:
+            raise CommandError(f"{service_name} does not support stop/start")
+
+    def restart(self, service_name):
+        self._check_stoppable(service_name)
         namespace, app = extract_ns_app(self.target)
         cmd = (
             f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet"
         )
         shell.run_command(cmd, skip_on_dryrun=True)
 
-    def start(self, service_name, commit=False):
-        self._check_service(service_name)
+    def start(self, service_name, commit=True):
+        self._check_stoppable(service_name)
         if commit:
-            push_value(self.target, f"ec_services.{service_name}.enabled", True)
+            push_value(self.target, f"services.{service_name}.enabled", True)
         else:
-            patch_value(self.target, f"ec_services.{service_name}.enabled", True)
+            patch_value(self.target, f"services.{service_name}.enabled", True)
 
-    def stop(self, service_name, commit=False):
-        self._check_service(service_name)
+    def stop(self, service_name, commit=True):
+        self._check_stoppable(service_name)
         if commit:
-            push_value(self.target, f"ec_services.{service_name}.enabled", False)
+            push_value(self.target, f"services.{service_name}.enabled", False)
         else:
-            patch_value(self.target, f"ec_services.{service_name}.enabled", False)
+            patch_value(self.target, f"services.{service_name}.enabled", False)
 
     def _get_logs(self, service_name, prev) -> str:
         namespace, app = extract_ns_app(self.target)
@@ -212,7 +238,7 @@ class ArgoCommands(Commands):
             "deployed": [],
         }
         app_resp = shell.run_command(
-            f'argocd app list -l "ec_service=true" --app-namespace {namespace} -o yaml',
+            f"argocd app list --app-namespace {namespace} -o yaml",
         )
         app_dicts = YAML(typ="safe").load(app_resp)
 
@@ -225,7 +251,7 @@ class ArgoCommands(Commands):
 
                 for resource in resources_dict:
                     is_ready = False
-                    if resource["kind"] == "StatefulSet":
+                    if resource["kind"] in ["StatefulSet", "Deployment"]:
                         name = app["metadata"]["name"]
 
                         # check if replicas ready
@@ -238,7 +264,10 @@ class ArgoCommands(Commands):
                                 continue
                             kind = manifest["kind"]
                             resource_name = manifest["metadata"]["name"]
-                            if kind == "StatefulSet" and resource_name == name:
+                            if (
+                                kind in ["StatefulSet", "Deployment"]
+                                and resource_name == name
+                            ):
                                 try:
                                     is_ready = bool(manifest["status"]["readyReplicas"])
                                 except (
@@ -279,12 +308,26 @@ class ArgoCommands(Commands):
         """
         Verify we have a good namespace that exists in the cluster
         """
+        retries = 2
+
         cmd = f"argocd app get {self._target}"
         try:
             shell.run_command(cmd, error_OK=False)
         except ShellError as e:
-            if "code = Unauthenticated" in str(e):
-                raise CommandError("Not authenticated to argocd server") from e
+            if "Unauthenticated" in str(e) or "unspecified" in str(e):
+                retries -= 1
+                login = os.environ.get(ENV.login.value)
+                if retries <= 0 or not login:
+                    raise CommandError("Not authenticated to argocd server") from e
+
+                # try to log in
+                if not login or not typer.confirm("Login to ArgoCD?", default=True):
+                    raise typer.Abort() from e
+                shell.run_command(login, error_OK=False, skip_on_dryrun=True)
+
+                # retry validation
+                self._validate_target()
+
             elif "code = PermissionDenied" in str(e):
                 raise CommandError(f"Target '{self._target}' not found") from e
             else:

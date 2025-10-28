@@ -40,9 +40,9 @@ sample_data = {
 }
 
 if NUM_SERVICES == 0:
-    sample_ServicesDataFrame = polars.DataFrame(schema=ServicesSchema)
+    SampleServicesDataFrame = polars.DataFrame(schema=ServicesSchema)
 else:
-    sample_ServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
+    SampleServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
 
 
 def demo_wrapper():
@@ -78,7 +78,7 @@ class DemoCommands(Commands):
     ):
         self._target = "Demo Beamline"
         self._target_valid = False
-        self._stateDF = sample_ServicesDataFrame
+        self._stateDF = SampleServicesDataFrame
 
         self.lorem_min = 10
         self.lorem_max = 50

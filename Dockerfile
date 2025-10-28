@@ -1,17 +1,43 @@
-# This container is used for deploying ec as an apptainer container including
-# the CLI tools it uses. See https://github.com/DiamondLightSource/deploy-tools
-ARG PYTHON_VERSION=3.12
-FROM python:${PYTHON_VERSION} AS developer
+# The devcontainer should use the developer target and run as root with podman
+# or docker with user namespaces.
+FROM ghcr.io/diamondlightsource/ubuntu-devcontainer:noble AS developer
 
-# Set up a virtual environment and put it in PATH
-RUN python -m venv /venv
-ENV PATH=/venv/bin:$PATH
+# Add any system dependencies for the developer/build environment here
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    graphviz \
+    && apt-get dist-clean
 
-# install the context into the venv
-COPY . /context
-WORKDIR /context
-RUN touch dev-requirements.txt && \
-    pip install -c dev-requirements.txt .
+# The build stage installs the context into the venv
+FROM developer AS build
+
+# Change the working directory to the `app` directory
+# and copy in the project
+WORKDIR /app
+COPY . /app
+RUN chmod o+wrX .
+
+# Tell uv sync to install python in a known location so we can copy it out later
+ENV UV_PYTHON_INSTALL_DIR=/python
+
+# Sync the project without its dev dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-editable --no-dev
+
+
+# The runtime stage copies the built venv into a runtime container
+FROM ubuntu:noble AS runtime
+
+# Add apt-get system dependecies for runtime here if needed
+# RUN apt-get update -y && apt-get install -y --no-install-recommends \
+#     some-library \
+#     && apt-get dist-clean
+
+# Copy the python installation from the build stage
+COPY --from=build /python /python
+
+# Copy the environment, but not the source code
+COPY --from=build /app/.venv /app/.venv
+ENV PATH=/app/.venv/bin:$PATH
 
 ENTRYPOINT ["ec"]
 CMD ["--version"]
