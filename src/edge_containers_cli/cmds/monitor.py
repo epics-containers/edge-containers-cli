@@ -40,7 +40,7 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
 
 
-class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
+class ConfirmScreen(ModalScreen[bool]):
     BINDINGS = [
         Binding("y,enter", "option_yes", "Yes"),
         Binding("n,c,escape", "option_cancel", "Cancel"),
@@ -73,7 +73,7 @@ class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
         self.dismiss(False)
 
 
-class ErrorScreen(ModalScreen[bool], inherit_bindings=False):
+class ErrorScreen(ModalScreen[bool]):
     BINDINGS = [
         Binding("y,enter", "option_ok", "OK"),
     ]
@@ -98,7 +98,7 @@ class ErrorScreen(ModalScreen[bool], inherit_bindings=False):
         self.dismiss(True)
 
 
-class LogsScreen(ModalScreen, inherit_bindings=False):
+class LogsScreen(ModalScreen):
     """Screen to display IOC logs."""
 
     BINDINGS = [
