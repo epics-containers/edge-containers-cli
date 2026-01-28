@@ -233,6 +233,7 @@ class ArgoCommands(Commands):
         namespace, app = extract_ns_app(self.target)
         service_data = {
             "name": [],  # type: ignore
+            "label": [],
             "version": [],
             "ready": [],
             "deployed": [],
@@ -253,6 +254,11 @@ class ArgoCommands(Commands):
                     is_ready = False
                     if resource["kind"] in ["StatefulSet", "Deployment"]:
                         name = app["metadata"]["name"]
+
+                        try:
+                            label = app["metadata"]["labels"]["device"]
+                        except KeyError:
+                            label = "service"
 
                         # check if replicas ready
                         mani_resp = shell.run_command(
@@ -280,6 +286,7 @@ class ArgoCommands(Commands):
                                     "%Y-%m-%dT%H:%M:%SZ",
                                 )
                                 service_data["name"].append(name)
+                                service_data["label"].append(label)
                                 service_data["version"].append(
                                     app["spec"]["source"]["targetRevision"]
                                 )
