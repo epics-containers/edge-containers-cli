@@ -268,8 +268,10 @@ class IocTable(Widget):
             "name": [""],
             Emoji.exclaim: [""],
         }
-        iocs_df = self._get_services_df(self.running_only)
+        iocs_df: polars.DataFrame = self._get_services_df(self.running_only)
         self.columns = iocs_df.columns
+        # We don't want the label to be a custom column (using DataTable row label instead)
+        self.columns.remove("label")
         self._polling_rate_hz = 1
 
     def compose(self) -> ComposeResult:
@@ -278,6 +280,7 @@ class IocTable(Widget):
             header_height=1,
             show_cursor=False,
             zebra_stripes=True,
+            show_row_labels=True,
         )
         table.focus()
 
@@ -356,7 +359,7 @@ class IocTable(Widget):
         curr_ioc_set = set(table.rows)
         new_ioc_set = set()
 
-        new_iocs = iocs_df.to_dicts()
+        new_iocs: list[dict] = iocs_df.to_dicts()
         new_iocs = sorted(new_iocs, key=lambda d: d["name"])
 
         # For each IOC row
@@ -381,6 +384,7 @@ class IocTable(Widget):
                 table.add_row(
                     *[cell["contents"] for cell in cells],
                     key=row_key,
+                    label=ioc["label"],
                 )
             else:
                 for cell in cells:

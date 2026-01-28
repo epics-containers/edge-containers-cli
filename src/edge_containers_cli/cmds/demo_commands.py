@@ -31,6 +31,7 @@ def process_t(time_string) -> str:
 
 sample_data = {
     "name": [f"demo-ea-0{cnt}" for cnt in range(NUM_SERVICES)],
+    "label": [f"demo device 0{cnt}" for cnt in range(NUM_SERVICES)],
     "version": ["1.0." + str(25 - cnt) for cnt in range(NUM_SERVICES)],
     "ready": [True] * NUM_SERVICES,
     "deployed": [
