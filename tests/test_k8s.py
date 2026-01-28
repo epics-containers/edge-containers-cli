@@ -65,9 +65,9 @@ def test_stop(mock_run, K8S):
 
 def test_ps(mock_run, K8S):
     expect = (
-        "| name             | version       | ready | deployed             |\n"
-        "|------------------|---------------|-------|----------------------|\n"
-        "| bl01t-ea-test-01 | 2024.7.824f-b | true  | 2024-07-26T08:16:07Z |\n"
+        "| name             | label   | version       | ready | deployed             |\n"
+        "|------------------|---------|---------------|-------|----------------------|\n"
+        "| bl01t-ea-test-01 | service | 2024.7.824f-b | true  | 2024-07-26T08:16:07Z |\n"
     )
     mock_run.set_seq(K8S.checks)
     res = mock_run.run_cli("ps")
