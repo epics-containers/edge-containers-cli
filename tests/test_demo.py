@@ -20,16 +20,16 @@ def test_stop(mock_run, DEMO):
 
 def test_ps(mock_run, DEMO):
     expect = (
-        "| name       | version | ready | deployed             |\n"
-        "|------------|---------|-------|----------------------|\n"
-        "| demo-ea-00 | 1.0.25  | true  | 2024-10-22T11:23:08Z |\n"
-        "| demo-ea-01 | 1.0.24  | true  | 2024-10-22T11:23:03Z |\n"
-        "| demo-ea-02 | 1.0.23  | true  | 2024-10-22T11:23:04Z |\n"
-        "| demo-ea-03 | 1.0.22  | true  | 2024-10-22T11:23:07Z |\n"
-        "| demo-ea-04 | 1.0.21  | true  | 2024-10-22T11:23:01Z |\n"
-        "| demo-ea-05 | 1.0.20  | true  | 2024-10-22T11:23:03Z |\n"
-        "| demo-ea-06 | 1.0.19  | true  | 2024-10-22T11:23:07Z |\n"
-        "| demo-ea-07 | 1.0.18  | true  | 2024-10-22T11:23:01Z |\n"
+        "| name       | label          | version | ready | deployed             |\n"
+        "|------------|----------------|---------|-------|----------------------|\n"
+        "| demo-ea-00 | demo device 00 | 1.0.25  | true  | 2024-10-22T11:23:08Z |\n"
+        "| demo-ea-01 | demo device 01 | 1.0.24  | true  | 2024-10-22T11:23:03Z |\n"
+        "| demo-ea-02 | demo device 02 | 1.0.23  | true  | 2024-10-22T11:23:04Z |\n"
+        "| demo-ea-03 | demo device 03 | 1.0.22  | true  | 2024-10-22T11:23:07Z |\n"
+        "| demo-ea-04 | demo device 04 | 1.0.21  | true  | 2024-10-22T11:23:01Z |\n"
+        "| demo-ea-05 | demo device 05 | 1.0.20  | true  | 2024-10-22T11:23:03Z |\n"
+        "| demo-ea-06 | demo device 06 | 1.0.19  | true  | 2024-10-22T11:23:07Z |\n"
+        "| demo-ea-07 | demo device 07 | 1.0.18  | true  | 2024-10-22T11:23:01Z |\n"
     )
 
     res = mock_run.run_cli("ps")

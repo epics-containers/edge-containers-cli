@@ -134,12 +134,17 @@ class K8sCommands(Commands):
         sts_dicts = YAML(typ="safe").load(kubectl_res)
         service_data = {
             "name": [],  # type: ignore
+            "label": [],
             "ready": [],
             "deployed": [],
         }
         if sts_dicts["items"]:
             for sts in sts_dicts["items"]:
                 name = sts["metadata"]["name"]
+                try:
+                    label = sts["metadata"]["labels"]["device"]
+                except KeyError:
+                    label = "service"
                 time_stamp = datetime.strptime(
                     sts["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
                 )
@@ -150,6 +155,7 @@ class K8sCommands(Commands):
 
                 # Fill app data
                 service_data["name"].append(name)
+                service_data["label"].append(label)
                 service_data["ready"].append(is_ready)
                 service_data["deployed"].append(
                     datetime.strftime(time_stamp, TIME_FORMAT)
@@ -160,6 +166,7 @@ class K8sCommands(Commands):
             schema=polars.Schema(
                 {
                     "name": polars.String,
+                    "label": polars.String,
                     "ready": polars.Boolean,
                     "deployed": polars.String,
                 }
@@ -184,7 +191,9 @@ class K8sCommands(Commands):
         )
 
         # Arrange columns
-        services_df = services_df.select(["name", "version", "ready", "deployed"])
+        services_df = services_df.select(
+            ["name", "label", "version", "ready", "deployed"]
+        )
         if running_only:
             services_df = services_df.filter(polars.col("ready").eq(True))
         return ServicesDataFrame(services_df)
