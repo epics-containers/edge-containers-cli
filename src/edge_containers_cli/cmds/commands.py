@@ -159,12 +159,15 @@ class Commands(ABC):
     def template(self, svc_instance: Path, args: str) -> None:
         raise NotImplementedError
 
+    def _get_services(self) -> None:
+        raise NotImplementedError
+
     @abstractmethod
-    def _get_services(self, running_only: bool) -> ServicesDataFrame:
+    def _get_services_df(self, running_only: bool) -> ServicesDataFrame:
         raise NotImplementedError
 
     def _ps(self, running_only: bool) -> None:
-        services_df = self._get_services(running_only)
+        services_df = self._get_services_df(running_only)
         print(services_df)
 
     @abstractmethod
@@ -178,13 +181,13 @@ class Commands(ABC):
         raise NotImplementedError
 
     def _running_services(self) -> list[str]:
-        return self._get_services(running_only=True)["name"].to_list()
+        return self._get_services_df(running_only=True)["name"].to_list()
 
     def _all_services(self) -> list[str]:
-        return self._get_services(running_only=False)["name"].to_list()
+        return self._get_services_df(running_only=False)["name"].to_list()
 
     def _check_service(self, service_name: str) -> None:
-        services_list = self._get_services(running_only=False)["name"]
+        services_list = self._get_services_df(running_only=False)["name"]
         if service_name in services_list:
             pass
         else:

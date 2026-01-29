@@ -64,7 +64,7 @@ def test_ps(mock_run, ARGOCD):
         "|------------------|---------|---------|-------|----------------------|\n"
         "| bl01t-ea-test-01 | service | main    | true  | 2024-07-12T13:52:35Z |\n"
     )
-    mock_run.set_seq(ARGOCD.checks)
+    mock_run.set_seq(ARGOCD.checks + ARGOCD.manifest_check)
     res = mock_run.run_cli("ps")
 
     assert res == expect
