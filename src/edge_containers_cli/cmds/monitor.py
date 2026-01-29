@@ -316,7 +316,7 @@ class IocTable(Widget):
             time.sleep(1 / self._polling_rate_hz)
 
     def _get_services_df(self, running_only):
-        services_df = self.commands._get_services(running_only)  # noqa: SLF001
+        services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
         services_df = services_df.with_columns(
             polars.when(polars.col("ready"))
             .then(polars.lit(Emoji.check_mark))
