@@ -124,7 +124,7 @@ class K8sCommands(Commands):
         )
         chart.deploy_local(svc_instance)
 
-    def _get_services(self, running_only):
+    def _get_services_df(self, running_only):
         services_df = polars.DataFrame()
 
         # Get all statefulset services (running & not running)
