@@ -140,7 +140,7 @@ class DemoCommands(Commands):
         logs_list = ["Lorem ipsum dolor sit amet"] * self.lorem_count
         return "\n".join(logs_list)
 
-    def _get_services(self, running_only) -> ServicesDataFrame:
+    def _get_services_df(self, running_only) -> ServicesDataFrame:
         if running_only:
             return ServicesDataFrame(self._stateDF.filter(polars.col("ready").eq(True)))
         else:
@@ -150,7 +150,7 @@ class DemoCommands(Commands):
         """
         validate that there is a app with the given service_name
         """
-        services_list = self._get_services(running_only=False)["name"]
+        services_list = self._get_services_df(running_only=False)["name"]
         if service_name in services_list:
             pass
         else:
