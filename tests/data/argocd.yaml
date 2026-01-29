@@ -13,6 +13,7 @@ checks:
           resources:
             - kind: StatefulSet
               name: bl01t-ea-test-01
+manifest_check:
   - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
     rsp: |
       ---

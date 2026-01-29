@@ -133,8 +133,6 @@ class ArgoCommands(Commands):
     params_opt_out = {
         "deploy": ["args", "wait"],
     }
-    app_dicts: dict
-    services_df: polars.DataFrame
 
     def __init__(
         self,
@@ -142,6 +140,8 @@ class ArgoCommands(Commands):
     ):
         super().__init__(ctx)
 
+        self.app_dicts = {}
+        self.services_df = polars.DataFrame()
         self.async_lock = asyncio.Lock()
 
     def delete(self, service_name: str) -> None:
@@ -302,9 +302,21 @@ class ArgoCommands(Commands):
         service_df = polars.from_dict(service_data, schema=ServicesSchema)
 
         async with self.async_lock:
-            self.services_df.extend(service_df)
+            if self.services_df.is_empty():
+                self.services_df = service_df
+            else:
+                self.services_df.extend(service_df)
+
+    async def _get_service_data(self):
+        self._get_services()
+
+        async with asyncio.TaskGroup() as group:
+            for app in self.app_dicts:
+                group.create_task(self._extract_app_manifests(app))
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
+        asyncio.run(self._get_service_data())
+
         services_df = self.services_df
 
         if running_only:
