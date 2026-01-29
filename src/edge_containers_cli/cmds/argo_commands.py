@@ -4,6 +4,7 @@ implements commands for deploying and managing service instances suing argocd
 Relies on the Helm class for deployment aspects.
 """
 
+import asyncio
 import os
 import re
 import webbrowser
@@ -132,12 +133,16 @@ class ArgoCommands(Commands):
     params_opt_out = {
         "deploy": ["args", "wait"],
     }
+    app_dicts: dict
+    services_df: polars.DataFrame
 
     def __init__(
         self,
         ctx: ECContext,
     ):
         super().__init__(ctx)
+
+        self.async_lock = asyncio.Lock()
 
     def delete(self, service_name: str) -> None:
         self._check_service(service_name)
@@ -229,8 +234,16 @@ class ArgoCommands(Commands):
         )
         return logs
 
-    def _get_services(self, running_only) -> ServicesDataFrame:
-        namespace, app = extract_ns_app(self.target)
+    def _get_services(self) -> None:
+        namespace, _ = extract_ns_app(self.target)
+        app_resp = shell.run_command(
+            f"argocd app list --app-namespace {namespace} -o yaml",
+        )
+        self.app_dicts = YAML(typ="safe").load(app_resp)
+
+    async def _extract_app_manifests(self, app: dict):
+        namespace, _ = extract_ns_app(self.target)
+
         service_data = {
             "name": [],  # type: ignore
             "label": [],
@@ -238,64 +251,61 @@ class ArgoCommands(Commands):
             "ready": [],
             "deployed": [],
         }
-        app_resp = shell.run_command(
-            f"argocd app list --app-namespace {namespace} -o yaml",
-        )
-        app_dicts = YAML(typ="safe").load(app_resp)
 
-        if app_dicts:
-            for app in app_dicts:
+        try:
+            resources_dict = app["status"]["resources"]
+        except KeyError:
+            return
+
+        for resource in resources_dict:
+            is_ready = False
+            if resource["kind"] in ["StatefulSet", "Deployment"]:
+                name = app["metadata"]["name"]
+
                 try:
-                    resources_dict = app["status"]["resources"]
+                    label = app["metadata"]["labels"]["device"]
                 except KeyError:
-                    continue
+                    label = "service"
 
-                for resource in resources_dict:
-                    is_ready = False
-                    if resource["kind"] in ["StatefulSet", "Deployment"]:
-                        name = app["metadata"]["name"]
-
+                # check if replicas ready
+                mani_resp = shell.run_command(
+                    f"argocd app manifests {namespace}/{name} --source live",
+                )
+                for resource_manifest in mani_resp.split("---")[1:]:
+                    manifest = YAML(typ="safe").load(resource_manifest)
+                    if not manifest:
+                        continue
+                    kind = manifest["kind"]
+                    resource_name = manifest["metadata"]["name"]
+                    if kind in ["StatefulSet", "Deployment"] and resource_name == name:
                         try:
-                            label = app["metadata"]["labels"]["device"]
-                        except KeyError:
-                            label = "service"
-
-                        # check if replicas ready
-                        mani_resp = shell.run_command(
-                            f"argocd app manifests {namespace}/{name} --source live",
+                            is_ready = bool(manifest["status"]["readyReplicas"])
+                        except (
+                            KeyError,
+                            TypeError,
+                        ):  # Not ready if doesnt exist
+                            is_ready = False
+                        time_stamp = datetime.strptime(
+                            manifest["metadata"]["creationTimestamp"],
+                            "%Y-%m-%dT%H:%M:%SZ",
                         )
-                        for resource_manifest in mani_resp.split("---")[1:]:
-                            manifest = YAML(typ="safe").load(resource_manifest)
-                            if not manifest:
-                                continue
-                            kind = manifest["kind"]
-                            resource_name = manifest["metadata"]["name"]
-                            if (
-                                kind in ["StatefulSet", "Deployment"]
-                                and resource_name == name
-                            ):
-                                try:
-                                    is_ready = bool(manifest["status"]["readyReplicas"])
-                                except (
-                                    KeyError,
-                                    TypeError,
-                                ):  # Not ready if doesnt exist
-                                    is_ready = False
-                                time_stamp = datetime.strptime(
-                                    manifest["metadata"]["creationTimestamp"],
-                                    "%Y-%m-%dT%H:%M:%SZ",
-                                )
-                                service_data["name"].append(name)
-                                service_data["label"].append(label)
-                                service_data["version"].append(
-                                    app["spec"]["source"]["targetRevision"]
-                                )
-                                service_data["ready"].append(is_ready)
-                                service_data["deployed"].append(
-                                    datetime.strftime(time_stamp, globals.TIME_FORMAT)
-                                )
+                        service_data["name"].append(name)
+                        service_data["label"].append(label)
+                        service_data["version"].append(
+                            app["spec"]["source"]["targetRevision"]
+                        )
+                        service_data["ready"].append(is_ready)
+                        service_data["deployed"].append(
+                            datetime.strftime(time_stamp, globals.TIME_FORMAT)
+                        )
 
-        services_df = polars.from_dict(service_data, schema=ServicesSchema)
+        service_df = polars.from_dict(service_data, schema=ServicesSchema)
+
+        async with self.async_lock:
+            self.services_df.extend(service_df)
+
+    def _get_services_df(self, running_only) -> ServicesDataFrame:
+        services_df = self.services_df
 
         if running_only:
             services_df = services_df.filter(polars.col("ready").eq(True))
@@ -305,7 +315,8 @@ class ArgoCommands(Commands):
         """
         validate that there is a app with the given service_name
         """
-        services_list = self._get_services(running_only=False)["name"]
+        self._get_services()
+        services_list = [app["metadata"]["name"] for app in self.app_dicts]
         if service_name in services_list:
             pass
         else:
