@@ -23,7 +23,7 @@ dependencies = [
     "textual",
     # urllib>=2.4.0 fails to validate DLS Kubernetes certificates
     # https://github.com/kubernetes-client/python/issues/2394
-    "urllib3<2.4.0",
+    "urllib3<2.6.4",
 ]
 
 dynamic = ["version"]
