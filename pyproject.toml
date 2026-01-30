@@ -20,7 +20,7 @@ dependencies = [
     "ruamel.yaml",
     "jinja2",
     "polars-lts-cpu",
-    "textual",
+    "textual>=7.4",
     # urllib>=2.4.0 fails to validate DLS Kubernetes certificates
     # https://github.com/kubernetes-client/python/issues/2394
     "urllib3<2.4.0",
