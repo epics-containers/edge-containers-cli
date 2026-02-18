@@ -142,7 +142,7 @@ class K8sCommands(Commands):
             for sts in sts_dicts["items"]:
                 name = sts["metadata"]["name"]
                 try:
-                    label = sts["metadata"]["labels"]["device"]
+                    label = sts["metadata"]["labels"]["description"]
                 except KeyError:
                     label = "service"
                 time_stamp = datetime.strptime(

@@ -256,7 +256,7 @@ class ArgoCommands(Commands):
                         name = app["metadata"]["name"]
 
                         try:
-                            label = app["metadata"]["labels"]["device"]
+                            label = app["metadata"]["labels"]["description"]
                         except KeyError:
                             label = "service"
 
