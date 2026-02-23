@@ -18,7 +18,7 @@ import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
 
 YamlPrimatives = Union[str, bool, int, None]
-YamlTypes = Union[YamlPrimatives, dict[str, YamlPrimatives]]
+YamlTypes = Union[YamlPrimatives, dict[str, YamlPrimatives | dict[str, YamlPrimatives]]]
 
 
 @contextlib.contextmanager

@@ -143,7 +143,9 @@ class ArgoCommands(Commands):
         self._check_service(service_name)
         push_remove_key(self.target, f"services.{service_name}")
 
-    def deploy(self, service_name, version, args, confirm_callback=None) -> None:
+    def deploy(
+        self, service_name, version, description, args, confirm_callback=None
+    ) -> None:
         if not version:
             latest_version = self._get_latest_version(service_name)
             version = latest_version
@@ -157,7 +159,11 @@ class ArgoCommands(Commands):
 
         if confirm_callback:
             confirm_callback(version)
-        deploy_dict: YamlTypes = {"enabled": True, "targetRevision": version}
+        deploy_dict: YamlTypes = {
+            "enabled": True,
+            "targetRevision": version,
+            "labels": {"description": description},
+        }
 
         push_value(self.target, f"services.{service_name}", deploy_dict)
 

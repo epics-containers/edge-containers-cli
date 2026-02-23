@@ -86,6 +86,9 @@ def deploy(
         autocompletion=avail_versions,
         show_default=False,
     ),
+    description: str | None = typer.Argument(
+        None, help="Custom description label for the service"
+    ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     args: str = typer.Option(

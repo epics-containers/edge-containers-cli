@@ -119,6 +119,7 @@ class Commands(ABC):
         self,
         service_name: str,
         version: str,
+        description: str | None,
         args: str,
         confirm_callback: Callable[[str], None] | None = None,
     ) -> None:
