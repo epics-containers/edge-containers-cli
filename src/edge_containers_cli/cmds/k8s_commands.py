@@ -51,7 +51,7 @@ class K8sCommands(Commands):
             f"helm delete -n {self.target} {service_name}", skip_on_dryrun=True
         )
 
-    def deploy(self, service_name, version, args, confirm_callback=None):
+    def deploy(self, service_name, version, description, args, confirm_callback=None):
         if not version:
             latest_version = self._get_latest_version(service_name)
             version = latest_version
@@ -61,6 +61,7 @@ class K8sCommands(Commands):
             service_name,
             args,
             version,
+            description,
             repo=self.repo,
         )
         chart.deploy(confirm_callback)

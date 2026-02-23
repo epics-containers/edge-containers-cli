@@ -25,6 +25,7 @@ class Helm:
         service_name: str,
         args: str = "",
         version: str | None = None,
+        description: str | None = None,
         template: bool = False,
         repo: str | None = None,
     ):
@@ -36,6 +37,7 @@ class Helm:
         self.namespace = namespace
         self.args = args
         self.version = version or local_version()
+        self.description = description
         self.template = template
 
         self._work_dir = new_workdir()
