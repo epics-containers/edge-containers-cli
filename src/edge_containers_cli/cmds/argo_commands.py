@@ -261,11 +261,6 @@ class ArgoCommands(Commands):
                     if resource["kind"] in ["StatefulSet", "Deployment"]:
                         name = app["metadata"]["name"]
 
-                        try:
-                            label = app["metadata"]["labels"]["description"]
-                        except KeyError:
-                            label = "service"
-
                         # check if replicas ready
                         mani_resp = shell.run_command(
                             f"argocd app manifests {namespace}/{name} --source live",
@@ -280,6 +275,13 @@ class ArgoCommands(Commands):
                                 kind in ["StatefulSet", "Deployment"]
                                 and resource_name == name
                             ):
+                                try:
+                                    label = manifest["metadata"]["labels"][
+                                        "description"
+                                    ]
+                                except KeyError:
+                                    label = "service"
+
                                 try:
                                     is_ready = bool(manifest["status"]["readyReplicas"])
                                 except (
