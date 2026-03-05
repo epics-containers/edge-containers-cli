@@ -4,6 +4,9 @@ from pathlib import Path
 
 import polars
 from natsort import natsorted
+from rich import box
+from rich.console import Console
+from rich.table import Table
 
 from edge_containers_cli import globals
 from edge_containers_cli.definitions import ENV, ECContext
@@ -166,7 +169,18 @@ class Commands(ABC):
 
     def _ps(self, running_only: bool) -> None:
         services_df = self._get_services(running_only)
-        print(services_df)
+
+        console = Console()
+        table = Table(
+            *services_df.columns,
+            show_header=True,
+            header_style="bold cyan",
+            row_styles=["", "dim"],
+            box=box.ROUNDED,
+        )
+        for row in services_df.to_dicts():
+            table.add_row(*list(map(str, row.values())))
+        console.print(table)
 
     @abstractmethod
     def _get_logs(self, service_name: str, prev: bool) -> str:
