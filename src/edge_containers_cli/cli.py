@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import rich
 import typer
 
 import edge_containers_cli.globals as globals
@@ -20,7 +21,7 @@ from edge_containers_cli.shell import ShellError
 
 
 def confirmation(message: str, yes: bool):
-    typer.echo(message)
+    rich.print(message)
     if not (yes or typer.confirm("Are you sure?")):
         raise typer.Abort()
 
@@ -101,8 +102,9 @@ def deploy(
 
     def confirm_callback(svc_version):
         confirmation(
-            f"Deploy {service_name.lower()} "
-            f" version `{svc_version}` to target `{backend.commands.target}`",
+            f"Deploy [white]{service_name.lower()}[/white]"
+            f" version [white]`{svc_version}`[/white] to target [white]`{backend.commands.target}`[/white]"
+            f" with description [white]`{description}`[/white]",
             yes,
         )
 
