@@ -157,6 +157,9 @@ class ArgoCommands(Commands):
                 f"'{self.repo}' with branch/tag '{version}'"
             )
 
+        if description is None:
+            description = self._check_description(service_name)
+
         if confirm_callback:
             confirm_callback(version)
         deploy_dict: YamlTypes = {
@@ -178,10 +181,9 @@ class ArgoCommands(Commands):
     def ps(self, running_only):
         self._ps(running_only)
 
-    def _check_stoppable(self, service_name) -> None:
+    def _get_service_manifest(self, service_name) -> dict:
         self._check_service(service_name)
         namespace, app = extract_ns_app(self.target)
-        stoppable = False
 
         # get the manifests and determine if there is an 'enabled' label
         # which implies the service can be stopped/started
@@ -192,15 +194,38 @@ class ArgoCommands(Commands):
             manifest = YAML(typ="safe").load(resource_manifest)
             if not manifest:
                 continue
-            kind = manifest["kind"]
-            resource_name = manifest["metadata"]["name"]
-            if kind in ["StatefulSet", "Deployment"] and resource_name == service_name:
-                labels = manifest["metadata"].get("labels")
-                if labels:
-                    stoppable = "enabled" in labels
+            return manifest
+
+        raise CommandError(f"No manifest found for {service_name}")
+
+    def _check_stoppable(self, service_name) -> None:
+        stoppable = False
+
+        manifest = self._get_service_manifest(service_name)
+
+        kind = manifest["kind"]
+        resource_name = manifest["metadata"]["name"]
+        if kind in ["StatefulSet", "Deployment"] and resource_name == service_name:
+            labels = manifest["metadata"].get("labels")
+            if labels:
+                stoppable = "enabled" in labels
 
         if not stoppable:
             raise CommandError(f"{service_name} does not support stop/start")
+
+    def _check_description(self, service_name) -> str | None:
+        description = None
+
+        manifest = self._get_service_manifest(service_name)
+
+        kind = manifest["kind"]
+        resource_name = manifest["metadata"]["name"]
+        if kind in ["StatefulSet", "Deployment"] and resource_name == service_name:
+            description = (
+                val if (val := manifest["metadata"]["labels"]["description"]) else None
+            )
+
+        return description
 
     def restart(self, service_name):
         self._check_stoppable(service_name)
