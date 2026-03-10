@@ -161,7 +161,7 @@ class ArgoCommands(Commands):
             description = self._check_description(service_name)
 
         if confirm_callback:
-            confirm_callback(version)
+            confirm_callback(version, description)
         deploy_dict: YamlTypes = {
             "enabled": True,
             "targetRevision": version,
@@ -183,6 +183,7 @@ class ArgoCommands(Commands):
 
     def _get_service_manifest(self, service_name) -> dict:
         self._check_service(service_name)
+
         namespace, app = extract_ns_app(self.target)
 
         # get the manifests and determine if there is an 'enabled' label
@@ -194,6 +195,8 @@ class ArgoCommands(Commands):
             manifest = YAML(typ="safe").load(resource_manifest)
             if not manifest:
                 continue
+            if manifest["kind"] not in ["StatefulSet", "Deployment"]:
+                continue
             return manifest
 
         raise CommandError(f"No manifest found for {service_name}")
@@ -203,9 +206,8 @@ class ArgoCommands(Commands):
 
         manifest = self._get_service_manifest(service_name)
 
-        kind = manifest["kind"]
         resource_name = manifest["metadata"]["name"]
-        if kind in ["StatefulSet", "Deployment"] and resource_name == service_name:
+        if resource_name == service_name:
             labels = manifest["metadata"].get("labels")
             if labels:
                 stoppable = "enabled" in labels
@@ -218,11 +220,13 @@ class ArgoCommands(Commands):
 
         manifest = self._get_service_manifest(service_name)
 
-        kind = manifest["kind"]
         resource_name = manifest["metadata"]["name"]
-        if kind in ["StatefulSet", "Deployment"] and resource_name == service_name:
+        if resource_name == service_name:
+            # This is to return None if description doesn't exist or is ''
             description = (
-                val if (val := manifest["metadata"]["labels"]["description"]) else None
+                val
+                if (val := manifest["metadata"]["labels"].get("description"))
+                else None
             )
 
         return description
@@ -338,7 +342,7 @@ class ArgoCommands(Commands):
         """
         validate that there is a app with the given service_name
         """
-        services_list = self._get_services(running_only=False)["name"]
+        services_list = self._get_services(running_only=False)["name"].to_list()
         if service_name in services_list:
             pass
         else:

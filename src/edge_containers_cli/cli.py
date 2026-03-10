@@ -87,7 +87,7 @@ def deploy(
         autocompletion=avail_versions,
         show_default=False,
     ),
-    description: str = typer.Argument(
+    description: str | None = typer.Argument(
         None, help="Custom description label for the service"
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
@@ -100,13 +100,12 @@ def deploy(
     Add a service to the cluster from its source repository
     """
 
-    def confirm_callback(svc_version):
+    def confirm_callback(svc_version: str, current_desc: str | None):
         message = (
             f"Deploy [white]{service_name.lower()}[/white]"
-            f" version [white]`{svc_version}`[/white] to target [white]`{backend.commands.target}`[/white]"
+            f" version [white]`{svc_version}`[/white] to target [white]`{backend.commands.target}`[/white] with \
+{'existing ' if description is None else ''}description [white]`{current_desc}`[/white]"
         )
-        if description is not None:
-            message += f" with description [white]`{description}`[/white]"
 
         confirmation(
             message,

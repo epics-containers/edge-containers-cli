@@ -124,7 +124,7 @@ class Commands(ABC):
         version: str,
         description: str | None,
         args: str,
-        confirm_callback: Callable[[str], None] | None = None,
+        confirm_callback: Callable[[str, str | None], None] | None = None,
     ) -> None:
         raise NotImplementedError
 
