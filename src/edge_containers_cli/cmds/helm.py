@@ -65,12 +65,12 @@ class Helm:
         self.cleanup_chart(service_path)
         self._do_deploy(service_path)
 
-    def deploy(self, confirm_callback: Callable[[str], None] | None = None):
+    def deploy(self, confirm_callback: Callable[[str, str | None], None] | None = None):
         """
         Clone a helm chart and deploy it to the cluster
         """
         if confirm_callback:
-            confirm_callback(self.version)
+            confirm_callback(self.version, self.description)
         shell.run_command(
             f"git clone {self.repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
