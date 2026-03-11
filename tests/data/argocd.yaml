@@ -72,6 +72,42 @@ deploy:
         source:
           repoURL: https://github.com/test/example-deployment.git
           path: apps
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        creationTimestamp: "2024-07-12T13:52:35Z"
+      status:
+        readyReplicas: 1
+  # Not sure why this is called twice, but only requires labels for this one???
+  # As far as I can tell it should only be called once inside of _check_description()...
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        creationTimestamp: "2024-07-12T13:52:35Z"
+        labels:
+          test: test_label
+      status:
+        readyReplicas: 1
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:

@@ -60,9 +60,11 @@ def test_stop(mock_run, ARGOCD):
 
 def test_ps(mock_run, ARGOCD):
     expect = (
-        "| name             | label   | version | ready | deployed             |\n"
-        "|------------------|---------|---------|-------|----------------------|\n"
-        "| bl01t-ea-test-01 | service | main    | true  | 2024-07-12T13:52:35Z |\n"
+        "╭──────────────────┬─────────┬─────────┬───────┬──────────────────────╮\n"
+        "│ name             │ label   │ version │ ready │ deployed             │\n"
+        "├──────────────────┼─────────┼─────────┼───────┼──────────────────────┤\n"
+        "│ bl01t-ea-test-01 │ service │ main    │ True  │ 2024-07-12T13:52:35Z │\n"
+        "╰──────────────────┴─────────┴─────────┴───────┴──────────────────────╯\n"
     )
     mock_run.set_seq(ARGOCD.checks)
     res = mock_run.run_cli("ps")
