@@ -102,9 +102,9 @@ def deploy(
 
     def confirm_callback(svc_version: str, current_desc: str | None):
         message = (
-            f"Deploy [white]{service_name.lower()}[/white]"
-            f" version [white]`{svc_version}`[/white] to target [white]`{backend.commands.target}`[/white] with \
-{'existing ' if description is None else ''}description [white]`{current_desc}`[/white]"
+            f"[bold]Deploy [white]{service_name.lower()}[/white]"
+            f" version [white]{svc_version}[/white] to target [white]{backend.commands.target}[/white] with \
+{'existing ' if description is None else ''}description [white]{current_desc}[/white][/bold]"
         )
 
         confirmation(
