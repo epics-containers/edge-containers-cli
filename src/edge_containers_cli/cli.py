@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 import rich
@@ -24,6 +25,16 @@ def confirmation(message: str, yes: bool):
     rich.print(message)
     if not (yes or typer.confirm("Are you sure?")):
         raise typer.Abort()
+
+
+def _check_description(desc_text: str):
+    _desc_re = r"^[a-zA-Z0-9](?:(?!--)[a-zA-Z0-9-]){0,62}$"
+    if not re.match(_desc_re, desc_text):
+        raise typer.BadParameter(
+            f"The description '{desc_text}' is not kebab-case or uses illegal characters.\n\
+Only the symbols '-', '_' and '.' are allowed."
+        )
+    return desc_text
 
 
 class ErrorHandlingTyper(typer.Typer):
@@ -87,8 +98,11 @@ def deploy(
         autocompletion=avail_versions,
         show_default=False,
     ),
-    description: str | None = typer.Argument(
-        None, help="Custom description label for the service"
+    description: str | None = typer.Option(
+        None,
+        "--desc",
+        help="Custom description label for the service",
+        callback=_check_description,
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
