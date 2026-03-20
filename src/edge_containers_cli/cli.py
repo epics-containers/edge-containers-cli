@@ -27,13 +27,14 @@ def confirmation(message: str, yes: bool):
         raise typer.Abort()
 
 
-def _check_description(desc_text: str):
+def _check_description(desc_text: str | None):
     _desc_re = r"^[a-zA-Z0-9](?:(?!--)[a-zA-Z0-9-]){0,62}$"
-    if not re.match(_desc_re, desc_text):
-        raise typer.BadParameter(
-            f"The description '{desc_text}' is not kebab-case or uses illegal characters.\n\
+    if desc_text is not None:
+        if not re.match(_desc_re, desc_text):
+            raise typer.BadParameter(
+                f"The description '{desc_text}' is not kebab-case or uses illegal characters.\n\
 Only the symbols '-', '_' and '.' are allowed."
-        )
+            )
     return desc_text
 
 
