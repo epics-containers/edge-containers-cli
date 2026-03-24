@@ -171,7 +171,7 @@ class Commands(ABC):
         raise NotImplementedError
 
     def _ps(self, running_only: bool) -> None:
-        services_df = self._get_services(running_only)
+        services_df = self._get_services_df(running_only)
 
         console = Console()
         table = Table(
