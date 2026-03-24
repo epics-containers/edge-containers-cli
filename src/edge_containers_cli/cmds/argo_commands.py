@@ -341,11 +341,10 @@ class ArgoCommands(Commands):
 
         service_df = polars.from_dict(service_data, schema=ServicesSchema)
 
-        async with self.async_lock:
-            if self.services_df.is_empty():
-                self.services_df = service_df
-            else:
-                self.services_df.extend(service_df)
+        if self.services_df.is_empty():
+            self.services_df = service_df
+        else:
+            self.services_df.extend(service_df)
 
     async def _get_service_data(self):
         self._get_services()
@@ -355,7 +354,17 @@ class ArgoCommands(Commands):
                 group.create_task(self._extract_app_manifests(app))
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
-        asyncio.run(self._get_service_data())
+        try:
+            asyncio.get_running_loop()
+            # We're in an async context — run in a separate thread with its own loop
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(asyncio.run, self._get_service_data())
+                future.result()  # blocks the worker thread, not the event loop thread
+        except RuntimeError:
+            # No running loop — safe to block here
+            asyncio.run(self._get_service_data())
 
         services_df = self.services_df
 

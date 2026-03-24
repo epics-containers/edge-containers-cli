@@ -1,5 +1,6 @@
 """TUI monitor for containerised IOCs."""
 
+import asyncio
 import logging
 import threading
 import time
@@ -27,6 +28,7 @@ from textual.widgets import (
     Footer,
     Header,
     Label,
+    LoadingIndicator,
     RichLog,
     Static,
 )
@@ -264,34 +266,25 @@ class IocTable(Widget):
         self.commands = commands
         self.running_only = running_only
         self._indicator_lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
         self._service_indicators = {
             "name": [""],
             Emoji.exclaim: [""],
         }
-        iocs_df: polars.DataFrame = self._get_services_df(self.running_only)
-        self.columns = iocs_df.columns
-        # We don't want the label to be a custom column (using DataTable row label instead)
-        self.columns.remove("label")
         self._polling_rate_hz = 1
 
     def compose(self) -> ComposeResult:
-        table: DataTable[Text] = DataTable(
+        yield LoadingIndicator()
+
+        self.table: DataTable[Text] = DataTable(
             id="body_table",
             header_height=1,
             show_cursor=False,
             zebra_stripes=True,
             show_row_labels=True,
         )
-        table.focus()
-
-        for column_id in self.columns:
-            heading = self._get_heading(column_id)
-            table.add_column(heading, key=str(column_id))
-
-        table.show_cursor = True
-        table.cursor_type = "row"
-
-        yield table
+        self.table.focus()
+        yield self.table
 
     def _get_heading(self, column_id: str):
         if column_id == self.sort_column_id:
@@ -303,20 +296,39 @@ class IocTable(Widget):
 
         return heading
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
+        self.table.display = False  # hide until ready
+
+        iocs_df: polars.DataFrame = await self._get_services_df(self.running_only)
+
+        self.columns = iocs_df.columns
+        # We don't want the label to be a custom column (using DataTable row label instead)
+        self.columns.remove("label")
+
+        for column_id in self.columns:
+            heading = self._get_heading(column_id)
+            self.table.add_column(heading, key=str(column_id))
+
+        self.query_one(LoadingIndicator).display = False
+        self.table.display = True
+
+        self.table.show_cursor = True
+        self.table.cursor_type = "row"
+
         self.do_polling()
 
     @work(exclusive=True, thread=True)
-    def do_polling(self):
+    async def do_polling(self):
         worker = get_current_worker()
 
         while not worker.is_cancelled:
-            result = self._get_services_df(self.running_only)
+            result = await self._get_services_df(self.running_only)
             self.app.call_from_thread(partial(self.populate_table, result))
             time.sleep(1 / self._polling_rate_hz)
 
-    def _get_services_df(self, running_only):
-        services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
+    async def _get_services_df(self, running_only):
+        async with self._async_lock:
+            services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
         services_df = services_df.with_columns(
             polars.when(polars.col("ready"))
             .then(polars.lit(Emoji.check_mark))
