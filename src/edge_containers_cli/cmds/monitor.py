@@ -41,6 +41,8 @@ from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
 
+WHITE = Color.parse("white")
+
 
 class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
     BINDINGS = [
@@ -296,26 +298,39 @@ class IocTable(Widget):
 
         return heading
 
-    async def on_mount(self) -> None:
+    def on_mount(self) -> None:
         self.table.display = False  # hide until ready
+        self.load_data()
+        # self.do_polling()
 
-        iocs_df: polars.DataFrame = await self._get_services_df(self.running_only)
+    @work(thread=True)
+    def load_data(self):
+        iocs_df: polars.DataFrame = asyncio.run(
+            self._get_services_df(self.running_only)
+        )
 
         self.columns = iocs_df.columns
         # We don't want the label to be a custom column (using DataTable row label instead)
         self.columns.remove("label")
 
-        for column_id in self.columns:
-            heading = self._get_heading(column_id)
-            self.table.add_column(heading, key=str(column_id))
+        def _update():
+            for column_id in self.columns:
+                heading = self._get_heading(column_id)
+                self.table.add_column(heading, key=str(column_id))
 
-        self.query_one(LoadingIndicator).display = False
-        self.table.display = True
+            self.query_one(LoadingIndicator).display = False
+            self.table.display = True
 
-        self.table.show_cursor = True
-        self.table.cursor_type = "row"
+            self.table.show_cursor = True
+            self.table.cursor_type = "row"
 
-        self.do_polling()
+            self.do_polling()
+
+            self.sort_column_id = (
+                self.default_sort_column_id
+            )  # triggers watch_sort_column_id
+
+        self.app.call_from_thread(_update)
 
     @work(exclusive=True, thread=True)
     async def do_polling(self):
@@ -374,40 +389,46 @@ class IocTable(Widget):
         new_iocs: list[dict] = iocs_df.to_dicts()
         new_iocs = sorted(new_iocs, key=lambda d: d["name"])
 
-        # For each IOC row
-        for ioc in new_iocs:
-            row_key = str(ioc["name"])
-            new_ioc_set.add(RowKey(row_key))
+        with self.app.batch_update():
+            # For each IOC row
+            for ioc in new_iocs:
+                row_key = str(ioc["name"])
+                new_ioc_set.add(RowKey(row_key))
 
-            cells = [
-                {
-                    "col_key": key,
-                    "contents": SortableText(
-                        ioc[key],
-                        str(ioc[key]),
-                        Color.parse("white"),
-                        justify="center",
-                    ),
-                }
-                for key in self.columns
-            ]
+                cells = [
+                    {
+                        "col_key": key,
+                        "contents": SortableText(
+                            ioc[key],
+                            str(ioc[key]),
+                            WHITE,
+                            justify="center",
+                        ),
+                    }
+                    for key in self.columns
+                ]
 
-            if row_key not in table.rows:
-                table.add_row(
-                    *[cell["contents"] for cell in cells],
-                    key=row_key,
-                    label=ioc["label"],
-                )
-            else:
-                for cell in cells:
-                    table.update_cell(row_key, cell["col_key"], cell["contents"])
+                if row_key not in table.rows:
+                    table.add_row(
+                        *[cell["contents"] for cell in cells],
+                        key=row_key,
+                        label=ioc["label"],
+                    )
+                else:
+                    for cell in cells:
+                        current = table.get_cell(row_key, cell["col_key"])
+                        # only update if value has actually changed
+                        if str(current) != str(cell["contents"]):
+                            table.update_cell(
+                                row_key, cell["col_key"], cell["contents"]
+                            )
 
-        # If any IOC has been removed, remove it from the table
-        for old_row_key in curr_ioc_set - new_ioc_set:
-            table.remove_row(old_row_key)
+            # If any IOC has been removed, remove it from the table
+            for old_row_key in curr_ioc_set - new_ioc_set:
+                table.remove_row(old_row_key)
 
-        # Sort by column
-        table.sort(self.sort_column_id, reverse=False)
+            # Sort by column
+            table.sort(self.sort_column_id, reverse=False)
 
 
 class MonitorLogHandler(logging.Handler):
