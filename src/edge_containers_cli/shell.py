@@ -2,6 +2,7 @@
 functions for executing commands and querying environment in the linux shell
 """
 
+import asyncio
 import subprocess
 
 from rich.console import Console
@@ -38,7 +39,7 @@ class ECShell:
         """
         self.console.print(output, style=Style(color="deep_sky_blue3", bold=True))
 
-    def run_command(
+    async def run_command(
         self,
         command: str,
         error_OK=False,
@@ -59,11 +60,18 @@ class ECShell:
             self.echo_command(command)
 
         if not (self.dry_run and skip_on_dryrun):
-            p_result = subprocess.run(command, capture_output=True, shell=True)
+            p_result = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                shell=True,
+            )
             log.debug(f"running: {command}")
 
-            output = p_result.stdout.decode()
-            error_out = p_result.stderr.decode()
+            stdout, stderr = await p_result.communicate()
+
+            output = stdout.decode()
+            error_out = stderr.decode()
             result = output + error_out
 
             if p_result.returncode != 0 and not error_OK:

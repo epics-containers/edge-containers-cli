@@ -12,7 +12,7 @@ from edge_containers_cli import globals
 from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.git import create_version_map
 from edge_containers_cli.logging import log
-from edge_containers_cli.utils import new_workdir
+from edge_containers_cli.utils import _run_async, new_workdir
 
 
 class CommandError(Exception):
@@ -91,7 +91,7 @@ class Commands(ABC):
             if self._target == ECContext().target:
                 raise CommandError(f"Please set {ENV.target.value} or pass --target")
             else:
-                self._validate_target()
+                _run_async(self._validate_target())
                 self._target_valid = True
         log.debug("target = %s", self._target)
         return self._target
@@ -115,10 +115,10 @@ class Commands(ABC):
     def attach(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def delete(self, service_name: str) -> None:
+    async def delete(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def deploy(
+    async def deploy(
         self,
         service_name: str,
         version: str,
@@ -142,28 +142,28 @@ class Commands(ABC):
     def logs(self, service_name: str, prev: bool) -> None:
         raise NotImplementedError
 
-    def log_history(self, service_name: str) -> None:
+    async def log_history(self, service_name: str) -> None:
         raise NotImplementedError
 
     def ps(self, running_only: bool) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def restart(self, service_name: str) -> None:
+    async def restart(self, service_name: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def start(self, service_name: str, commit: bool = False) -> None:
+    async def start(self, service_name: str, commit: bool = False) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def stop(self, service_name: str, commit: bool = False) -> None:
+    async def stop(self, service_name: str, commit: bool = False) -> None:
         raise NotImplementedError
 
     def template(self, svc_instance: Path, args: str) -> None:
         raise NotImplementedError
 
-    def _get_services(self) -> None:
+    async def _get_services(self) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -186,13 +186,13 @@ class Commands(ABC):
         console.print(table)
 
     @abstractmethod
-    def _get_logs(self, service_name: str, prev: bool) -> str:
+    async def _get_logs(self, service_name: str, prev: bool) -> str:
         raise NotImplementedError
 
     def _logs(self, service_name: str, prev: bool) -> None:
         print(self._get_logs(service_name, prev))
 
-    def _validate_target(self) -> None:
+    async def _validate_target(self) -> None:
         raise NotImplementedError
 
     def _running_services(self) -> list[str]:
@@ -201,7 +201,7 @@ class Commands(ABC):
     def _all_services(self) -> list[str]:
         return self._get_services_df(running_only=False)["name"].to_list()
 
-    def _check_service(self, service_name: str) -> None:
+    async def _check_service(self, service_name: str) -> None:
         services_list = self._get_services_df(running_only=False)["name"]
         if service_name in services_list:
             pass

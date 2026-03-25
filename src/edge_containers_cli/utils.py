@@ -2,6 +2,7 @@
 utility functions
 """
 
+import asyncio
 import contextlib
 import json
 import os
@@ -220,3 +221,17 @@ def is_partial_match(query: str, target_list: list[str]) -> bool:
         if query in item:
             return True
     return False
+
+
+def _run_async(coroutine):
+    try:
+        asyncio.get_running_loop()
+        # We're in an async context — run in a separate thread with its own loop
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coroutine)
+            future.result()  # blocks the worker thread, not the event loop thread
+    except RuntimeError:
+        # No running loop — safe to block here
+        asyncio.run(coroutine)
