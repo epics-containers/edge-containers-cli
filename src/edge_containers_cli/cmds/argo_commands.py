@@ -341,10 +341,11 @@ class ArgoCommands(Commands):
 
         service_df = polars.from_dict(service_data, schema=ServicesSchema)
 
-        if self.services_df.is_empty():
-            self.services_df = service_df
-        else:
-            self.services_df.extend(service_df)
+        async with self.async_lock:
+            if self.services_df.is_empty():
+                self.services_df = service_df
+            else:
+                self.services_df.extend(service_df)
 
     async def _get_service_data(self):
         await self._get_services()
