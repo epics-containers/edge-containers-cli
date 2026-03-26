@@ -128,7 +128,7 @@ class Commands(ABC):
     ) -> None:
         raise NotImplementedError
 
-    def deploy_local(
+    async def deploy_local(
         self,
         svc_instance: Path,
         args: str,
@@ -160,7 +160,7 @@ class Commands(ABC):
     async def stop(self, service_name: str, commit: bool = False) -> None:
         raise NotImplementedError
 
-    def template(self, svc_instance: Path, args: str) -> None:
+    async def template(self, svc_instance: Path, args: str) -> None:
         raise NotImplementedError
 
     async def _get_services(self) -> None:

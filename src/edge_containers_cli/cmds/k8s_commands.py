@@ -66,12 +66,12 @@ class K8sCommands(Commands):
             description,
             repo=self.repo,
         )
-        chart.deploy(confirm_callback)
+        await chart.deploy(confirm_callback)
 
-    def deploy_local(self, svc_instance, args, confirm_callback=None):
+    async def deploy_local(self, svc_instance, args, confirm_callback=None):
         service_name = svc_instance.name.lower()
         chart = Helm(self.target, service_name, args=args)
-        chart.deploy_local(svc_instance, confirm_callback)
+        await chart.deploy_local(svc_instance, confirm_callback)
 
     async def exec(self, service_name):
         await self._check_service(service_name)
@@ -114,7 +114,7 @@ class K8sCommands(Commands):
             skip_on_dryrun=True,
         )
 
-    def template(self, svc_instance, args):
+    async def template(self, svc_instance, args):
         datetime.strftime(datetime.now(), "%Y.%-m.%-d-b%-H.%-M")
 
         service_name = svc_instance.name.lower()
@@ -125,7 +125,7 @@ class K8sCommands(Commands):
             args=args,
             template=True,
         )
-        chart.deploy_local(svc_instance)
+        await chart.deploy_local(svc_instance)
 
     def _get_services_df(self, running_only):
         services_df = polars.DataFrame()

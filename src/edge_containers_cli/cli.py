@@ -135,7 +135,7 @@ async def deploy(
 
 
 @cli.command()
-def deploy_local(
+async def deploy_local(
     svc_instance: Path = typer.Argument(
         ...,
         help="folder of local service definition",
@@ -159,7 +159,7 @@ def deploy_local(
             yes,
         )
 
-    backend.commands.deploy_local(svc_instance, args, confirm_callback)
+    await backend.commands.deploy_local(svc_instance, args, confirm_callback)
 
 
 @cli.command()
@@ -321,7 +321,7 @@ async def stop(
 
 
 @cli.command()
-def template(
+async def template(
     svc_instance: Path = typer.Argument(
         ...,
         help="folder of local service definition",
@@ -337,7 +337,7 @@ def template(
     Print out the helm template generated from a local service instance
     """
     args = f"{args} --debug"
-    backend.commands.template(svc_instance, args)
+    await backend.commands.template(svc_instance, args)
 
 
 def drop_methods(ctx: typer.Context, to_drop: list[str]):
