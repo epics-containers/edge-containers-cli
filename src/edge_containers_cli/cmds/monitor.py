@@ -305,9 +305,7 @@ class IocTable(Widget):
 
     @work(thread=True)
     def load_data(self):
-        iocs_df: polars.DataFrame = asyncio.run(
-            self._get_services_df(self.running_only)
-        )
+        iocs_df: polars.DataFrame = self._get_services_df(self.running_only)
 
         self.columns = iocs_df.columns
         # We don't want the label to be a custom column (using DataTable row label instead)
