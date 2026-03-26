@@ -112,7 +112,7 @@ class Commands(ABC):
             log.debug("log_url = %s", self._log_url)
             return self._log_url
 
-    def attach(self, service_name: str) -> None:
+    async def attach(self, service_name: str) -> None:
         raise NotImplementedError
 
     async def delete(self, service_name: str) -> None:
@@ -136,7 +136,7 @@ class Commands(ABC):
     ) -> None:
         raise NotImplementedError
 
-    def exec(self, service_name: str) -> None:
+    async def exec(self, service_name: str) -> None:
         raise NotImplementedError
 
     def logs(self, service_name: str, prev: bool) -> None:

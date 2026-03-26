@@ -51,7 +51,7 @@ cli = ErrorHandlingTyper(pretty_exceptions_show_locals=False)
 
 
 @cli.command()
-def attach(
+async def attach(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to attach to",
@@ -62,7 +62,7 @@ def attach(
     """
     Attach to the console of a live service
     """
-    backend.commands.attach(service_name)
+    await backend.commands.attach(service_name)
 
 
 @cli.command()
@@ -170,7 +170,7 @@ def env():
 
 
 @cli.command()
-def exec(
+async def exec(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service container to run in",
@@ -179,7 +179,7 @@ def exec(
     ),
 ):
     """Execute a bash prompt in a running container"""
-    backend.commands.exec(service_name)
+    await backend.commands.exec(service_name)
 
 
 @cli.command()

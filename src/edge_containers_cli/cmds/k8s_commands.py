@@ -38,20 +38,22 @@ class K8sCommands(Commands):
     ):
         super().__init__(ctx)
 
-    def attach(self, service_name):
-        self._check_service(service_name)
-        shell.run_interactive(
+    async def attach(self, service_name):
+        await self._check_service(service_name)
+        await shell.run_interactive(
             f"kubectl -it -n {self.target} attach statefulset {service_name}",
             skip_on_dryrun=True,
         )
 
-    def delete(self, service_name, commit=False):
-        self._check_service(service_name)
-        shell.run_command(
+    async def delete(self, service_name, commit=False):
+        await self._check_service(service_name)
+        await shell.run_command(
             f"helm delete -n {self.target} {service_name}", skip_on_dryrun=True
         )
 
-    def deploy(self, service_name, version, description, args, confirm_callback=None):
+    async def deploy(
+        self, service_name, version, description, args, confirm_callback=None
+    ):
         if not version:
             latest_version = self._get_latest_version(service_name)
             version = latest_version
@@ -71,9 +73,9 @@ class K8sCommands(Commands):
         chart = Helm(self.target, service_name, args=args)
         chart.deploy_local(svc_instance, confirm_callback)
 
-    def exec(self, service_name):
-        self._check_service(service_name)
-        shell.run_interactive(
+    async def exec(self, service_name):
+        await self._check_service(service_name)
+        await shell.run_interactive(
             f"kubectl -it -n {self.target} exec statefulset/{service_name} -- bash",
             skip_on_dryrun=True,
         )
@@ -81,33 +83,33 @@ class K8sCommands(Commands):
     def logs(self, service_name, prev):
         self._logs(service_name, prev)
 
-    def log_history(self, service_name):
-        self._check_service(service_name)
+    async def log_history(self, service_name):
+        await self._check_service(service_name)
         url = self.log_url.format(service_name=service_name)
         webbrowser.open(url)
 
     def ps(self, running_only):
         self._ps(running_only)
 
-    def restart(self, service_name):
-        self._check_service(service_name)
-        pod_name = shell.run_command(
+    async def restart(self, service_name):
+        await self._check_service(service_name)
+        pod_name = await shell.run_command(
             f"kubectl get -n {self.target} pod -l app={service_name} -o name",
         )
-        shell.run_command(
+        await shell.run_command(
             f"kubectl delete -n {self.target} {pod_name}", skip_on_dryrun=True
         )
 
-    def start(self, service_name, commit=False):
-        self._check_service(service_name)
-        shell.run_command(
+    async def start(self, service_name, commit=False):
+        await self._check_service(service_name)
+        await shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=1",
             skip_on_dryrun=True,
         )
 
-    def stop(self, service_name, commit=False):
-        self._check_service(service_name)
-        shell.run_command(
+    async def stop(self, service_name, commit=False):
+        await self._check_service(service_name)
+        await shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=0 ",
             skip_on_dryrun=True,
         )
@@ -199,23 +201,23 @@ class K8sCommands(Commands):
             services_df = services_df.filter(polars.col("ready").eq(True))
         return ServicesDataFrame(services_df)
 
-    def _get_logs(self, service_name, prev):
-        self._check_service(service_name)
+    async def _get_logs(self, service_name, prev):
+        await self._check_service(service_name)
         previous = "-p" if prev else ""
 
-        logs = shell.run_command(
+        logs = await shell.run_command(
             f"kubectl -n {self.target} logs statefulset/{service_name} {previous}",
             error_OK=True,
         )
         return logs
 
-    def _validate_target(self):
+    async def _validate_target(self):
         """
         Verify we have a good namespace that exists in the cluster
         """
         cmd = f"kubectl get namespace {self._target}"
         try:
-            shell.run_command(cmd, error_OK=False)
+            await shell.run_command(cmd, error_OK=False)
         except ShellError as e:
             if "NotFound" in str(e):
                 raise CommandError(f"Namespace '{self._target}' not found") from e
