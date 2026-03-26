@@ -26,13 +26,13 @@ def autocomplete_backend_init(ctx: typer.Context):
     ec_backend.set_context(context)
 
 
-def fetch_service_graph(repo: str) -> dict:
+async def fetch_service_graph(repo: str) -> dict:
     version_map = read_cached_dict(
         globals.CACHE_ROOT / url_encode(repo), globals.SERVICE_CACHE
     )
     if not version_map:
         with new_workdir() as path:
-            version_map = create_version_map(
+            version_map = await create_version_map(
                 repo,
                 Path(globals.SERVICES_DIR),
                 path,
@@ -47,25 +47,25 @@ def fetch_service_graph(repo: str) -> dict:
     return version_map
 
 
-def avail_services(ctx: typer.Context) -> list[str]:
+async def avail_services(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        services_graph = fetch_service_graph(ec_backend.commands.repo)
+        services_graph = await fetch_service_graph(ec_backend.commands.repo)
         return list(services_graph.keys())
     except (ShellError, CommandError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
 
 
-def avail_versions(ctx: typer.Context) -> list[str]:
+async def avail_versions(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
     service_name = ctx.params["service_name"]
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        version_map = fetch_service_graph(ec_backend.commands.repo)
+        version_map = await fetch_service_graph(ec_backend.commands.repo)
         svc_versions = version_map[service_name]
         return svc_versions
     except KeyError:
