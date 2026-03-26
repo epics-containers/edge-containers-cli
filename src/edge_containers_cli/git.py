@@ -80,7 +80,7 @@ async def del_key(repo_url: str, file: Path, key: str) -> None:
             raise GitError(str(e)) from e
 
 
-def _resolve_symlinks(
+async def _resolve_symlinks(
     symlink_object_map: dict[str, list[str]],
     file_list: list[str],
     cache: dict = {},  # noqa: B006
@@ -99,7 +99,7 @@ def _resolve_symlinks(
             # Else retrieve git object
             else:
                 cmd = f"git cat-file -p {symlink_object_map[symlink]}"
-                result_symlinks = str(shell.run_command(cmd))
+                result_symlinks = str(await shell.run_command(cmd))
                 symlink_map[symlink] = result_symlinks
                 cache[symlink_object_map[symlink]] = result_symlinks
 
@@ -171,7 +171,7 @@ async def create_version_map(
                 if match := re.search(service_pattern, line[-1]):  # Check service
                     service_list.append(match.group(1))
 
-            _resolve_symlinks(symlink_object_map, changed_files, cached_git_obj)
+            await _resolve_symlinks(symlink_object_map, changed_files, cached_git_obj)
 
             # Test against shared files
             if shared_files:
