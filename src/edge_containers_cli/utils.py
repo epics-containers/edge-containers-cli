@@ -234,7 +234,9 @@ def _run_async(coroutine: Coroutine):
 
         with concurrent.futures.ThreadPoolExecutor() as pool:
             future = pool.submit(asyncio.run, coroutine)
-            future.result()  # blocks the worker thread, not the event loop thread
+            ret = future.result()  # blocks the worker thread, not the event loop thread
     except RuntimeError:
         # No running loop — safe to block here
-        asyncio.run(coroutine)
+        ret = asyncio.run(coroutine)
+
+    return ret
