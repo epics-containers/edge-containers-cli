@@ -4,6 +4,7 @@ utility functions
 
 import asyncio
 import contextlib
+import functools
 import json
 import os
 import shutil
@@ -240,3 +241,11 @@ def _run_async(coroutine: Coroutine):
         ret = asyncio.run(coroutine)
 
     return ret
+
+
+def async_command(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
+
+    return wrapper

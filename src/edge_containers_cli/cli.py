@@ -19,6 +19,7 @@ from edge_containers_cli.definitions import ENV
 from edge_containers_cli.git import GitError, list_all, list_instances
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
+from edge_containers_cli.utils import async_command
 
 
 def confirmation(message: str, yes: bool):
@@ -51,6 +52,7 @@ cli = ErrorHandlingTyper(pretty_exceptions_show_locals=False)
 
 
 @cli.command()
+@async_command
 async def attach(
     service_name: str = typer.Argument(
         ...,
@@ -66,6 +68,7 @@ async def attach(
 
 
 @cli.command()
+@async_command
 async def delete(
     service_name: str = typer.Argument(
         ...,
@@ -86,6 +89,7 @@ async def delete(
 
 
 @cli.command()
+@async_command
 async def deploy(
     service_name: str = typer.Argument(
         ...,
@@ -135,6 +139,7 @@ async def deploy(
 
 
 @cli.command()
+@async_command
 async def deploy_local(
     svc_instance: Path = typer.Argument(
         ...,
@@ -163,6 +168,7 @@ async def deploy_local(
 
 
 @cli.command()
+@async_command
 def env():
     """List all relevant environment variables"""
     for var in ENV:
@@ -170,6 +176,7 @@ def env():
 
 
 @cli.command()
+@async_command
 async def exec(
     service_name: str = typer.Argument(
         ...,
@@ -183,6 +190,7 @@ async def exec(
 
 
 @cli.command()
+@async_command
 def instances(
     service_name: str = typer.Argument(
         ...,
@@ -203,6 +211,7 @@ def instances(
 
 
 @cli.command(name="list")
+@async_command
 def _list():
     """List all services available in the service repository"""
     print(
@@ -215,6 +224,7 @@ def _list():
 
 
 @cli.command()
+@async_command
 async def log_history(
     service_name: str = typer.Argument(
         ...,
@@ -228,6 +238,7 @@ async def log_history(
 
 
 @cli.command()
+@async_command
 def logs(
     service_name: str = typer.Argument(
         ...,
@@ -247,6 +258,7 @@ def logs(
 
 
 @cli.command()
+@async_command
 def monitor(
     running_only: bool = typer.Option(
         False, "-r", "--running-only", help="list only services that are running"
@@ -262,6 +274,7 @@ def monitor(
 
 
 @cli.command()
+@async_command
 def ps(
     running_only: bool = typer.Option(
         False, "-r", "--running-only", help="list only services that are running"
@@ -272,6 +285,7 @@ def ps(
 
 
 @cli.command()
+@async_command
 async def restart(
     service_name: str = typer.Argument(
         ...,
@@ -285,6 +299,7 @@ async def restart(
 
 
 @cli.command()
+@async_command
 async def start(
     service_name: str = typer.Argument(
         ...,
@@ -303,6 +318,7 @@ async def start(
 
 
 @cli.command()
+@async_command
 async def stop(
     service_name: str = typer.Argument(
         ...,
@@ -321,6 +337,7 @@ async def stop(
 
 
 @cli.command()
+@async_command
 async def template(
     svc_instance: Path = typer.Argument(
         ...,
