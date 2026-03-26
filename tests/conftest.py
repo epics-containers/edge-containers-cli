@@ -61,7 +61,7 @@ class MockRun:
 
         return rsp
 
-    def run_command(
+    async def run_command(
         self,
         command: str,
         error_OK=False,
@@ -78,7 +78,7 @@ class MockRun:
 
         return rsp
 
-    def run_interactive(
+    async def run_interactive(
         self,
         command: str,
         error_OK=False,
