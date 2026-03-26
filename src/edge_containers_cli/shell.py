@@ -63,7 +63,6 @@ class ECShell:
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                shell=True,
             )
             log.debug(f"running: {command}")
 
