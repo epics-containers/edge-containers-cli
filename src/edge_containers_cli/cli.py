@@ -66,7 +66,7 @@ def attach(
 
 
 @cli.command()
-def delete(
+async def delete(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to delete",
@@ -82,11 +82,11 @@ def delete(
         f"Remove {service_name} from the target `{backend.commands.target}`",
         yes,
     )
-    backend.commands.delete(service_name)
+    await backend.commands.delete(service_name)
 
 
 @cli.command()
-def deploy(
+async def deploy(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to deploy",
@@ -129,7 +129,9 @@ def deploy(
 
     args = args if not wait else args + " --wait"
     version = version if version != "latest tag" else ""
-    backend.commands.deploy(service_name, version, description, args, confirm_callback)
+    await backend.commands.deploy(
+        service_name, version, description, args, confirm_callback
+    )
 
 
 @cli.command()
@@ -213,7 +215,7 @@ def _list():
 
 
 @cli.command()
-def log_history(
+async def log_history(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to inspect",
@@ -222,7 +224,7 @@ def log_history(
     ),
 ):
     """Open historical logs for a service"""
-    backend.commands.log_history(service_name)
+    await backend.commands.log_history(service_name)
 
 
 @cli.command()
@@ -270,7 +272,7 @@ def ps(
 
 
 @cli.command()
-def restart(
+async def restart(
     service_name: str = typer.Argument(
         ...,
         help="Name of the container to restart",
@@ -279,11 +281,11 @@ def restart(
     ),
 ):
     """Restart a service"""
-    backend.commands.restart(service_name)
+    await backend.commands.restart(service_name)
 
 
 @cli.command()
-def start(
+async def start(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service container to start",
@@ -294,14 +296,14 @@ def start(
 ):
     """Start a service"""
     try:
-        backend.commands.start(service_name, commit=commit)
+        await backend.commands.start(service_name, commit=commit)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try 'ec start <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
 
 
 @cli.command()
-def stop(
+async def stop(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service container to stop",
@@ -312,7 +314,7 @@ def stop(
 ):
     """Stop a service"""
     try:
-        backend.commands.stop(service_name, commit=commit)
+        await backend.commands.stop(service_name, commit=commit)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try ec stop <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
