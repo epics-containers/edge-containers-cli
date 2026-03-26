@@ -156,7 +156,7 @@ class ArgoCommands(Commands):
             version = latest_version
 
         service_path = Path(globals.SERVICES_DIR) / service_name
-        if not check_exists(service_path, self.repo, version):
+        if not await check_exists(service_path, self.repo, version):
             raise CommandError(
                 f"Service '{service_name}' not found in repo "
                 f"'{self.repo}' with branch/tag '{version}'"
