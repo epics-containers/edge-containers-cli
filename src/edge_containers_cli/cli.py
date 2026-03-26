@@ -189,7 +189,8 @@ async def exec(
 
 
 @cli.command()
-def instances(
+@async_command
+async def instances(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to inspect",
@@ -199,7 +200,7 @@ def instances(
 ):
     """List all versions of the specified service in the repository"""
     print(
-        list_instances(
+        await list_instances(
             service_name,
             backend.commands.repo,
             Path(globals.SERVICES_DIR),
