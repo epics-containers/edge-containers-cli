@@ -4,6 +4,7 @@ implements commands for deploying and managing service instances in the k8s clus
 Relies on the Helm class for deployment aspects.
 """
 
+import asyncio
 import webbrowser
 from datetime import datetime
 from io import StringIO
@@ -20,6 +21,7 @@ from edge_containers_cli.cmds.helm import Helm
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.globals import TIME_FORMAT
 from edge_containers_cli.shell import ShellError, shell
+from edge_containers_cli.utils import _run_async
 
 
 class K8sCommands(Commands):
@@ -37,6 +39,10 @@ class K8sCommands(Commands):
         ctx: ECContext,
     ):
         super().__init__(ctx)
+
+        self.sts_dicts = {}
+        self.services_df = polars.DataFrame()
+        self.async_lock = asyncio.Lock()
 
     async def attach(self, service_name):
         await self._check_service(service_name)
@@ -127,22 +133,23 @@ class K8sCommands(Commands):
         )
         await chart.deploy_local(svc_instance)
 
-    def _get_services_df(self, running_only):
-        services_df = polars.DataFrame()
-
+    async def _get_services(self) -> None:
         # Get all statefulset services (running & not running)
-        kubectl_res = shell.run_command(
+        kubectl_res = await shell.run_command(
             f'kubectl get statefulset -l "is_ioc==true" -n {self.target} -o yaml',
         )
-        sts_dicts = YAML(typ="safe").load(kubectl_res)
+
+        self.sts_dicts = YAML(typ="safe").load(kubectl_res)
+
+    async def _extract_services_df(self, running_only):
         service_data = {
             "name": [],  # type: ignore
             "label": [],
             "ready": [],
             "deployed": [],
         }
-        if sts_dicts["items"]:
-            for sts in sts_dicts["items"]:
+        if self.sts_dicts["items"]:
+            for sts in self.sts_dicts["items"]:
                 name = sts["metadata"]["name"]
                 try:
                     label = sts["metadata"]["labels"]["description"]
@@ -177,7 +184,7 @@ class K8sCommands(Commands):
         )
 
         # Adds the version for all services
-        helm_out = str(shell.run_command(f"helm list -n {self.target} -o json"))
+        helm_out = str(await shell.run_command(f"helm list -n {self.target} -o json"))
         if helm_out == "[]\n":
             helm_df = polars.DataFrame(
                 schema=polars.Schema({"name": polars.String, "version": polars.String})
@@ -197,6 +204,29 @@ class K8sCommands(Commands):
         services_df = services_df.select(
             ["name", "label", "version", "ready", "deployed"]
         )
+
+        async with self.async_lock:
+            if self.services_df.is_empty():
+                self.services_df = services_df
+            else:
+                self.services_df.extend(services_df)
+
+    async def _get_service_data(self):
+        await self._get_services()
+
+        async with asyncio.TaskGroup() as group:
+            for sts in self.sts_dicts:
+                group.create_task(self._extract_services_df(sts))
+
+    def _get_services_df(self, running_only) -> ServicesDataFrame:
+        # Clear the current dataframe before polling the current manifests
+        self.services_df = self.services_df.clear()
+
+        # Helper function being used to help run asynchronously
+        _run_async(self._get_service_data())
+
+        services_df = self.services_df
+
         if running_only:
             services_df = services_df.filter(polars.col("ready").eq(True))
         return ServicesDataFrame(services_df)
