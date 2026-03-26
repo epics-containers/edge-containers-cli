@@ -55,7 +55,7 @@ class K8sCommands(Commands):
         self, service_name, version, description, args, confirm_callback=None
     ):
         if not version:
-            latest_version = self._get_latest_version(service_name)
+            latest_version = await self._get_latest_version(service_name)
             version = latest_version
 
         chart = Helm(

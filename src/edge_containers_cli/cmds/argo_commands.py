@@ -85,7 +85,7 @@ async def push_value(target: str, key: str, value: YamlTypes):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    set_value(repo_url, path / "values.yaml", key, value)
+    await set_value(repo_url, path / "values.yaml", key, value)
 
     # Free a possible patched value & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
@@ -105,7 +105,7 @@ async def push_remove_key(target: str, key: str):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    del_key(repo_url, path / "values.yaml", key)
+    await del_key(repo_url, path / "values.yaml", key)
 
     # Free a possible patched value, its children & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
@@ -152,7 +152,7 @@ class ArgoCommands(Commands):
         self, service_name, version, description, args, confirm_callback=None
     ) -> None:
         if not version:
-            latest_version = self._get_latest_version(service_name)
+            latest_version = await self._get_latest_version(service_name)
             version = latest_version
 
         service_path = Path(globals.SERVICES_DIR) / service_name

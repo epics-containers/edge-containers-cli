@@ -208,9 +208,9 @@ class Commands(ABC):
         else:
             raise CommandError(f"Service '{service_name}' not found in {self.target}")
 
-    def _get_latest_version(self, service_name) -> str:
+    async def _get_latest_version(self, service_name) -> str:
         with new_workdir() as path:
-            version_map = create_version_map(
+            version_map = await create_version_map(
                 self.repo,
                 Path(globals.SERVICES_DIR),
                 path,
