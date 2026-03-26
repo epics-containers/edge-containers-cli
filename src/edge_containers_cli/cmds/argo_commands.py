@@ -355,6 +355,10 @@ class ArgoCommands(Commands):
                 group.create_task(self._extract_app_manifests(app))
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
+        # Clear the current dataframe before polling the current manifests
+        self.services_df = self.services_df.clear()
+
+        # Helper function being used to help run asynchronously
         _run_async(self._get_service_data())
 
         services_df = self.services_df
