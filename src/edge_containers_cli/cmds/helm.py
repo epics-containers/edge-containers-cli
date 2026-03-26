@@ -52,7 +52,7 @@ class Helm:
         for package in service_path.glob("*.tgz"):
             package.unlink(missing_ok=True)
 
-    def deploy_local(
+    async def deploy_local(
         self, service_path: Path, confirm_callback: Callable[[str], None] | None = None
     ):
         """
@@ -63,21 +63,23 @@ class Helm:
             confirm_callback(self.version)
         validate_instance_path(service_path)
         self.cleanup_chart(service_path)
-        self._do_deploy(service_path)
+        await self._do_deploy(service_path)
 
-    def deploy(self, confirm_callback: Callable[[str, str | None], None] | None = None):
+    async def deploy(
+        self, confirm_callback: Callable[[str, str | None], None] | None = None
+    ):
         """
         Clone a helm chart and deploy it to the cluster
         """
         if confirm_callback:
             confirm_callback(self.version, self.description)
-        shell.run_command(
+        await shell.run_command(
             f"git clone {self.repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
         )
-        self._do_deploy(self.tmp / "services" / self.service_name)
+        await self._do_deploy(self.tmp / "services" / self.service_name)
 
-    def _do_deploy(self, service_folder: Path):
+    async def _do_deploy(self, service_folder: Path):
         """
         Package a Helm chart and deploy it to the cluster
         """
@@ -87,7 +89,7 @@ class Helm:
 
         # package up the charts to get the appVersion set
         with chdir(service_folder):
-            shell.run_command(
+            await shell.run_command(
                 f"helm package {service_folder} -u --app-version {self.version}",
             )
 
@@ -99,9 +101,9 @@ class Helm:
             )
 
         # use helm to install the chart
-        self._install(package_path)
+        await self._install(package_path)
 
-    def _install(self, helm_chart: Path):
+    async def _install(self, helm_chart: Path):
         """
         Execute helm install command
         """
@@ -119,7 +121,7 @@ class Helm:
             f"{namespace} "
             f"{self.args} "
         )
-        shell.run_command(cmd, show=True, skip_on_dryrun=True)
+        await shell.run_command(cmd, show=True, skip_on_dryrun=True)
 
 
 def validate_instance_path(service_path: Path):
