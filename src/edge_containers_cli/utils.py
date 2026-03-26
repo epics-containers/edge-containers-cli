@@ -9,9 +9,10 @@ import os
 import shutil
 import tempfile
 import time
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from ruamel.yaml import YAML, scalarint
 
@@ -20,6 +21,8 @@ from edge_containers_cli.logging import log
 
 YamlPrimatives = Union[str, bool, int, None]
 YamlTypes = Union[YamlPrimatives, dict[str, YamlPrimatives | dict[str, YamlPrimatives]]]
+
+_AsyncFuncType = Callable[..., Coroutine[Any, Any, Any]]
 
 
 @contextlib.contextmanager
@@ -223,7 +226,7 @@ def is_partial_match(query: str, target_list: list[str]) -> bool:
     return False
 
 
-def _run_async(coroutine):
+def _run_async(coroutine: Coroutine):
     try:
         asyncio.get_running_loop()
         # We're in an async context — run in a separate thread with its own loop

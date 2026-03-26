@@ -27,7 +27,7 @@ from edge_containers_cli.definitions import ENV, ECContext
 from edge_containers_cli.git import check_exists, del_key, set_value
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
-from edge_containers_cli.utils import YamlTypes, _run_async
+from edge_containers_cli.utils import YamlTypes, _AsyncFuncType, _run_async
 
 
 def extract_ns_app(target: str) -> tuple[str, str]:
@@ -47,14 +47,14 @@ async def get_patches(target) -> dict:
     return patch_dict
 
 
-def do_retry(cmd):
-    def _do_retry(*args, **kwargs):
+def do_retry(cmd: _AsyncFuncType):
+    async def _do_retry(*args, **kwargs):
         max_attempts = 5
         attempt = 1
         sleep_time = 1
         while attempt <= max_attempts:
             try:
-                cmd(*args, **kwargs)
+                await cmd(*args, **kwargs)
                 return None
             except ShellError:
                 if attempt == max_attempts:
