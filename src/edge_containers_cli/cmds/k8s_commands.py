@@ -86,8 +86,8 @@ class K8sCommands(Commands):
             skip_on_dryrun=True,
         )
 
-    def logs(self, service_name, prev):
-        self._logs(service_name, prev)
+    async def logs(self, service_name, prev):
+        await self._logs(service_name, prev)
 
     async def log_history(self, service_name):
         await self._check_service(service_name)

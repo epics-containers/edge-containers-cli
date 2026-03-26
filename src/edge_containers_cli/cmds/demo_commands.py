@@ -87,8 +87,8 @@ class DemoCommands(Commands):
         self.lorem_count = self.lorem_min
 
     @demo_message
-    def logs(self, service_name, prev):
-        self._logs(service_name, prev)
+    async def logs(self, service_name, prev):
+        await self._logs(service_name, prev)
 
     @demo_message
     async def log_history(self, service_name):

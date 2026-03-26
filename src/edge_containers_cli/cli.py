@@ -239,7 +239,7 @@ async def log_history(
 
 @cli.command()
 @async_command
-def logs(
+async def logs(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to inspect",
@@ -254,7 +254,7 @@ def logs(
     ),
 ):
     """Show logs for current and previous instances of a service"""
-    backend.commands.logs(service_name, prev)
+    await backend.commands.logs(service_name, prev)
 
 
 @cli.command()

@@ -139,7 +139,7 @@ class Commands(ABC):
     async def exec(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def logs(self, service_name: str, prev: bool) -> None:
+    async def logs(self, service_name: str, prev: bool) -> None:
         raise NotImplementedError
 
     async def log_history(self, service_name: str) -> None:
@@ -189,8 +189,8 @@ class Commands(ABC):
     async def _get_logs(self, service_name: str, prev: bool) -> str:
         raise NotImplementedError
 
-    def _logs(self, service_name: str, prev: bool) -> None:
-        print(self._get_logs(service_name, prev))
+    async def _logs(self, service_name: str, prev: bool) -> None:
+        print(await self._get_logs(service_name, prev))
 
     async def _validate_target(self) -> None:
         raise NotImplementedError
