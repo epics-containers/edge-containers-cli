@@ -35,8 +35,8 @@ def extract_ns_app(target: str) -> tuple[str, str]:
     return namespace, app
 
 
-def get_patches(target) -> dict:
-    app_resp = shell.run_command(
+async def get_patches(target) -> dict:
+    app_resp = await shell.run_command(
         f"argocd app get --show-params {target} -o json",
     )
     app_dicts = YAML(typ="safe").load(app_resp)
@@ -78,7 +78,7 @@ async def patch_value(target: str, key: str, value: YamlTypes):
 @do_retry
 async def push_value(target: str, key: str, value: YamlTypes):
     # Get source details
-    app_resp = shell.run_command(
+    app_resp = await shell.run_command(
         f"argocd app get {target} -o yaml",
     )
     app_dicts = YAML(typ="safe").load(app_resp)
@@ -98,7 +98,7 @@ async def push_value(target: str, key: str, value: YamlTypes):
 @do_retry
 async def push_remove_key(target: str, key: str):
     # Get source details
-    app_resp = shell.run_command(
+    app_resp = await shell.run_command(
         f"argocd app get {target} -o yaml",
     )
     app_dicts = YAML(typ="safe").load(app_resp)
@@ -110,7 +110,7 @@ async def push_remove_key(target: str, key: str):
     # Free a possible patched value, its children & refresh repo
     cmd_unset = f"argocd app unset {target} -p {key}"
     await shell.run_command(cmd_unset, skip_on_dryrun=True)
-    app_patches = get_patches(target)
+    app_patches = await get_patches(target)
     for patch in app_patches:
         if re.match(rf"{key}\..*", patch["name"]):
             cmd_unset_child = f"argocd app unset {target} -p {patch['name']}"
