@@ -40,6 +40,7 @@ from edge_containers_cli.definitions import ECLogLevels, Emoji
 from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
+from edge_containers_cli.utils import _AsyncFuncType, _run_async
 
 WHITE = Color.parse("white")
 
@@ -118,7 +119,7 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         Binding("f", "follow_logs", "Follow Logs", show=True),
     ]
 
-    def __init__(self, fetch_log: Callable, service_name: str) -> None:
+    def __init__(self, fetch_log: _AsyncFuncType, service_name: str) -> None:
         super().__init__()
         self.fetch_log = fetch_log
         self.service_name = service_name
@@ -139,9 +140,11 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         worker = get_current_worker()
 
         while not worker.is_cancelled:
-            result = self.fetch_log(
-                self.service_name,
-                **{"prev": False},
+            result = _run_async(
+                self.fetch_log(
+                    self.service_name,
+                    **{"prev": False},
+                )
             )
             self.app.call_from_thread(partial(self.update_logs, result))
             time.sleep(1 / self._polling_rate_hz)
