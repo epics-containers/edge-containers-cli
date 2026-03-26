@@ -168,7 +168,6 @@ async def deploy_local(
 
 
 @cli.command()
-@async_command
 def env():
     """List all relevant environment variables"""
     for var in ENV:
@@ -190,7 +189,6 @@ async def exec(
 
 
 @cli.command()
-@async_command
 def instances(
     service_name: str = typer.Argument(
         ...,
@@ -212,10 +210,10 @@ def instances(
 
 @cli.command(name="list")
 @async_command
-def _list():
+async def _list():
     """List all services available in the service repository"""
     print(
-        list_all(
+        await list_all(
             backend.commands.repo,
             Path(globals.SERVICES_DIR),
             shared_files=[globals.SHARED_VALUES],
@@ -258,7 +256,6 @@ async def logs(
 
 
 @cli.command()
-@async_command
 def monitor(
     running_only: bool = typer.Option(
         False, "-r", "--running-only", help="list only services that are running"
@@ -274,7 +271,6 @@ def monitor(
 
 
 @cli.command()
-@async_command
 def ps(
     running_only: bool = typer.Option(
         False, "-r", "--running-only", help="list only services that are running"
