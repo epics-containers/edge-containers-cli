@@ -333,17 +333,16 @@ class IocTable(Widget):
         self.app.call_from_thread(_update)
 
     @work(exclusive=True, thread=True)
-    async def do_polling(self):
+    def do_polling(self):
         worker = get_current_worker()
 
         while not worker.is_cancelled:
-            result = await self._get_services_df(self.running_only)
+            result = self._get_services_df(self.running_only)
             self.app.call_from_thread(partial(self.populate_table, result))
             time.sleep(1 / self._polling_rate_hz)
 
-    async def _get_services_df(self, running_only):
-        async with self._async_lock:
-            services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
+    def _get_services_df(self, running_only):
+        services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
         services_df = services_df.with_columns(
             polars.when(polars.col("ready"))
             .then(polars.lit(Emoji.check_mark))
