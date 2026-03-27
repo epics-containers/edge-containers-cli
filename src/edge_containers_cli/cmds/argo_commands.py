@@ -206,39 +206,26 @@ class ArgoCommands(Commands):
                 continue
             if manifest["kind"] not in ["StatefulSet", "Deployment"]:
                 continue
+            if manifest["metadata"]["name"] != service_name:
+                continue
             return manifest
 
         raise CommandError(f"No manifest found for {service_name}")
 
     async def _check_stoppable(self, service_name) -> None:
-        stoppable = False
-
         manifest = await self._get_service_manifest(service_name)
 
-        resource_name = manifest["metadata"]["name"]
-        if resource_name == service_name:
-            labels = manifest["metadata"].get("labels")
-            if labels:
-                stoppable = "enabled" in labels
-
-        if not stoppable:
+        labels = manifest["metadata"].get("labels")
+        if not (labels and "enabled" in labels):
             raise CommandError(f"{service_name} does not support stop/start")
 
     async def _check_description(self, service_name) -> str | None:
-        description = None
-
         manifest = await self._get_service_manifest(service_name)
 
-        resource_name = manifest["metadata"]["name"]
-        if resource_name == service_name:
-            # This is to return None if description doesn't exist or is ''
-            description = (
-                val
-                if (val := manifest["metadata"]["labels"].get("description"))
-                else None
-            )
-
-        return description
+        # Return None if description doesn't exist or is ''
+        return (
+            val if (val := manifest["metadata"]["labels"].get("description")) else None
+        )
 
     async def restart(self, service_name):
         await self._check_stoppable(service_name)

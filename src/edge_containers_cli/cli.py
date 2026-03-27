@@ -34,7 +34,7 @@ def _check_description(desc_text: str | None):
         if not re.match(_desc_re, desc_text):
             raise typer.BadParameter(
                 f"The description '{desc_text}' is not kebab-case or uses illegal characters.\n\
-Only the symbols '-', '_' and '.' are allowed."
+Only alphanumeric characters and '-' are allowed."
             )
     return desc_text
 
