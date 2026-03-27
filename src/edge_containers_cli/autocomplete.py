@@ -9,7 +9,7 @@ from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.git import GitError, create_version_map
 from edge_containers_cli.shell import ShellError
-from edge_containers_cli.utils import cache_dict, new_workdir, read_cached_dict
+from edge_containers_cli.utils import _run_async, cache_dict, new_workdir, read_cached_dict
 
 
 def url_encode(in_string: str) -> str:
@@ -26,17 +26,19 @@ def autocomplete_backend_init(ctx: typer.Context):
     ec_backend.set_context(context)
 
 
-async def fetch_service_graph(repo: str) -> dict:
+def fetch_service_graph(repo: str) -> dict:
     version_map = read_cached_dict(
         globals.CACHE_ROOT / url_encode(repo), globals.SERVICE_CACHE
     )
     if not version_map:
         with new_workdir() as path:
-            version_map = await create_version_map(
-                repo,
-                Path(globals.SERVICES_DIR),
-                path,
-                shared_files=[globals.SHARED_VALUES],
+            version_map = _run_async(
+                create_version_map(
+                    repo,
+                    Path(globals.SERVICES_DIR),
+                    path,
+                    shared_files=[globals.SHARED_VALUES],
+                )
             )
             cache_dict(
                 globals.CACHE_ROOT / url_encode(repo),
@@ -47,25 +49,25 @@ async def fetch_service_graph(repo: str) -> dict:
     return version_map
 
 
-async def avail_services(ctx: typer.Context) -> list[str]:
+def avail_services(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        services_graph = await fetch_service_graph(ec_backend.commands.repo)
+        services_graph = fetch_service_graph(ec_backend.commands.repo)
         return list(services_graph.keys())
     except (ShellError, CommandError) as e:
         typer.echo(f"\n{e}", nl=False, err=True)
         return []
 
 
-async def avail_versions(ctx: typer.Context) -> list[str]:
+def avail_versions(ctx: typer.Context) -> list[str]:
     autocomplete_backend_init(ctx)
     service_name = ctx.params["service_name"]
 
     # This block prevents getting a stack trace during autocompletion
     try:
-        version_map = await fetch_service_graph(ec_backend.commands.repo)
+        version_map = fetch_service_graph(ec_backend.commands.repo)
         svc_versions = version_map[service_name]
         return svc_versions
     except KeyError:
