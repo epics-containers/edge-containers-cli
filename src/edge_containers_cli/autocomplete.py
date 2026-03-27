@@ -9,7 +9,12 @@ from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.git import GitError, create_version_map
 from edge_containers_cli.shell import ShellError
-from edge_containers_cli.utils import _run_async, cache_dict, new_workdir, read_cached_dict
+from edge_containers_cli.utils import (
+    _run_async,
+    cache_dict,
+    new_workdir,
+    read_cached_dict,
+)
 
 
 def url_encode(in_string: str) -> str:
