@@ -1,5 +1,6 @@
 """TUI monitor for containerised IOCs."""
 
+import asyncio
 import logging
 import threading
 import time
@@ -27,6 +28,7 @@ from textual.widgets import (
     Footer,
     Header,
     Label,
+    LoadingIndicator,
     RichLog,
     Static,
 )
@@ -38,6 +40,9 @@ from edge_containers_cli.definitions import ECLogLevels, Emoji
 from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
+from edge_containers_cli.utils import _AsyncFuncType, _run_async
+
+WHITE = Color.parse("white")
 
 
 class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
@@ -114,7 +119,7 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         Binding("f", "follow_logs", "Follow Logs", show=True),
     ]
 
-    def __init__(self, fetch_log: Callable, service_name: str) -> None:
+    def __init__(self, fetch_log: _AsyncFuncType, service_name: str) -> None:
         super().__init__()
         self.fetch_log = fetch_log
         self.service_name = service_name
@@ -135,9 +140,11 @@ class LogsScreen(ModalScreen, inherit_bindings=False):
         worker = get_current_worker()
 
         while not worker.is_cancelled:
-            result = self.fetch_log(
-                self.service_name,
-                **{"prev": False},
+            result = _run_async(
+                self.fetch_log(
+                    self.service_name,
+                    **{"prev": False},
+                )
             )
             self.app.call_from_thread(partial(self.update_logs, result))
             time.sleep(1 / self._polling_rate_hz)
@@ -264,31 +271,25 @@ class IocTable(Widget):
         self.commands = commands
         self.running_only = running_only
         self._indicator_lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
         self._service_indicators = {
             "name": [""],
             Emoji.exclaim: [""],
         }
-        iocs_df = self._get_services_df(self.running_only)
-        self.columns = iocs_df.columns
         self._polling_rate_hz = 1
 
     def compose(self) -> ComposeResult:
-        table: DataTable[Text] = DataTable(
+        yield LoadingIndicator()
+
+        self.table: DataTable[Text] = DataTable(
             id="body_table",
             header_height=1,
             show_cursor=False,
             zebra_stripes=True,
+            show_row_labels=True,
         )
-        table.focus()
-
-        for column_id in self.columns:
-            heading = self._get_heading(column_id)
-            table.add_column(heading, key=str(column_id))
-
-        table.show_cursor = True
-        table.cursor_type = "row"
-
-        yield table
+        self.table.focus()
+        yield self.table
 
     def _get_heading(self, column_id: str):
         if column_id == self.sort_column_id:
@@ -301,7 +302,36 @@ class IocTable(Widget):
         return heading
 
     def on_mount(self) -> None:
-        self.do_polling()
+        self.table.display = False  # hide until ready
+        self.load_data()
+        # self.do_polling()
+
+    @work(thread=True)
+    def load_data(self):
+        iocs_df: polars.DataFrame = self._get_services_df(self.running_only)
+
+        self.columns = iocs_df.columns
+        # We don't want the label to be a custom column (using DataTable row label instead)
+        self.columns.remove("label")
+
+        def _update():
+            for column_id in self.columns:
+                heading = self._get_heading(column_id)
+                self.table.add_column(heading, key=str(column_id))
+
+            self.query_one(LoadingIndicator).display = False
+            self.table.display = True
+
+            self.table.show_cursor = True
+            self.table.cursor_type = "row"
+
+            self.do_polling()
+
+            self.sort_column_id = (
+                self.default_sort_column_id
+            )  # triggers watch_sort_column_id
+
+        self.app.call_from_thread(_update)
 
     @work(exclusive=True, thread=True)
     def do_polling(self):
@@ -313,7 +343,7 @@ class IocTable(Widget):
             time.sleep(1 / self._polling_rate_hz)
 
     def _get_services_df(self, running_only):
-        services_df = self.commands._get_services(running_only)  # noqa: SLF001
+        services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
         services_df = services_df.with_columns(
             polars.when(polars.col("ready"))
             .then(polars.lit(Emoji.check_mark))
@@ -356,42 +386,49 @@ class IocTable(Widget):
         curr_ioc_set = set(table.rows)
         new_ioc_set = set()
 
-        new_iocs = iocs_df.to_dicts()
+        new_iocs: list[dict] = iocs_df.to_dicts()
         new_iocs = sorted(new_iocs, key=lambda d: d["name"])
 
-        # For each IOC row
-        for ioc in new_iocs:
-            row_key = str(ioc["name"])
-            new_ioc_set.add(RowKey(row_key))
+        with self.app.batch_update():
+            # For each IOC row
+            for ioc in new_iocs:
+                row_key = str(ioc["name"])
+                new_ioc_set.add(RowKey(row_key))
 
-            cells = [
-                {
-                    "col_key": key,
-                    "contents": SortableText(
-                        ioc[key],
-                        str(ioc[key]),
-                        Color.parse("white"),
-                        justify="center",
-                    ),
-                }
-                for key in self.columns
-            ]
+                cells = [
+                    {
+                        "col_key": key,
+                        "contents": SortableText(
+                            ioc[key],
+                            str(ioc[key]),
+                            WHITE,
+                            justify="center",
+                        ),
+                    }
+                    for key in self.columns
+                ]
 
-            if row_key not in table.rows:
-                table.add_row(
-                    *[cell["contents"] for cell in cells],
-                    key=row_key,
-                )
-            else:
-                for cell in cells:
-                    table.update_cell(row_key, cell["col_key"], cell["contents"])
+                if row_key not in table.rows:
+                    table.add_row(
+                        *[cell["contents"] for cell in cells],
+                        key=row_key,
+                        label=ioc["label"],
+                    )
+                else:
+                    for cell in cells:
+                        current = table.get_cell(row_key, cell["col_key"])
+                        # only update if value has actually changed
+                        if str(current) != str(cell["contents"]):
+                            table.update_cell(
+                                row_key, cell["col_key"], cell["contents"]
+                            )
 
-        # If any IOC has been removed, remove it from the table
-        for old_row_key in curr_ioc_set - new_ioc_set:
-            table.remove_row(old_row_key)
+            # If any IOC has been removed, remove it from the table
+            for old_row_key in curr_ioc_set - new_ioc_set:
+                table.remove_row(old_row_key)
 
-        # Sort by column
-        table.sort(self.sort_column_id, reverse=False)
+            # Sort by column
+            table.sort(self.sort_column_id, reverse=False)
 
 
 class MonitorLogHandler(logging.Handler):
@@ -514,7 +551,7 @@ class MonitorApp(App):
                         table.update_indicator_threadsafe(
                             service_name, Emoji.road_works
                         )
-                        command(service_name)
+                        _run_async(command(service_name))
                     finally:
                         table.update_indicator_threadsafe(service_name, Emoji.none)
                         self.busy_services.remove(service_name)

@@ -2,15 +2,18 @@
 utility functions
 """
 
+import asyncio
 import contextlib
+import functools
 import json
 import os
 import shutil
 import tempfile
 import time
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from ruamel.yaml import YAML, scalarint
 
@@ -18,7 +21,9 @@ import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
 
 YamlPrimatives = Union[str, bool, int, None]
-YamlTypes = Union[YamlPrimatives, dict[str, YamlPrimatives]]
+YamlTypes = Union[YamlPrimatives, dict[str, YamlPrimatives | dict[str, YamlPrimatives]]]
+
+_AsyncFuncType = Callable[..., Coroutine[Any, Any, Any]]
 
 
 @contextlib.contextmanager
@@ -220,3 +225,27 @@ def is_partial_match(query: str, target_list: list[str]) -> bool:
         if query in item:
             return True
     return False
+
+
+def _run_async(coroutine: Coroutine):
+    try:
+        asyncio.get_running_loop()
+        # We're in an async context — run in a separate thread with its own loop
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coroutine)
+            ret = future.result()  # blocks the worker thread, not the event loop thread
+    except RuntimeError:
+        # No running loop — safe to block here
+        ret = asyncio.run(coroutine)
+
+    return ret
+
+
+def async_command(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
+
+    return wrapper

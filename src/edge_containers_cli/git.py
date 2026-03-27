@@ -25,7 +25,7 @@ class GitError(Exception):
     pass
 
 
-def set_value(
+async def set_value(
     repo_url: str,
     file: Path,
     key: str,
@@ -36,7 +36,7 @@ def set_value(
     """
     with new_workdir() as path:
         try:
-            shell.run_command(f"git clone --depth=1 {repo_url} {path}")
+            await shell.run_command(f"git clone --depth=1 {repo_url} {path}")
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
                 try:
@@ -51,36 +51,36 @@ def set_value(
                 file_data.dump_file()
 
                 commit_msg = f"Set {key}={value} in {file}"
-                shell.run_command("git add .")
-                shell.run_command(f'git commit -m "{commit_msg}"')
-                shell.run_command("git push", skip_on_dryrun=True)
+                await shell.run_command("git add .")
+                await shell.run_command(f'git commit -m "{commit_msg}"')
+                await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
             raise GitError(str(e)) from e
 
 
-def del_key(repo_url: str, file: Path, key: str) -> None:
+async def del_key(repo_url: str, file: Path, key: str) -> None:
     """
     remove a key from a yaml file and push the changes
     """
     with new_workdir() as path:
         try:
-            shell.run_command(f"git clone --depth=1 {repo_url} {path}")
+            await shell.run_command(f"git clone --depth=1 {repo_url} {path}")
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
                 file_data.remove_key(key)
                 file_data.dump_file()
 
                 commit_msg = f"Remove {key} in {file}"
-                shell.run_command("git add .")
-                shell.run_command(f'git commit -m "{commit_msg}"')
-                shell.run_command("git push", skip_on_dryrun=True)
+                await shell.run_command("git add .")
+                await shell.run_command(f'git commit -m "{commit_msg}"')
+                await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
             raise GitError(str(e)) from e
 
 
-def _resolve_symlinks(
+async def _resolve_symlinks(
     symlink_object_map: dict[str, list[str]],
     file_list: list[str],
     cache: dict = {},  # noqa: B006
@@ -99,7 +99,7 @@ def _resolve_symlinks(
             # Else retrieve git object
             else:
                 cmd = f"git cat-file -p {symlink_object_map[symlink]}"
-                result_symlinks = str(shell.run_command(cmd))
+                result_symlinks = str(await shell.run_command(cmd))
                 symlink_map[symlink] = result_symlinks
                 cache[symlink_object_map[symlink]] = result_symlinks
 
@@ -122,14 +122,14 @@ def _resolve_symlinks(
                 file_list += target_tree[sym_target]
 
 
-def create_version_map(
+async def create_version_map(
     repo: str, root_dir: Path, working_dir: Path, shared_files: list[str] | None = None
 ) -> dict[str, list[str]]:
     """
     return a dictionary of each subdirectory in a chosen root directory in a git
     repository with a list of tags which represent changes. Symlinks are resolved.
     """
-    shell.run_command(f"git clone {repo} {working_dir}")
+    await shell.run_command(f"git clone {repo} {working_dir}")
     try:
         os.listdir(os.path.join(working_dir, root_dir))
     except FileNotFoundError as e:
@@ -138,7 +138,7 @@ def create_version_map(
     version_map = {}
 
     with chdir(working_dir):  # From python 3.11 can use contextlib.chdir(working_dir)
-        result_tags = str(shell.run_command("git tag --sort=committerdate"))
+        result_tags = str(await shell.run_command("git tag --sort=committerdate"))
         if not result_tags:
             raise GitError("No tags found in repo")
         tags_list = result_tags.rstrip().split("\n")
@@ -150,17 +150,17 @@ def create_version_map(
             # Check initial configuration
             if not tag_no:
                 cmd = f"git ls-tree -r {tags_list[tag_no]} --name-only"
-                changed_files = shell.run_command(cmd).split()
+                changed_files = str(await shell.run_command(cmd)).split()
 
             # Check repo changes between tags
             else:
                 cmd = (
                     f"git diff {tags_list[tag_no - 1]} {tags_list[tag_no]} --name-only"
                 )
-                changed_files = shell.run_command(cmd).split()
+                changed_files = str(await shell.run_command(cmd)).split()
 
             cmd = f"git ls-tree -r {tags_list[tag_no]}"
-            cmd_res = str(shell.run_command(cmd, error_OK=True))
+            cmd_res = str(await shell.run_command(cmd, error_OK=True))
             symlink_object_map = {}
             service_list = []
             service_pattern = r"^services\/([^.].*)\/Chart\.yaml$"
@@ -171,7 +171,7 @@ def create_version_map(
                 if match := re.search(service_pattern, line[-1]):  # Check service
                     service_list.append(match.group(1))
 
-            _resolve_symlinks(symlink_object_map, changed_files, cached_git_obj)
+            await _resolve_symlinks(symlink_object_map, changed_files, cached_git_obj)
 
             # Test against shared files
             if shared_files:
@@ -203,12 +203,12 @@ def create_version_map(
     return version_map
 
 
-def list_all(
+async def list_all(
     repo: str, root_dir: Path, shared_files: list[str] | None = None
 ) -> polars.DataFrame:
     """List all services available in the service repository"""
     with new_workdir() as path:
-        version_map = create_version_map(
+        version_map = await create_version_map(
             repo, root_dir, path, shared_files=shared_files
         )
         svc_list = natsorted(version_map.keys())
@@ -219,11 +219,11 @@ def list_all(
         return services_df
 
 
-def list_instances(
+async def list_instances(
     service_name: str, repo: str, root_dir: Path, shared_files: list[str] | None = None
 ) -> polars.DataFrame:
     with new_workdir() as path:
-        version_map = create_version_map(
+        version_map = await create_version_map(
             repo, root_dir, path, shared_files=shared_files
         )
         try:
@@ -236,13 +236,13 @@ def list_instances(
         return services_df
 
 
-def check_exists(path: Path, repo: str, tag: str) -> bool:
+async def check_exists(path: Path, repo: str, tag: str) -> bool:
     """
     Check if a path exists within the given repository and tag/branch.
     """
     with new_workdir() as working_dir:
         try:
-            shell.run_command(f"git clone {repo} -b {tag} {working_dir}")
+            await shell.run_command(f"git clone {repo} -b {tag} {working_dir}")
         except ShellError:
             log.debug(f"Branch or tag '{tag}' does not exist in repo '{repo}'.")
             return False

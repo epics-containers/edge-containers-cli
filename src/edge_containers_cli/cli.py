@@ -1,6 +1,8 @@
 import os
+import re
 from pathlib import Path
 
+import rich
 import typer
 
 import edge_containers_cli.globals as globals
@@ -17,12 +19,24 @@ from edge_containers_cli.definitions import ENV
 from edge_containers_cli.git import GitError, list_all, list_instances
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
+from edge_containers_cli.utils import async_command
 
 
 def confirmation(message: str, yes: bool):
-    typer.echo(message)
+    rich.print(message)
     if not (yes or typer.confirm("Are you sure?")):
         raise typer.Abort()
+
+
+def _check_description(desc_text: str | None):
+    _desc_re = r"^[a-zA-Z0-9](?:(?!--)[a-zA-Z0-9-]){0,62}$"
+    if desc_text is not None:
+        if not re.match(_desc_re, desc_text):
+            raise typer.BadParameter(
+                f"The description '{desc_text}' is not kebab-case or uses illegal characters.\n\
+Only the symbols '-', '_' and '.' are allowed."
+            )
+    return desc_text
 
 
 class ErrorHandlingTyper(typer.Typer):
@@ -38,7 +52,8 @@ cli = ErrorHandlingTyper(pretty_exceptions_show_locals=False)
 
 
 @cli.command()
-def attach(
+@async_command
+async def attach(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to attach to",
@@ -49,11 +64,12 @@ def attach(
     """
     Attach to the console of a live service
     """
-    backend.commands.attach(service_name)
+    await backend.commands.attach(service_name)
 
 
 @cli.command()
-def delete(
+@async_command
+async def delete(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to delete",
@@ -69,11 +85,12 @@ def delete(
         f"Remove {service_name} from the target `{backend.commands.target}`",
         yes,
     )
-    backend.commands.delete(service_name)
+    await backend.commands.delete(service_name)
 
 
 @cli.command()
-def deploy(
+@async_command
+async def deploy(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to deploy",
@@ -86,6 +103,12 @@ def deploy(
         autocompletion=avail_versions,
         show_default=False,
     ),
+    description: str | None = typer.Option(
+        None,
+        "--desc",
+        help="Custom description label for the service",
+        callback=_check_description,
+    ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
     args: str = typer.Option(
@@ -96,20 +119,28 @@ def deploy(
     Add a service to the cluster from its source repository
     """
 
-    def confirm_callback(svc_version):
+    def confirm_callback(svc_version: str, current_desc: str | None):
+        message = (
+            f"[bold]Deploy [white]{service_name.lower()}[/white]"
+            f" version [white]{svc_version}[/white] to target [white]{backend.commands.target}[/white] with \
+{'existing ' if description is None else ''}description [white]{current_desc}[/white][/bold]"
+        )
+
         confirmation(
-            f"Deploy {service_name.lower()} "
-            f" version `{svc_version}` to target `{backend.commands.target}`",
+            message,
             yes,
         )
 
     args = args if not wait else args + " --wait"
     version = version if version != "latest tag" else ""
-    backend.commands.deploy(service_name, version, args, confirm_callback)
+    await backend.commands.deploy(
+        service_name, version, description, args, confirm_callback
+    )
 
 
 @cli.command()
-def deploy_local(
+@async_command
+async def deploy_local(
     svc_instance: Path = typer.Argument(
         ...,
         help="folder of local service definition",
@@ -133,7 +164,7 @@ def deploy_local(
             yes,
         )
 
-    backend.commands.deploy_local(svc_instance, args, confirm_callback)
+    await backend.commands.deploy_local(svc_instance, args, confirm_callback)
 
 
 @cli.command()
@@ -144,7 +175,8 @@ def env():
 
 
 @cli.command()
-def exec(
+@async_command
+async def exec(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service container to run in",
@@ -153,11 +185,12 @@ def exec(
     ),
 ):
     """Execute a bash prompt in a running container"""
-    backend.commands.exec(service_name)
+    await backend.commands.exec(service_name)
 
 
 @cli.command()
-def instances(
+@async_command
+async def instances(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to inspect",
@@ -167,7 +200,7 @@ def instances(
 ):
     """List all versions of the specified service in the repository"""
     print(
-        list_instances(
+        await list_instances(
             service_name,
             backend.commands.repo,
             Path(globals.SERVICES_DIR),
@@ -177,10 +210,11 @@ def instances(
 
 
 @cli.command(name="list")
-def _list():
+@async_command
+async def _list():
     """List all services available in the service repository"""
     print(
-        list_all(
+        await list_all(
             backend.commands.repo,
             Path(globals.SERVICES_DIR),
             shared_files=[globals.SHARED_VALUES],
@@ -189,7 +223,8 @@ def _list():
 
 
 @cli.command()
-def log_history(
+@async_command
+async def log_history(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to inspect",
@@ -198,11 +233,12 @@ def log_history(
     ),
 ):
     """Open historical logs for a service"""
-    backend.commands.log_history(service_name)
+    await backend.commands.log_history(service_name)
 
 
 @cli.command()
-def logs(
+@async_command
+async def logs(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to inspect",
@@ -217,7 +253,7 @@ def logs(
     ),
 ):
     """Show logs for current and previous instances of a service"""
-    backend.commands.logs(service_name, prev)
+    await backend.commands.logs(service_name, prev)
 
 
 @cli.command()
@@ -246,7 +282,8 @@ def ps(
 
 
 @cli.command()
-def restart(
+@async_command
+async def restart(
     service_name: str = typer.Argument(
         ...,
         help="Name of the container to restart",
@@ -255,11 +292,12 @@ def restart(
     ),
 ):
     """Restart a service"""
-    backend.commands.restart(service_name)
+    await backend.commands.restart(service_name)
 
 
 @cli.command()
-def start(
+@async_command
+async def start(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service container to start",
@@ -270,14 +308,15 @@ def start(
 ):
     """Start a service"""
     try:
-        backend.commands.start(service_name, commit=commit)
+        await backend.commands.start(service_name, commit=commit)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try 'ec start <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
 
 
 @cli.command()
-def stop(
+@async_command
+async def stop(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service container to stop",
@@ -288,14 +327,15 @@ def stop(
 ):
     """Stop a service"""
     try:
-        backend.commands.stop(service_name, commit=commit)
+        await backend.commands.stop(service_name, commit=commit)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try ec stop <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
 
 
 @cli.command()
-def template(
+@async_command
+async def template(
     svc_instance: Path = typer.Argument(
         ...,
         help="folder of local service definition",
@@ -311,7 +351,7 @@ def template(
     Print out the helm template generated from a local service instance
     """
     args = f"{args} --debug"
-    backend.commands.template(svc_instance, args)
+    await backend.commands.template(svc_instance, args)
 
 
 def drop_methods(ctx: typer.Context, to_drop: list[str]):

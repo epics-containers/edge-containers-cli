@@ -31,6 +31,7 @@ def process_t(time_string) -> str:
 
 sample_data = {
     "name": [f"demo-ea-0{cnt}" for cnt in range(NUM_SERVICES)],
+    "label": [f"demo device 0{cnt}" for cnt in range(NUM_SERVICES)],
     "version": ["1.0." + str(25 - cnt) for cnt in range(NUM_SERVICES)],
     "ready": [True] * NUM_SERVICES,
     "deployed": [
@@ -86,11 +87,11 @@ class DemoCommands(Commands):
         self.lorem_count = self.lorem_min
 
     @demo_message
-    def logs(self, service_name, prev):
-        self._logs(service_name, prev)
+    async def logs(self, service_name, prev):
+        await self._logs(service_name, prev)
 
     @demo_message
-    def log_history(self, service_name):
+    async def log_history(self, service_name):
         pass
 
     @demo_message
@@ -98,16 +99,16 @@ class DemoCommands(Commands):
         self._ps(running_only)
 
     @demo_message
-    def restart(self, service_name):
-        self._stop(service_name, commit=False)
-        self._start(service_name, commit=False)
+    async def restart(self, service_name):
+        await self._stop(service_name, commit=False)
+        await self._start(service_name, commit=False)
 
     @demo_message
-    def start(self, service_name, commit=False):
-        self._start(service_name, commit=commit)
+    async def start(self, service_name, commit=False):
+        await self._start(service_name, commit=commit)
 
-    def _start(self, service_name, commit=False):
-        self._check_service(service_name)
+    async def _start(self, service_name, commit=False):
+        await self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(
             polars.when(polars.col("name") == service_name)
@@ -117,11 +118,11 @@ class DemoCommands(Commands):
         )
 
     @demo_message
-    def stop(self, service_name, commit=False):
-        self._stop(service_name, commit=commit)
+    async def stop(self, service_name, commit=False):
+        await self._stop(service_name, commit=commit)
 
-    def _stop(self, service_name, commit=False):
-        self._check_service(service_name)
+    async def _stop(self, service_name, commit=False):
+        await self._check_service(service_name)
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(
             polars.when(polars.col("name") == service_name)
@@ -130,8 +131,8 @@ class DemoCommands(Commands):
             .alias("ready")
         )
 
-    def _get_logs(self, service_name, prev) -> str:
-        self._check_service(service_name)
+    async def _get_logs(self, service_name, prev) -> str:
+        await self._check_service(service_name)
         if self.lorem_count < self.lorem_max:
             self.lorem_count += self.lorem_step
         else:
@@ -139,17 +140,17 @@ class DemoCommands(Commands):
         logs_list = ["Lorem ipsum dolor sit amet"] * self.lorem_count
         return "\n".join(logs_list)
 
-    def _get_services(self, running_only) -> ServicesDataFrame:
+    def _get_services_df(self, running_only) -> ServicesDataFrame:
         if running_only:
             return ServicesDataFrame(self._stateDF.filter(polars.col("ready").eq(True)))
         else:
             return ServicesDataFrame(self._stateDF)
 
-    def _check_service(self, service_name: str):
+    async def _check_service(self, service_name: str):
         """
         validate that there is a app with the given service_name
         """
-        services_list = self._get_services(running_only=False)["name"]
+        services_list = self._get_services_df(running_only=False)["name"]
         if service_name in services_list:
             pass
         else:
@@ -157,5 +158,5 @@ class DemoCommands(Commands):
                 f"Service '{service_name}' not found in '{self._target}'"
             )
 
-    def _validate_target(self):
+    async def _validate_target(self):
         pass
