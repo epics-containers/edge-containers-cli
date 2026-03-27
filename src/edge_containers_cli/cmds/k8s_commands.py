@@ -141,7 +141,7 @@ class K8sCommands(Commands):
 
         self.sts_dicts = YAML(typ="safe").load(kubectl_res)
 
-    async def _extract_services_df(self, running_only):
+    async def _extract_services_df(self):
         service_data = {
             "name": [],  # type: ignore
             "label": [],
@@ -213,10 +213,7 @@ class K8sCommands(Commands):
 
     async def _get_service_data(self):
         await self._get_services()
-
-        async with asyncio.TaskGroup() as group:
-            for sts in self.sts_dicts:
-                group.create_task(self._extract_services_df(sts))
+        await self._extract_services_df()
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
         # Clear the current dataframe before polling the current manifests
