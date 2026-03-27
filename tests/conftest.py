@@ -90,7 +90,22 @@ class MockRun:
         response.
         """
         rsp = self._str_command(command, error_OK)
-        assert isinstance(rsp, bool), "non-interactive commands must return bool"
+        assert isinstance(rsp, bool), "interactive commands must return bool"
+
+        return rsp
+
+    def run_interactive_sync(
+        self,
+        command: str,
+        error_OK=False,
+        skip_on_dryrun=False,
+    ) -> bool:
+        """
+        Sync version of run_interactive for mocking sync callables like
+        webbrowser.open that should not be awaited.
+        """
+        rsp = self._str_command(command, error_OK)
+        assert isinstance(rsp, bool), "interactive commands must return bool"
 
         return rsp
 
@@ -156,7 +171,7 @@ def mock_run(mocker):
     )
 
     # Patch functions
-    mocker.patch("webbrowser.open", MOCKRUN.run_interactive)
+    mocker.patch("webbrowser.open", MOCKRUN.run_interactive_sync)
     mocker.patch("typer.confirm", return_value=True)
     mocker.patch("tempfile.mkdtemp", mktempdir)
     mocker.patch("edge_containers_cli.shell.shell.run_command", MOCKRUN.run_command)

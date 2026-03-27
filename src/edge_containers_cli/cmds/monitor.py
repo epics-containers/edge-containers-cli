@@ -551,7 +551,7 @@ class MonitorApp(App):
                         table.update_indicator_threadsafe(
                             service_name, Emoji.road_works
                         )
-                        command(service_name)
+                        _run_async(command(service_name))
                     finally:
                         table.update_indicator_threadsafe(service_name, Emoji.none)
                         self.busy_services.remove(service_name)

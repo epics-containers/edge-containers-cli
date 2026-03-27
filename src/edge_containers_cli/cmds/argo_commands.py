@@ -163,7 +163,11 @@ class ArgoCommands(Commands):
             )
 
         if description is None:
-            description = await self._check_description(service_name)
+            try:
+                description = await self._check_description(service_name)
+            except CommandError:
+                # Service not yet deployed — no existing description to retrieve
+                pass
 
         if confirm_callback:
             confirm_callback(version, description)
