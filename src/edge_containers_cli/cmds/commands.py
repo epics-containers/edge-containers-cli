@@ -181,6 +181,9 @@ class Commands(ABC):
             row_styles=["", "dim"],
             box=box.ROUNDED,
         )
+
+        # Sort by service name
+        services_df = services_df.sort("name")
         for row in services_df.to_dicts():
             table.add_row(*list(map(str, row.values())))
         console.print(table)
