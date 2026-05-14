@@ -230,9 +230,7 @@ class ArgoCommands(Commands):
     async def restart(self, service_name):
         await self._check_stoppable(service_name)
         namespace, app = extract_ns_app(self.target)
-        cmd = (
-            f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet"
-        )
+        cmd = f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet --all"
         await shell.run_command(cmd, skip_on_dryrun=True)
 
     async def start(self, service_name, commit=True):
