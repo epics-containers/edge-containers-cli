@@ -304,7 +304,9 @@ async def start(
         autocompletion=all_svc,
         show_default=False,
     ),
-    commit: bool = typer.Option(True, help="Commits the values to the git repo"),
+    commit: bool = typer.Option(
+        False, help="Also commit the change to the git repo for an audit trail"
+    ),
 ):
     """Start a service"""
     try:
@@ -323,7 +325,9 @@ async def stop(
         autocompletion=running_svc,
         show_default=False,
     ),
-    commit: bool = typer.Option(True, help="Commits the values to the git repo"),
+    commit: bool = typer.Option(
+        False, help="Also commit the change to the git repo for an audit trail"
+    ),
 ):
     """Stop a service"""
     try:

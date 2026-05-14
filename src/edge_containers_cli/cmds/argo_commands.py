@@ -236,14 +236,14 @@ class ArgoCommands(Commands):
         cmd = f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet --all"
         await shell.run_command(cmd, skip_on_dryrun=True)
 
-    async def start(self, service_name, commit=True):
+    async def start(self, service_name, commit=False):
         await self._check_stoppable(service_name)
         if commit:
             await push_value(self.target, f"services.{service_name}.enabled", True)
         else:
             await patch_value(self.target, f"services.{service_name}.enabled", True)
 
-    async def stop(self, service_name, commit=True):
+    async def stop(self, service_name, commit=False):
         await self._check_stoppable(service_name)
         if commit:
             await push_value(self.target, f"services.{service_name}.enabled", False)
