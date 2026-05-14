@@ -75,6 +75,16 @@ async def patch_value(target: str, key: str, value: YamlTypes):
     # Rely on argocd autosync to get the cluster into the right state
 
 
+async def _unset_key_and_children(target: str, key: str):
+    cmd_unset = f"argocd app unset {target} -p {key}"
+    await shell.run_command(cmd_unset, skip_on_dryrun=True)
+    app_patches = await get_patches(target)
+    for patch in app_patches:
+        if re.match(rf"{key}\..*", patch["name"]):
+            cmd_unset_child = f"argocd app unset {target} -p {patch['name']}"
+            await shell.run_command(cmd_unset_child, skip_on_dryrun=True)
+
+
 @do_retry
 async def push_value(target: str, key: str, value: YamlTypes):
     # Get source details
@@ -87,9 +97,8 @@ async def push_value(target: str, key: str, value: YamlTypes):
 
     await set_value(repo_url, path / "values.yaml", key, value)
 
-    # Free a possible patched value & refresh repo
-    cmd_unset = f"argocd app unset {target} -p {key}"
-    await shell.run_command(cmd_unset, skip_on_dryrun=True)
+    # Free a possible patched value, its children & refresh repo
+    await _unset_key_and_children(target, key)
     cmd_refresh = f"argocd app get {target} --refresh"
     await shell.run_command(cmd_refresh, skip_on_dryrun=True)
     # Rely on argocd autosync to get the cluster into the right state
@@ -108,13 +117,7 @@ async def push_remove_key(target: str, key: str):
     await del_key(repo_url, path / "values.yaml", key)
 
     # Free a possible patched value, its children & refresh repo
-    cmd_unset = f"argocd app unset {target} -p {key}"
-    await shell.run_command(cmd_unset, skip_on_dryrun=True)
-    app_patches = await get_patches(target)
-    for patch in app_patches:
-        if re.match(rf"{key}\..*", patch["name"]):
-            cmd_unset_child = f"argocd app unset {target} -p {patch['name']}"
-            await shell.run_command(cmd_unset_child, skip_on_dryrun=True)
+    await _unset_key_and_children(target, key)
     cmd_refresh = f"argocd app get {target} --refresh"
     await shell.run_command(cmd_refresh, skip_on_dryrun=True)
     # Rely on argocd autosync to get the cluster into the right state
@@ -233,14 +236,14 @@ class ArgoCommands(Commands):
         cmd = f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet --all"
         await shell.run_command(cmd, skip_on_dryrun=True)
 
-    async def start(self, service_name, commit=True):
+    async def start(self, service_name, commit=False):
         await self._check_stoppable(service_name)
         if commit:
             await push_value(self.target, f"services.{service_name}.enabled", True)
         else:
             await patch_value(self.target, f"services.{service_name}.enabled", True)
 
-    async def stop(self, service_name, commit=True):
+    async def stop(self, service_name, commit=False):
         await self._check_stoppable(service_name)
         if commit:
             await push_value(self.target, f"services.{service_name}.enabled", False)
