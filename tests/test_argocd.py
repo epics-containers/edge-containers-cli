@@ -19,6 +19,17 @@ def test_deploy(mock_run, ARGOCD, data: Path):
     mock_run.run_cli("deploy bl01t-ea-test-01")
 
 
+def test_deploy_clears_enabled_override(mock_run, ARGOCD, data: Path):
+    # Regression: a lingering `services.X.enabled=false` parameter override
+    # (set by `ec stop --no-commit` or Monitor) must be unset by the next
+    # deploy, otherwise the redeployed service stays stopped.
+    mock_run.set_seq(ARGOCD.deploy_clears_override)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+    mock_run.run_cli("deploy bl01t-ea-test-01")
+
+
 def test_logs(mock_run, ARGOCD):
     mock_run.set_seq(ARGOCD.checks + ARGOCD.logs)
     mock_run.run_cli("logs bl01t-ea-test-01")

@@ -113,6 +113,8 @@ deploy:
     rsp: ""
   - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01
     rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
@@ -163,6 +165,8 @@ start_commit:
     rsp: ""
   - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
     rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
@@ -199,6 +203,8 @@ stop_commit:
     rsp: ""
   - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
     rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
@@ -213,4 +219,86 @@ stop:
         labels:
           enabled: true
   - cmd: argocd app set namespace/bl01t -p services.bl01t-ea-test-01.enabled=False
+    rsp: ""
+
+deploy_clears_override:
+  # Same flow as `deploy`, but the parent app has a lingering
+  # `services.bl01t-ea-test-01.enabled=false` parameter override (e.g. from
+  # an earlier `ec stop --no-commit` or Monitor's stop button). The fix
+  # makes push_value also unset child overrides, so the redeployed service
+  # actually starts.
+  - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/.*
+    rsp: Cloning into /tmp/xxxx...
+  - cmd: git tag --sort=committerdate
+    rsp: |
+      1.0
+      2.0
+  - cmd: git ls-tree -r 1.0 --name-only
+    rsp: |
+      services/bl01t-ea-test-01
+  - cmd: git ls-tree -r 1.0
+    rsp: |
+      100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
+  - cmd: git diff 1.0 2.0 --name-only
+    rsp: ""
+  - cmd: git ls-tree -r 2.0
+    rsp: |
+      100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
+  - cmd: git clone https://github.com/epics-containers/bl01t-services -b 1.0 /tmp/ec_tests
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        creationTimestamp: "2024-07-12T13:52:35Z"
+        labels:
+          test: test_label
+      status:
+        readyReplicas: 1
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: git add .
+    rsp: ""
+  - cmd: 'git commit -m "Set services.bl01t-ea-test-01=*'
+    rsp: ""
+  - cmd: git push
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01
+    rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: |
+      {"spec": {"source": {"helm": {"parameters": [
+        {"name": "services.bl01t-ea-test-01.enabled", "value": "false"},
+        {"name": "services.other.enabled", "value": "false"}
+      ]}}}}
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
