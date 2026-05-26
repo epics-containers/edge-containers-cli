@@ -5,6 +5,7 @@ utility functions
 import asyncio
 import contextlib
 import functools
+import gc
 import json
 import os
 import shutil
@@ -234,13 +235,43 @@ def _run_async(coroutine: Coroutine):
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            future = pool.submit(asyncio.run, coroutine)
+            future = pool.submit(_run_on_new_loop, coroutine)
             ret = future.result()  # blocks the worker thread, not the event loop thread
     except RuntimeError:
         # No running loop — safe to block here
-        ret = asyncio.run(coroutine)
+        ret = _run_on_new_loop(coroutine)
 
     return ret
+
+
+def _run_on_new_loop(coroutine: Coroutine):
+    """Run *coroutine* to completion on a fresh event loop, then tear the loop
+    down cleanly.
+
+    asyncio.Process / subprocess transports hold a reference cycle back to the
+    loop, so their __del__ only fires during a GC pass. If that pass happens
+    after the loop is closed (which is what asyncio.run() does on exit), the
+    finalizer schedules a callback on the closed loop and asyncio prints
+    "Event loop is closed" / "Loop ... that handles pid X is closed" spam.
+    Forcing gc.collect() while the loop is still open lets those finalizers
+    run against a live loop, so nothing fails.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coroutine)
+    finally:
+        try:
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                task.cancel()
+            if pending:
+                loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            gc.collect()
+        finally:
+            loop.close()
 
 
 def async_command(f):

@@ -203,13 +203,12 @@ class ArgoCommands(Commands):
         mani_resp = await shell.run_command(
             f"argocd app manifests {namespace}/{service_name} --source live",
         )
-        for resource_manifest in mani_resp.split("---")[1:]:
-            manifest = YAML(typ="safe").load(resource_manifest)
-            if not manifest:
+        for manifest in YAML(typ="safe").load_all(mani_resp):
+            if not isinstance(manifest, dict):
                 continue
-            if manifest["kind"] not in ["StatefulSet", "Deployment"]:
+            if manifest.get("kind") not in ["StatefulSet", "Deployment"]:
                 continue
-            if manifest["metadata"]["name"] != service_name:
+            if manifest.get("metadata", {}).get("name") != service_name:
                 continue
             return manifest
 
@@ -298,12 +297,11 @@ class ArgoCommands(Commands):
                 mani_resp = await shell.run_command(
                     f"argocd app manifests {namespace}/{name} --source live",
                 )
-                for resource_manifest in mani_resp.split("---")[1:]:
-                    manifest = YAML(typ="safe").load(resource_manifest)
-                    if not manifest:
+                for manifest in YAML(typ="safe").load_all(mani_resp):
+                    if not isinstance(manifest, dict):
                         continue
-                    kind = manifest["kind"]
-                    resource_name = manifest["metadata"]["name"]
+                    kind = manifest.get("kind")
+                    resource_name = manifest.get("metadata", {}).get("name")
                     if kind in ["StatefulSet", "Deployment"] and resource_name == name:
                         try:
                             label = manifest["metadata"]["labels"]["description"]
