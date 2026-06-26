@@ -29,7 +29,8 @@
         "docker/login-action",
         "docker/build-push-action",
         "docker/metadata-action",
-        "pypa/gh-action-pypi-publish"
+        "pypa/gh-action-pypi-publish",
+        "peaceiris/actions-gh-pages"
       ],
       "matchManagers": [
         "github-actions"

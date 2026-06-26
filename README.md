@@ -16,9 +16,12 @@ For detailed documentation on the framework that this supports see:
 https://epics-containers.github.io/
 
 
-Source          | <https://github.com/epics-containers/edge-containers-cli>
+What            | Where
 :---:           | :---:
+Source          | <https://github.com/epics-containers/edge-containers-cli>
 PyPI            | `pip install edge-containers-cli`
+Docker          | `docker run ghcr.io/epics-containers/edge-containers-cli:latest`
+Documentation   | <https://epics-containers.github.io/edge-containers-cli>
 Releases        | <https://github.com/epics-containers/edge-containers-cli/releases>
 
 
@@ -39,8 +42,12 @@ To demo the TUI as a web application:
 
 Dashboard:
 
-![screenshot](docs/images/ec-web.png)
+![screenshot](https://raw.githubusercontent.com/epics-containers/edge-containers-cli/main/docs/images/ec-web.png)
 
 IOC logs:
 
-![screenshot](docs/images/ec-logs.png)
+![screenshot](https://raw.githubusercontent.com/epics-containers/edge-containers-cli/main/docs/images/ec-logs.png)
+
+<!-- README only content. Anything below this line won't be included in index.md -->
+
+See https://epics-containers.github.io/edge-containers-cli for more detailed documentation.

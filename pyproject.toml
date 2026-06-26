@@ -10,6 +10,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 description = "CLI for deploying and managing epics containers IOCs and services"
 
@@ -34,12 +35,17 @@ requires-python = ">=3.11"
 [dependency-groups]
 dev = [
     "copier",
+    "myst-parser",
     "pre-commit",
+    "pydata-sphinx-theme>=0.12",
     "pyright",
     "pytest",
     "pytest-cov",
     "pytest-mock",
     "ruff",
+    "sphinx-autobuild",
+    "sphinx-copybutton",
+    "sphinx-design",
     "tox-uv",
     "types-mock",
 ]
@@ -64,7 +70,7 @@ reportMissingImports = false  # Ignore missing stubs in imported modules
 [tool.pytest.ini_options]
 # Run pytest with all our checkers, and don't spam us with massive tracebacks on error
 addopts = """
-    --tb=native -vv
+    --tb=native -vv --doctest-modules --doctest-glob="*.rst"
     """
 # https://iscinumpy.gitlab.io/post/bound-version-constraints/#watch-for-warnings
 filterwarnings = [
@@ -92,7 +98,7 @@ omit = ["src/edge_containers_cli/cmds/monitor.py"]
 [tool.tox]
 skipsdist = true
 # envs to runs automatically with tox -p
-env_list = ["pre-commit", "type-checking", "tests"]
+env_list = ["pre-commit", "type-checking", "tests", "docs"]
 
 [tool.tox.env_run_base]
 # Pass all environment variables to the test environments
@@ -135,6 +141,37 @@ commands = [
         "term",
         "--cov-report",
         "xml:cov.xml",
+        { replace = "posargs", default = [
+        ], extend = true },
+    ],
+]
+
+[tool.tox.env.docs]
+description = "Run docs build with clean environment"
+commands = [
+    [
+        "sphinx-build",
+        "--fresh-env",
+        "--show-traceback",
+        "--fail-on-warning",
+        "--keep-going",
+        "docs",
+        "build/html",
+        { replace = "posargs", default = [
+        ], extend = true },
+    ],
+]
+
+[tool.tox.env.docs-autobuild]
+description = "Run docs with autobuild on change"
+commands = [
+    [
+        "sphinx-autobuild",
+        "--show-traceback",
+        "--watch",
+        "README.md",
+        "docs",
+        "build/html",
         { replace = "posargs", default = [
         ], extend = true },
     ],

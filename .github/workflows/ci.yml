@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         runs-on: ["ubuntu-latest"] # can add windows-latest, macos-latest
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
       fail-fast: false
     uses: ./.github/workflows/_test.yml
     with:
@@ -36,6 +36,11 @@ jobs:
       contents: read
       packages: write
 
+  docs:
+    uses: ./.github/workflows/_docs.yml
+    permissions:
+      contents: write
+
   dist:
     uses: ./.github/workflows/_dist.yml
 
@@ -47,7 +52,7 @@ jobs:
       id-token: write
 
   release:
-    needs: [dist, test]
+    needs: [dist, test, docs]
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/_release.yml
     permissions:
