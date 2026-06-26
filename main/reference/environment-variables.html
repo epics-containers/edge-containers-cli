@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Contribute to the project &#8212; edge-containers-cli 5.2.2.dev5+g1fe34ced4 documentation</title>
+    <title>Environment variables &#8212; edge-containers-cli 5.2.2.dev5+g1fe34ced4 documentation</title>
   
   
   
@@ -47,7 +47,7 @@
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../_static/copybutton.js?v=30646c52"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'how-to/contribute';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'reference/environment-variables';</script>
     <script>
         DOCUMENTATION_OPTIONS.theme_version = '0.19.0';
         DOCUMENTATION_OPTIONS.theme_switcher_json_url = 'https://epics-containers.github.io/edge-containers-cli/switcher.json';
@@ -59,8 +59,8 @@
     <link rel="icon" href="../_static/dls-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Run in a container" href="run-container.html" />
-    <link rel="prev" title="How-to Guides" href="../how-to.html" />
+    <link rel="next" title="edge_containers_cli" href="../_api/edge_containers_cli.html" />
+    <link rel="prev" title="Command line reference" href="cli.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="main" />
@@ -160,7 +160,7 @@
 </li>
 
 
-<li class="nav-item current active">
+<li class="nav-item ">
   <a class="nav-link nav-internal" href="../how-to.html">
     How-to Guides
   </a>
@@ -174,7 +174,7 @@
 </li>
 
 
-<li class="nav-item ">
+<li class="nav-item current active">
   <a class="nav-link nav-internal" href="../reference.html">
     Reference
   </a>
@@ -313,7 +313,7 @@
 </li>
 
 
-<li class="nav-item current active">
+<li class="nav-item ">
   <a class="nav-link nav-internal" href="../how-to.html">
     How-to Guides
   </a>
@@ -327,7 +327,7 @@
 </li>
 
 
-<li class="nav-item ">
+<li class="nav-item current active">
   <a class="nav-link nav-internal" href="../reference.html">
     Reference
   </a>
@@ -421,8 +421,11 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Contribute to the project</a></li>
-<li class="toctree-l1"><a class="reference internal" href="run-container.html">Run in a container</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Command line reference</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Environment variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../_api/edge_containers_cli.html">API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/epics-containers/edge-containers-cli/releases">Release Notes</a></li>
 </ul>
 </div>
 </nav></div>
@@ -464,9 +467,9 @@
       </a>
     </li>
     
-    <li class="breadcrumb-item"><a href="../how-to.html" class="nav-link">How-to Guides</a></li>
+    <li class="breadcrumb-item"><a href="../reference.html" class="nav-link">Reference</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Contribute to the project</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Environment variables</span></li>
   </ul>
 </nav>
 </div>
@@ -483,30 +486,135 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="contribute-to-the-project">
-<h1>Contribute to the project<a class="headerlink" href="#contribute-to-the-project" title="Link to this heading">#</a></h1>
-<p>Contributions and issues are most welcome! All issues and pull requests are
-handled through <a class="reference external" href="https://github.com/epics-containers/edge-containers-cli/issues">GitHub</a>. Also, please check for any existing issues before
-filing a new one. If you have a great idea but it involves big changes, please
-file a ticket before making a pull request! We want to make sure you don’t spend
-your time coding something that might not fit the scope of the project.</p>
-<section id="issue-or-discussion">
-<h2>Issue or Discussion?<a class="headerlink" href="#issue-or-discussion" title="Link to this heading">#</a></h2>
-<p>Github also offers <a class="reference external" href="https://github.com/epics-containers/edge-containers-cli/discussions">discussions</a> as a place to ask questions and share ideas. If
-your issue is open ended and it is not obvious when it can be “closed”, please
-raise it as a discussion instead.</p>
+  <section id="environment-variables">
+<h1>Environment variables<a class="headerlink" href="#environment-variables" title="Link to this heading">#</a></h1>
+<p>Every <a class="reference internal" href="cli.html#global-options"><span class="std std-ref">global option</span></a> of <code class="docutils literal notranslate"><span class="pre">ec</span></code> has an equivalent
+environment variable. Setting them once — in your shell profile, a <code class="docutils literal notranslate"><span class="pre">.env</span></code> file,
+or a Kubernetes/CI environment — saves repeating <code class="docutils literal notranslate"><span class="pre">--repo</span></code>, <code class="docutils literal notranslate"><span class="pre">--target</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--backend</span></code> on every call.</p>
+<p>A command-line option always overrides the matching environment variable, which
+in turn overrides the built-in default.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Run <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">env</span></code> at any time to print every variable below and its current value:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec env
+EC_SERVICES_REPO=https://github.com/my-org/my-beamline-services
+EC_TARGET=Not Defined
+EC_LOGIN=Not Defined
+EC_CLI_BACKEND=K8S
+EC_VERBOSE=Not Defined
+EC_DRYRUN=Not Defined
+EC_DEBUG=Not Defined
+EC_LOG_LEVEL=Not Defined
+EC_LOG_URL=Not Defined
+</pre></div>
+</div>
+</div>
+<section id="reference">
+<h2>Reference<a class="headerlink" href="#reference" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head text-left"><p>Variable</p></th>
+<th class="head text-left"><p>Option</p></th>
+<th class="head text-left"><p>Default</p></th>
+<th class="head text-left"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_SERVICES_REPO</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">-r</span></code>, <code class="docutils literal notranslate"><span class="pre">--repo</span></code></p></td>
+<td class="text-left"><p><em>(unset)</em></p></td>
+<td class="text-left"><p>Git repository holding the service instance definitions.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_TARGET</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">-t</span></code>, <code class="docutils literal notranslate"><span class="pre">--target</span></code></p></td>
+<td class="text-left"><p><em>(unset)</em></p></td>
+<td class="text-left"><p>Deployment target: a Kubernetes namespace (<code class="docutils literal notranslate"><span class="pre">K8S</span></code>) or <code class="docutils literal notranslate"><span class="pre">app-namespace/root-app</span></code> (<code class="docutils literal notranslate"><span class="pre">ARGOCD</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_CLI_BACKEND</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">-b</span></code>, <code class="docutils literal notranslate"><span class="pre">--backend</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">ARGOCD</span></code></p></td>
+<td class="text-left"><p>Backend to drive: <code class="docutils literal notranslate"><span class="pre">ARGOCD</span></code>, <code class="docutils literal notranslate"><span class="pre">K8S</span></code> or <code class="docutils literal notranslate"><span class="pre">DEMO</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_VERBOSE</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">-v</span></code>, <code class="docutils literal notranslate"><span class="pre">--verbose</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">False</span></code></p></td>
+<td class="text-left"><p>Print each underlying command before running it.</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_DRYRUN</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">--dryrun</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">False</span></code></p></td>
+<td class="text-left"><p>Print the underlying commands without executing them.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_DEBUG</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">-d</span></code>, <code class="docutils literal notranslate"><span class="pre">--debug</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">False</span></code></p></td>
+<td class="text-left"><p>Enable debug logging and keep temporary working directories.</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_LOG_LEVEL</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">--log-level</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">WARNING</span></code></p></td>
+<td class="text-left"><p>Logging level: <code class="docutils literal notranslate"><span class="pre">DEBUG</span></code>, <code class="docutils literal notranslate"><span class="pre">INFO</span></code>, <code class="docutils literal notranslate"><span class="pre">WARNING</span></code>, <code class="docutils literal notranslate"><span class="pre">ERROR</span></code>, <code class="docutils literal notranslate"><span class="pre">CRITICAL</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_LOG_URL</span></code></p></td>
+<td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">--log-url</span></code></p></td>
+<td class="text-left"><p><em>(unset)</em></p></td>
+<td class="text-left"><p>Endpoint used by <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">log-history</span></code> to open historical logs.</p></td>
+</tr>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">EC_LOGIN</span></code></p></td>
+<td class="text-left"><p><em>(none)</em></p></td>
+<td class="text-left"><p><em>(unset)</em></p></td>
+<td class="text-left"><p>ArgoCD login command — see below. <strong>No command-line equivalent.</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
-<section id="code-coverage">
-<h2>Code Coverage<a class="headerlink" href="#code-coverage" title="Link to this heading">#</a></h2>
-<p>While 100% code coverage does not make a library bug-free, it significantly
-reduces the number of easily caught bugs! Please make sure coverage remains the
-same or is improved by a pull request!</p>
+<section id="notes-on-individual-variables">
+<h2>Notes on individual variables<a class="headerlink" href="#notes-on-individual-variables" title="Link to this heading">#</a></h2>
+<section id="ec-services-repo">
+<h3><code class="docutils literal notranslate"><span class="pre">EC_SERVICES_REPO</span></code><a class="headerlink" href="#ec-services-repo" title="Link to this heading">#</a></h3>
+<p>The git repository that defines your services. Required by <code class="docutils literal notranslate"><span class="pre">list</span></code>, <code class="docutils literal notranslate"><span class="pre">instances</span></code>,
+<code class="docutils literal notranslate"><span class="pre">deploy</span></code> and any command that resolves a service version. If unset, those
+commands fail with <em>“Please set <code class="docutils literal notranslate"><span class="pre">EC_SERVICES_REPO</span></code> or pass –repo”</em>.</p>
 </section>
-<section id="developer-information">
-<h2>Developer Information<a class="headerlink" href="#developer-information" title="Link to this heading">#</a></h2>
-<p>It is recommended that developers use a <a class="reference external" href="https://code.visualstudio.com/docs/devcontainers/containers">vscode devcontainer</a>. This repository contains configuration to set up a containerized development environment that suits its own needs.</p>
-<p>This project was created using the <a class="reference external" href="https://github.com/DiamondLightSource/python-copier-template">Diamond Light Source Copier Template</a> for Python projects.</p>
-<p>For more information on common tasks like setting up a developer environment, running the tests, and setting a pre-commit hook, see the template’s <a class="reference external" href="https://diamondlightsource.github.io/python-copier-template/5.2.0/how-to.html">How-to guides</a>.</p>
+<section id="ec-target">
+<h3><code class="docutils literal notranslate"><span class="pre">EC_TARGET</span></code><a class="headerlink" href="#ec-target" title="Link to this heading">#</a></h3>
+<p>Where services are deployed. The meaning depends on the backend:</p>
+<ul class="simple">
+<li><p><strong>K8S</strong> — the Kubernetes namespace, e.g. <code class="docutils literal notranslate"><span class="pre">bl01t-iocs</span></code>.</p></li>
+<li><p><strong>ARGOCD</strong> — the ArgoCD application in <code class="docutils literal notranslate"><span class="pre">app-namespace/root-app</span></code> form.</p></li>
+</ul>
+<p>Required by any command that touches the cluster; unset, they fail with
+<em>“Please set <code class="docutils literal notranslate"><span class="pre">EC_TARGET</span></code> or pass –target”</em>.</p>
+</section>
+<section id="ec-cli-backend">
+<h3><code class="docutils literal notranslate"><span class="pre">EC_CLI_BACKEND</span></code><a class="headerlink" href="#ec-cli-backend" title="Link to this heading">#</a></h3>
+<p>Chooses the backend (<code class="docutils literal notranslate"><span class="pre">ARGOCD</span></code>, <code class="docutils literal notranslate"><span class="pre">K8S</span></code>, <code class="docutils literal notranslate"><span class="pre">DEMO</span></code>). Because the backend determines
+which commands exist, this also affects <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">--help</span></code>. See
+<a class="reference internal" href="cli.html#backends"><span class="std std-ref">Backends</span></a>.</p>
+</section>
+<section id="ec-login">
+<h3><code class="docutils literal notranslate"><span class="pre">EC_LOGIN</span></code><a class="headerlink" href="#ec-login" title="Link to this heading">#</a></h3>
+<p>Used only by the <code class="docutils literal notranslate"><span class="pre">ARGOCD</span></code> backend. If <code class="docutils literal notranslate"><span class="pre">ec</span></code> finds the ArgoCD server is
+unauthenticated while validating the target, and <code class="docutils literal notranslate"><span class="pre">EC_LOGIN</span></code> is set, it offers to
+run its value as a login command and then retries — for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ export EC_LOGIN=&quot;argocd login my-argocd.example.com --sso&quot;
+</pre></div>
+</div>
+<p>If <code class="docutils literal notranslate"><span class="pre">EC_LOGIN</span></code> is unset, <code class="docutils literal notranslate"><span class="pre">ec</span></code> instead fails with <em>“Not authenticated to argocd
+server”</em>. This variable has <strong>no</strong> command-line flag because it may contain
+credentials; keep it in your environment, not your shell history.</p>
+</section>
+<section id="ec-verbose-ec-dryrun-ec-debug">
+<h3><code class="docutils literal notranslate"><span class="pre">EC_VERBOSE</span></code>, <code class="docutils literal notranslate"><span class="pre">EC_DRYRUN</span></code>, <code class="docutils literal notranslate"><span class="pre">EC_DEBUG</span></code><a class="headerlink" href="#ec-verbose-ec-dryrun-ec-debug" title="Link to this heading">#</a></h3>
+<p>Diagnostic switches. <code class="docutils literal notranslate"><span class="pre">EC_VERBOSE</span></code> echoes each underlying command; <code class="docutils literal notranslate"><span class="pre">EC_DRYRUN</span></code>
+echoes them <em>without</em> running anything (useful for learning the equivalent
+<code class="docutils literal notranslate"><span class="pre">git</span></code>/<code class="docutils literal notranslate"><span class="pre">kubectl</span></code>/<code class="docutils literal notranslate"><span class="pre">helm</span></code>/<code class="docutils literal notranslate"><span class="pre">argocd</span></code> invocations); <code class="docutils literal notranslate"><span class="pre">EC_DEBUG</span></code> raises the log level to
+<code class="docutils literal notranslate"><span class="pre">DEBUG</span></code> and retains the temporary working directories <code class="docutils literal notranslate"><span class="pre">ec</span></code> would otherwise clean
+up.</p>
+<p>Set any of these to a truthy value (e.g. <code class="docutils literal notranslate"><span class="pre">1</span></code>) to enable.</p>
+</section>
 </section>
 </section>
 
@@ -521,20 +629,20 @@ same or is improved by a pull request!</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../how-to.html"
+       href="cli.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">How-to Guides</p>
+        <p class="prev-next-title">Command line reference</p>
       </div>
     </a>
     <a class="right-next"
-       href="run-container.html"
+       href="../_api/edge_containers_cli.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Run in a container</p>
+        <p class="prev-next-title"><code class="docutils literal notranslate"><span class="pre">edge_containers_cli</span></code></p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -557,9 +665,15 @@ same or is improved by a pull request!</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#issue-or-discussion">Issue or Discussion?</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#code-coverage">Code Coverage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#developer-information">Developer Information</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reference">Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#notes-on-individual-variables">Notes on individual variables</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-services-repo"><code class="docutils literal notranslate"><span class="pre">EC_SERVICES_REPO</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-target"><code class="docutils literal notranslate"><span class="pre">EC_TARGET</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-cli-backend"><code class="docutils literal notranslate"><span class="pre">EC_CLI_BACKEND</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-login"><code class="docutils literal notranslate"><span class="pre">EC_LOGIN</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-verbose-ec-dryrun-ec-debug"><code class="docutils literal notranslate"><span class="pre">EC_VERBOSE</span></code>, <code class="docutils literal notranslate"><span class="pre">EC_DRYRUN</span></code>, <code class="docutils literal notranslate"><span class="pre">EC_DEBUG</span></code></a></li>
+</ul>
+</li>
 </ul>
   </nav></div>
 
@@ -567,7 +681,7 @@ same or is improved by a pull request!</p>
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/epics-containers/edge-containers-cli/edit/main/docs/how-to/contribute.md">
+    <a href="https://github.com/epics-containers/edge-containers-cli/edit/main/docs/reference/environment-variables.md">
       <i class="fa-solid fa-pencil"></i>
       
       
@@ -582,7 +696,7 @@ same or is improved by a pull request!</p>
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../_sources/how-to/contribute.md.txt">
+    <a href="../_sources/reference/environment-variables.md.txt">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>
