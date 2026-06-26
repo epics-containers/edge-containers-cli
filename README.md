@@ -16,8 +16,9 @@ For detailed documentation on the framework that this supports see:
 https://epics-containers.github.io/
 
 
-Source          | <https://github.com/epics-containers/edge-containers-cli>
+What            | Where
 :---:           | :---:
+Source          | <https://github.com/epics-containers/edge-containers-cli>
 PyPI            | `pip install edge-containers-cli`
 Releases        | <https://github.com/epics-containers/edge-containers-cli/releases>
 
