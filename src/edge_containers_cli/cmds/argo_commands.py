@@ -29,6 +29,8 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import YamlTypes, _AsyncFuncType, _run_async
 
+sem = asyncio.Semaphore(10)
+
 
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
@@ -293,12 +295,16 @@ class ArgoCommands(Commands):
                 except KeyError:
                     label = "service"
 
-                # check if replicas ready
-                mani_resp = await shell.run_command(
-                    f"argocd app manifests {namespace}/{name} --source live",
-                )
-                for manifest in YAML(typ="safe").load_all(mani_resp):
-                    if not isinstance(manifest, dict):
+                # Limit number of processes that can be spawn concurrently
+                async with sem:
+                    # check if replicas ready
+                    mani_resp = await shell.run_command(
+                        f"argocd app manifests {namespace}/{name} --source live",
+                    )
+
+                for resource_manifest in mani_resp.split("---")[1:]:
+                    manifest = YAML(typ="safe").load(resource_manifest)
+                    if not manifest:
                         continue
                     kind = manifest.get("kind")
                     resource_name = manifest.get("metadata", {}).get("name")
