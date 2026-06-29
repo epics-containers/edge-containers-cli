@@ -29,8 +29,6 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import YamlTypes, _AsyncFuncType, _run_async
 
-sem = asyncio.Semaphore(10)
-
 
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
@@ -269,7 +267,7 @@ class ArgoCommands(Commands):
         )
         self.app_dicts = YAML(typ="safe").load(app_resp)
 
-    async def _extract_app_manifests(self, app: dict):
+    async def _extract_app_manifests(self, app: dict, sem: asyncio.Semaphore):
         namespace, _ = extract_ns_app(self.target)
 
         service_data = {
@@ -344,11 +342,16 @@ class ArgoCommands(Commands):
                 self.services_df.extend(service_df)
 
     async def _get_service_data(self):
+        # 2 is just a backup for if for some reason cpu_count() returns None.
+        # 2 would treat it like a dual-core system.
+        cpus = os.cpu_count() or 2
+        sem = asyncio.Semaphore(cpus * 5)
+
         await self._get_services()
 
         async with asyncio.TaskGroup() as group:
             for app in self.app_dicts:
-                group.create_task(self._extract_app_manifests(app))
+                group.create_task(self._extract_app_manifests(app, sem))
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
         # Clear the current dataframe before polling the current manifests
