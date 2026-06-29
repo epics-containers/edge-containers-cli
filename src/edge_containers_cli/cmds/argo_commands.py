@@ -345,7 +345,8 @@ class ArgoCommands(Commands):
         # 2 is just a backup for if for some reason cpu_count() returns None.
         # 2 would treat it like a dual-core system.
         cpus = os.cpu_count() or 2
-        sem = asyncio.Semaphore(cpus * 5)
+        max_processes = 64
+        sem = asyncio.Semaphore(min(cpus * 5, max_processes))
 
         await self._get_services()
 
