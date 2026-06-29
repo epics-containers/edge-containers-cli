@@ -267,7 +267,7 @@ class ArgoCommands(Commands):
         )
         self.app_dicts = YAML(typ="safe").load(app_resp)
 
-    async def _extract_app_manifests(self, app: dict):
+    async def _extract_app_manifests(self, app: dict, sem: asyncio.Semaphore):
         namespace, _ = extract_ns_app(self.target)
 
         service_data = {
@@ -293,12 +293,16 @@ class ArgoCommands(Commands):
                 except KeyError:
                     label = "service"
 
-                # check if replicas ready
-                mani_resp = await shell.run_command(
-                    f"argocd app manifests {namespace}/{name} --source live",
-                )
+                # Limit number of processes that can be spawn concurrently
+                async with sem:
+                    # check if replicas ready
+                    mani_resp = await shell.run_command(
+                        f"argocd app manifests {namespace}/{name} --source live",
+                    )
+
                 for manifest in YAML(typ="safe").load_all(mani_resp):
                     if not isinstance(manifest, dict):
+                        continue
                         continue
                     kind = manifest.get("kind")
                     resource_name = manifest.get("metadata", {}).get("name")
@@ -338,11 +342,17 @@ class ArgoCommands(Commands):
                 self.services_df.extend(service_df)
 
     async def _get_service_data(self):
+        # 2 is just a backup for if for some reason cpu_count() returns None.
+        # 2 would treat it like a dual-core system.
+        cpus = os.cpu_count() or 2
+        max_processes = 64
+        sem = asyncio.Semaphore(min(cpus * 5, max_processes))
+
         await self._get_services()
 
         async with asyncio.TaskGroup() as group:
             for app in self.app_dicts:
-                group.create_task(self._extract_app_manifests(app))
+                group.create_task(self._extract_app_manifests(app, sem))
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
         # Clear the current dataframe before polling the current manifests
