@@ -29,6 +29,13 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import YamlTypes, _AsyncFuncType, _run_async
 
+# argocd stamps every resource it manages with a tracking-id annotation of
+# the form "<app-instance-name>:<group>/<kind>:<namespace>/<name>", e.g.
+#   "i19-beamline_i19:argoproj.io/Application:i19-beamline/bl19i-ea-eiger-01"
+TRACKING_ID_RE = re.compile(
+    r"^(?P<owner>[^:]+):(?P<group>[^/]*)/(?P<kind>[^:]+):(?P<namespace>[^/]+)/(?P<name>.+)$"
+)
+
 
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
@@ -267,7 +274,7 @@ class ArgoCommands(Commands):
         )
         self.app_dicts = YAML(typ="safe").load(app_resp)
 
-    async def _extract_app_manifests(self, app: dict, sem: asyncio.Semaphore):
+    async def _extract_app_manifests(self, app: dict, semaphore: asyncio.Semaphore):
         namespace, _ = extract_ns_app(self.target)
 
         service_data = {
@@ -278,60 +285,101 @@ class ArgoCommands(Commands):
             "deployed": [],
         }
 
-        try:
-            resources_dict = app["status"]["resources"]
-        except KeyError:
+        name = app["metadata"]["name"]
+        resources_dict = app.get("status", {}).get("resources", []) or []
+
+        # an app-of-apps umbrella (e.g. "i19") owns nested child
+        # Applications rather than a real workload - status.resources
+        # reports each resource's kind directly from ArgoCD's own resource
+        # tree, so we can detect and skip this without even fetching live
+        # manifests, rather than inferring it from an absence of matches.
+        if any(r.get("kind") == "Application" for r in resources_dict):
             return
 
-        for resource in resources_dict:
-            is_ready = False
-            if resource["kind"] in ["StatefulSet", "Deployment"]:
-                name = app["metadata"]["name"]
+        try:
+            label = app["metadata"]["labels"]["device"]
+        except KeyError:
+            label = "service"
+
+        is_ready = False
+        # fall back to the Application's own creation time if we can't find
+        # a StatefulSet/Deployment to read a more precise timestamp from
+        time_stamp = datetime.strptime(
+            app["metadata"]["creationTimestamp"],
+            "%Y-%m-%dT%H:%M:%SZ",
+        )
+
+        # only bother fetching live manifests if the app actually has
+        # resources at all - an unsynced/empty app has none
+        if resources_dict:
+            async with semaphore:
+                mani_resp = await shell.run_command(
+                    f"argocd app manifests {namespace}/{name} --source live",
+                )
+            for manifest in YAML(typ="safe").load_all(mani_resp):
+                if not isinstance(manifest, dict):
+                    continue
+
+                # argocd stamps every live-managed resource with a
+                # tracking-id annotation of the form
+                #   "<owner>:<group>/<kind>:<namespace>/<name>"
+                # <owner> is usually just the Application name, but for
+                # Applications living outside the argocd control-plane
+                # namespace (the "apps in any namespace" feature) it's
+                # "<app-namespace>_<app-name>" instead - accept either.
+                # Prefer this annotation when present, since it's robust to
+                # fullnameOverride/chart naming conventions and confirms
+                # ownership explicitly. `argocd app manifests <ns>/<app>`
+                # is already scoped to this app though, so when the
+                # annotation is absent (e.g. a hand-written test fixture,
+                # or an older resource-tracking-method) fall back to the
+                # manifest's own apiVersion to get the API group instead.
+                tracking_id = (
+                    manifest.get("metadata", {})
+                    .get("annotations", {})
+                    .get("argocd.argoproj.io/tracking-id", "")
+                )
+                match = TRACKING_ID_RE.match(tracking_id)
+                if match is not None:
+                    owner = match.group("owner")
+                    if owner not in (name, f"{namespace}_{name}"):
+                        continue
+                    group = match.group("group")
+                else:
+                    api_version = manifest.get("apiVersion", "")
+                    group = api_version.split("/", 1)[0] if "/" in api_version else ""
+
+                # a top-level workload (Deployment/StatefulSet/DaemonSet)
+                # lives in the "apps" API group and has no ownerReferences.
+                # Pods and ReplicaSets spawned underneath it are always
+                # owned by something else, so this excludes them without
+                # having to hardcode an exact kind allowlist.
+                if group != "apps":
+                    continue
+                if manifest.get("metadata", {}).get("ownerReferences"):
+                    continue
 
                 try:
-                    label = app["metadata"]["labels"]["device"]
+                    label = manifest["metadata"]["labels"]["description"]
                 except KeyError:
-                    label = "service"
+                    pass
+                try:
+                    is_ready = bool(manifest["status"]["readyReplicas"])
+                except (KeyError, TypeError):
+                    is_ready = False
+                time_stamp = datetime.strptime(
+                    manifest["metadata"]["creationTimestamp"],
+                    "%Y-%m-%dT%H:%M:%SZ",
+                )
+                break
 
-                # Limit number of processes that can be spawn concurrently
-                async with sem:
-                    # check if replicas ready
-                    mani_resp = await shell.run_command(
-                        f"argocd app manifests {namespace}/{name} --source live",
-                    )
-
-                for manifest in YAML(typ="safe").load_all(mani_resp):
-                    if not isinstance(manifest, dict):
-                        continue
-                        continue
-                    kind = manifest.get("kind")
-                    resource_name = manifest.get("metadata", {}).get("name")
-                    if kind in ["StatefulSet", "Deployment"] and resource_name == name:
-                        try:
-                            label = manifest["metadata"]["labels"]["description"]
-                        except KeyError:
-                            label = "service"
-
-                        try:
-                            is_ready = bool(manifest["status"]["readyReplicas"])
-                        except (
-                            KeyError,
-                            TypeError,
-                        ):  # Not ready if doesnt exist
-                            is_ready = False
-                        time_stamp = datetime.strptime(
-                            manifest["metadata"]["creationTimestamp"],
-                            "%Y-%m-%dT%H:%M:%SZ",
-                        )
-                        service_data["name"].append(name)
-                        service_data["label"].append(label)
-                        service_data["version"].append(
-                            app["spec"]["source"]["targetRevision"]
-                        )
-                        service_data["ready"].append(is_ready)
-                        service_data["deployed"].append(
-                            datetime.strftime(time_stamp, globals.TIME_FORMAT)
-                        )
+        service_data["name"].append(name)
+        service_data["label"].append(label)
+        service_data["version"].append(app["spec"]["source"]["targetRevision"])
+        service_data["ready"].append(is_ready)
+        service_data["deployed"].append(
+            datetime.strftime(time_stamp, globals.TIME_FORMAT)
+        )
 
         service_df = polars.from_dict(service_data, schema=ServicesSchema)
 
