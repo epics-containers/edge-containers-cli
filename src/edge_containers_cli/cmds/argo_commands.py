@@ -310,6 +310,13 @@ class ArgoCommands(Commands):
         health_status = app.get("status", {}).get("health", {}).get("status")
         is_ready = health_status == "Healthy"
 
+        # start from the Application's own creation time, but a top-level
+        # workload can be deleted and recreated independently of the
+        # Application (e.g. `ec restart` deletes the StatefulSet and lets
+        # ArgoCD recreate it on the next sync) - take the most recent of
+        # the Application's and every matched workload's creationTimestamp
+        # so this reflects the true "last activity" time, not just when
+        # the Application itself was originally deployed.
         time_stamp = datetime.strptime(
             app["metadata"]["creationTimestamp"],
             "%Y-%m-%dT%H:%M:%SZ",
@@ -319,7 +326,7 @@ class ArgoCommands(Commands):
         # manifest metadata, not the Application's - if that ever moves to
         # the Application itself this whole block (and the manifest fetch)
         # can go away in favour of just app["metadata"]["labels"]
-        # TODO: Move description label to top level Application
+        label_set = False
         if resources_dict:
             async with semaphore:
                 mani_resp = await shell.run_command(
@@ -371,11 +378,19 @@ class ArgoCommands(Commands):
                 # take the label from the first top-level workload found -
                 # if this app owns several, there isn't a meaningful way to
                 # combine multiple description labels into one value
-                try:
-                    label = manifest["metadata"]["labels"]["description"]
-                except KeyError:
-                    pass
-                break
+                if not label_set:
+                    try:
+                        label = manifest["metadata"]["labels"]["description"]
+                    except KeyError:
+                        pass
+                    label_set = True
+
+                workload_ts = datetime.strptime(
+                    manifest["metadata"]["creationTimestamp"],
+                    "%Y-%m-%dT%H:%M:%SZ",
+                )
+                if workload_ts > time_stamp:
+                    time_stamp = workload_ts
 
         service_data["name"].append(name)
         service_data["label"].append(label)
