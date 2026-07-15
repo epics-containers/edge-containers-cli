@@ -301,16 +301,25 @@ class ArgoCommands(Commands):
         except KeyError:
             label = "service"
 
-        is_ready = False
-        # fall back to the Application's own creation time if we can't find
-        # a StatefulSet/Deployment to read a more precise timestamp from
+        # ArgoCD already aggregates health across every resource it manages
+        # for this Application (all StatefulSets, Services, ConfigMaps,
+        # etc.) - if any child resource is degraded/missing, that's already
+        # reflected here, the same way argocd-monitor reads
+        # `status.health.status` directly rather than re-deriving it from
+        # individual resources.
+        health_status = app.get("status", {}).get("health", {}).get("status")
+        is_ready = health_status == "Healthy"
+
         time_stamp = datetime.strptime(
             app["metadata"]["creationTimestamp"],
             "%Y-%m-%dT%H:%M:%SZ",
         )
 
-        # only bother fetching live manifests if the app actually has
-        # resources at all - an unsynced/empty app has none
+        # the "description" label currently lives on the workload's own
+        # manifest metadata, not the Application's - if that ever moves to
+        # the Application itself this whole block (and the manifest fetch)
+        # can go away in favour of just app["metadata"]["labels"]
+        # TODO: Move description label to top level Application
         if resources_dict:
             async with semaphore:
                 mani_resp = await shell.run_command(
@@ -350,27 +359,22 @@ class ArgoCommands(Commands):
                     group = api_version.split("/", 1)[0] if "/" in api_version else ""
 
                 # a top-level workload (Deployment/StatefulSet/DaemonSet)
-                # lives in the "apps" API group and has no ownerReferences.
-                # Pods and ReplicaSets spawned underneath it are always
-                # owned by something else, so this excludes them without
-                # having to hardcode an exact kind allowlist.
+                # lives in the "apps" API group. `argocd app manifests
+                # --source live` only ever returns the app's own
+                # tracked/desired resources (confirmed empirically - no
+                # ReplicaSet/Pod ever appears in its output), so we don't
+                # need an ownerReferences check to exclude runtime-spawned
+                # children here.
                 if group != "apps":
                     continue
-                if manifest.get("metadata", {}).get("ownerReferences"):
-                    continue
 
+                # take the label from the first top-level workload found -
+                # if this app owns several, there isn't a meaningful way to
+                # combine multiple description labels into one value
                 try:
                     label = manifest["metadata"]["labels"]["description"]
                 except KeyError:
                     pass
-                try:
-                    is_ready = bool(manifest["status"]["readyReplicas"])
-                except (KeyError, TypeError):
-                    is_ready = False
-                time_stamp = datetime.strptime(
-                    manifest["metadata"]["creationTimestamp"],
-                    "%Y-%m-%dT%H:%M:%SZ",
-                )
                 break
 
         service_data["name"].append(name)
