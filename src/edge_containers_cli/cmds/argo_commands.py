@@ -298,6 +298,9 @@ class ArgoCommands(Commands):
 
         label = app.get("metadata", {}).get("labels", {}).get("device", "service")
 
+        # Check for STOPPED label for health comparison later
+        stopped = app.get("metadata", {}).get("labels", {}).get("STOPPED", False)
+
         # ArgoCD already aggregates health across every resource it manages
         # for this Application (all StatefulSets, Services, ConfigMaps,
         # etc.) - if any child resource is degraded/missing, that's already
@@ -305,7 +308,8 @@ class ArgoCommands(Commands):
         # `status.health.status` directly rather than re-deriving it from
         # individual resources.
         health_status = app.get("status", {}).get("health", {}).get("status")
-        is_ready = health_status == "Healthy"
+
+        is_ready = (health_status == "Healthy") and not stopped
 
         # start from the Application's own creation time, but a top-level
         # workload can be deleted and recreated independently of the
