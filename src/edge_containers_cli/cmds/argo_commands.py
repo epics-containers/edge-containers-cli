@@ -285,8 +285,8 @@ class ArgoCommands(Commands):
             "deployed": [],
         }
 
-        name = app["metadata"]["name"]
-        resources_dict = app.get("status", {}).get("resources", []) or []
+        name = app.get("metadata", {}).get("name", "unknown")
+        resources_dict = app.get("status", {}).get("resources", [])
 
         # an app-of-apps umbrella (e.g. "i19") owns nested child
         # Applications rather than a real workload - status.resources
@@ -296,10 +296,7 @@ class ArgoCommands(Commands):
         if any(r.get("kind") == "Application" for r in resources_dict):
             return
 
-        try:
-            label = app["metadata"]["labels"]["device"]
-        except KeyError:
-            label = "service"
+        label = app.get("metadata", {}).get("labels", {}).get("device", "service")
 
         # ArgoCD already aggregates health across every resource it manages
         # for this Application (all StatefulSets, Services, ConfigMaps,
@@ -317,10 +314,13 @@ class ArgoCommands(Commands):
         # the Application's and every matched workload's creationTimestamp
         # so this reflects the true "last activity" time, not just when
         # the Application itself was originally deployed.
-        time_stamp = datetime.strptime(
-            app["metadata"]["creationTimestamp"],
-            "%Y-%m-%dT%H:%M:%SZ",
-        )
+        try:
+            time_stamp = datetime.strptime(
+                app.get("metadata", {}).get("creationTimestamp", ""),
+                "%Y-%m-%dT%H:%M:%SZ",
+            )
+        except ValueError:
+            time_stamp = datetime(1970, 1, 1)
 
         # the "description" label currently lives on the workload's own
         # manifest metadata, not the Application's - if that ever moves to
@@ -388,16 +388,22 @@ class ArgoCommands(Commands):
                         label = description
                         label_set = True
 
-                workload_ts = datetime.strptime(
-                    manifest["metadata"]["creationTimestamp"],
-                    "%Y-%m-%dT%H:%M:%SZ",
-                )
+                try:
+                    workload_ts = datetime.strptime(
+                        manifest.get("metadata", {}).get("creationTimestamp", ""),
+                        "%Y-%m-%dT%H:%M:%SZ",
+                    )
+                except ValueError:
+                    workload_ts = datetime(1970, 1, 1)
+
                 if workload_ts > time_stamp:
                     time_stamp = workload_ts
 
         service_data["name"].append(name)
         service_data["label"].append(label)
-        service_data["version"].append(app["spec"]["source"]["targetRevision"])
+        service_data["version"].append(
+            app.get("spec", {}).get("source", {}).get("targetRevision", "unknown")
+        )
         service_data["ready"].append(is_ready)
         service_data["deployed"].append(
             datetime.strftime(time_stamp, globals.TIME_FORMAT)
@@ -420,9 +426,13 @@ class ArgoCommands(Commands):
 
         await self._get_services()
 
-        async with asyncio.TaskGroup() as group:
-            for app in self.app_dicts:
-                group.create_task(self._extract_app_manifests(app, sem))
+        try:
+            async with asyncio.TaskGroup() as group:
+                for app in self.app_dicts:
+                    group.create_task(self._extract_app_manifests(app, sem))
+        except* ValueError as eg:
+            for exc in eg.exceptions:
+                print("Value Error:", exc)
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
         # Clear the current dataframe before polling the current manifests
