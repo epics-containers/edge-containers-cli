@@ -379,11 +379,14 @@ class ArgoCommands(Commands):
                 # if this app owns several, there isn't a meaningful way to
                 # combine multiple description labels into one value
                 if not label_set:
-                    try:
-                        label = manifest["metadata"]["labels"]["description"]
-                    except KeyError:
-                        pass
-                    label_set = True
+                    description = (
+                        manifest.get("metadata", {})
+                        .get("labels", {})
+                        .get("description")
+                    )
+                    if description:
+                        label = description
+                        label_set = True
 
                 workload_ts = datetime.strptime(
                     manifest["metadata"]["creationTimestamp"],
