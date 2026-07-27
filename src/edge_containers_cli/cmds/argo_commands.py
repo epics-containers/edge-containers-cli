@@ -29,6 +29,13 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import YamlTypes, _AsyncFuncType, _run_async
 
+# argocd stamps every resource it manages with a tracking-id annotation of
+# the form "<app-instance-name>:<group>/<kind>:<namespace>/<name>", e.g.
+#   "i19-beamline_i19:argoproj.io/Application:i19-beamline/bl19i-ea-eiger-01"
+TRACKING_ID_RE = re.compile(
+    r"^(?P<owner>[^:]+):(?P<group>[^/]*)/(?P<kind>[^:]+):(?P<namespace>[^/]+)/(?P<name>.+)$"
+)
+
 
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
@@ -267,7 +274,7 @@ class ArgoCommands(Commands):
         )
         self.app_dicts = YAML(typ="safe").load(app_resp)
 
-    async def _extract_app_manifests(self, app: dict, sem: asyncio.Semaphore):
+    async def _extract_app_manifests(self, app: dict, semaphore: asyncio.Semaphore):
         namespace, _ = extract_ns_app(self.target)
 
         service_data = {
@@ -278,60 +285,133 @@ class ArgoCommands(Commands):
             "deployed": [],
         }
 
-        try:
-            resources_dict = app["status"]["resources"]
-        except KeyError:
+        name = app.get("metadata", {}).get("name", "unknown")
+        resources_dict = app.get("status", {}).get("resources", [])
+
+        # an app-of-apps umbrella (e.g. "i19") owns nested child
+        # Applications rather than a real workload - status.resources
+        # reports each resource's kind directly from ArgoCD's own resource
+        # tree, so we can detect and skip this without even fetching live
+        # manifests, rather than inferring it from an absence of matches.
+        if any(r.get("kind") == "Application" for r in resources_dict):
             return
 
-        for resource in resources_dict:
-            is_ready = False
-            if resource["kind"] in ["StatefulSet", "Deployment"]:
-                name = app["metadata"]["name"]
+        label = app.get("metadata", {}).get("labels", {}).get("device", "service")
+
+        # Check for STOPPED label for health comparison later
+        stopped = app.get("metadata", {}).get("labels", {}).get("STOPPED", False)
+
+        # ArgoCD already aggregates health across every resource it manages
+        # for this Application (all StatefulSets, Services, ConfigMaps,
+        # etc.) - if any child resource is degraded/missing, that's already
+        # reflected here, the same way argocd-monitor reads
+        # `status.health.status` directly rather than re-deriving it from
+        # individual resources.
+        health_status = app.get("status", {}).get("health", {}).get("status")
+
+        is_ready = (health_status == "Healthy") and not stopped
+
+        # start from the Application's own creation time, but a top-level
+        # workload can be deleted and recreated independently of the
+        # Application (e.g. `ec restart` deletes the StatefulSet and lets
+        # ArgoCD recreate it on the next sync) - take the most recent of
+        # the Application's and every matched workload's creationTimestamp
+        # so this reflects the true "last activity" time, not just when
+        # the Application itself was originally deployed.
+        try:
+            time_stamp = datetime.strptime(
+                app.get("metadata", {}).get("creationTimestamp", ""),
+                "%Y-%m-%dT%H:%M:%SZ",
+            )
+        except ValueError:
+            time_stamp = datetime(1970, 1, 1)
+
+        # the "description" label currently lives on the workload's own
+        # manifest metadata, not the Application's - if that ever moves to
+        # the Application itself this whole block (and the manifest fetch)
+        # can go away in favour of just app["metadata"]["labels"]
+        label_set = False
+        if resources_dict:
+            async with semaphore:
+                mani_resp = await shell.run_command(
+                    f"argocd app manifests {namespace}/{name} --source live",
+                )
+            for manifest in YAML(typ="safe").load_all(mani_resp):
+                if not isinstance(manifest, dict):
+                    continue
+
+                # argocd stamps every live-managed resource with a
+                # tracking-id annotation of the form
+                #   "<owner>:<group>/<kind>:<namespace>/<name>"
+                # <owner> is usually just the Application name, but for
+                # Applications living outside the argocd control-plane
+                # namespace (the "apps in any namespace" feature) it's
+                # "<app-namespace>_<app-name>" instead - accept either.
+                # Prefer this annotation when present, since it's robust to
+                # fullnameOverride/chart naming conventions and confirms
+                # ownership explicitly. `argocd app manifests <ns>/<app>`
+                # is already scoped to this app though, so when the
+                # annotation is absent (e.g. a hand-written test fixture,
+                # or an older resource-tracking-method) fall back to the
+                # manifest's own apiVersion to get the API group instead.
+                tracking_id = (
+                    manifest.get("metadata", {})
+                    .get("annotations", {})
+                    .get("argocd.argoproj.io/tracking-id", "")
+                )
+                match = TRACKING_ID_RE.match(tracking_id)
+                if match is not None:
+                    owner = match.group("owner")
+                    if owner not in (name, f"{namespace}_{name}"):
+                        continue
+                    group = match.group("group")
+                else:
+                    api_version = manifest.get("apiVersion", "")
+                    group = api_version.split("/", 1)[0] if "/" in api_version else ""
+
+                # a top-level workload (Deployment/StatefulSet/DaemonSet)
+                # lives in the "apps" API group. `argocd app manifests
+                # --source live` only ever returns the app's own
+                # tracked/desired resources (confirmed empirically - no
+                # ReplicaSet/Pod ever appears in its output), so we don't
+                # need an ownerReferences check to exclude runtime-spawned
+                # children here.
+                if group != "apps":
+                    continue
+
+                # take the label from the first top-level workload found -
+                # if this app owns several, there isn't a meaningful way to
+                # combine multiple description labels into one value
+                if not label_set:
+                    description = (
+                        manifest.get("metadata", {})
+                        .get("labels", {})
+                        .get("description")
+                    )
+                    if description:
+                        label = description
+                        label_set = True
 
                 try:
-                    label = app["metadata"]["labels"]["device"]
-                except KeyError:
-                    label = "service"
-
-                # Limit number of processes that can be spawn concurrently
-                async with sem:
-                    # check if replicas ready
-                    mani_resp = await shell.run_command(
-                        f"argocd app manifests {namespace}/{name} --source live",
+                    workload_ts = datetime.strptime(
+                        manifest.get("metadata", {}).get("creationTimestamp", ""),
+                        "%Y-%m-%dT%H:%M:%SZ",
                     )
+                except ValueError:
+                    workload_ts = datetime(1970, 1, 1)
 
-                for manifest in YAML(typ="safe").load_all(mani_resp):
-                    if not isinstance(manifest, dict):
-                        continue
-                        continue
-                    kind = manifest.get("kind")
-                    resource_name = manifest.get("metadata", {}).get("name")
-                    if kind in ["StatefulSet", "Deployment"] and resource_name == name:
-                        try:
-                            label = manifest["metadata"]["labels"]["description"]
-                        except KeyError:
-                            label = "service"
+                if workload_ts > time_stamp:
+                    time_stamp = workload_ts
 
-                        try:
-                            is_ready = bool(manifest["status"]["readyReplicas"])
-                        except (
-                            KeyError,
-                            TypeError,
-                        ):  # Not ready if doesnt exist
-                            is_ready = False
-                        time_stamp = datetime.strptime(
-                            manifest["metadata"]["creationTimestamp"],
-                            "%Y-%m-%dT%H:%M:%SZ",
-                        )
-                        service_data["name"].append(name)
-                        service_data["label"].append(label)
-                        service_data["version"].append(
-                            app["spec"]["source"]["targetRevision"]
-                        )
-                        service_data["ready"].append(is_ready)
-                        service_data["deployed"].append(
-                            datetime.strftime(time_stamp, globals.TIME_FORMAT)
-                        )
+        service_data["name"].append(name)
+        service_data["label"].append(label)
+        service_data["version"].append(
+            app.get("spec", {}).get("source", {}).get("targetRevision", "unknown")
+        )
+        service_data["ready"].append(is_ready)
+        service_data["deployed"].append(
+            datetime.strftime(time_stamp, globals.TIME_FORMAT)
+        )
 
         service_df = polars.from_dict(service_data, schema=ServicesSchema)
 
@@ -350,9 +430,13 @@ class ArgoCommands(Commands):
 
         await self._get_services()
 
-        async with asyncio.TaskGroup() as group:
-            for app in self.app_dicts:
-                group.create_task(self._extract_app_manifests(app, sem))
+        try:
+            async with asyncio.TaskGroup() as group:
+                for app in self.app_dicts:
+                    group.create_task(self._extract_app_manifests(app, sem))
+        except* ValueError as eg:
+            for exc in eg.exceptions:
+                print("Value Error:", exc)
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
         # Clear the current dataframe before polling the current manifests

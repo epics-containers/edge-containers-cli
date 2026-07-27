@@ -10,6 +10,8 @@ checks:
           source:
             targetRevision: main
         status:
+          health:
+            status: Healthy
           resources:
             - kind: StatefulSet
               name: bl01t-ea-test-01
