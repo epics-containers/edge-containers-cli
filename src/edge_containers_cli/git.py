@@ -63,6 +63,7 @@ async def set_values(
     repo_url: str,
     file: Path,
     keys: dict[str, YamlTypes],
+    require_keys: list[str] | None = None,
 ) -> None:
     """
     sets several key,value pairs in a yaml file in a single commit and
@@ -74,12 +75,26 @@ async def set_values(
     repo, the two are shallow-merged (the new value's keys win) rather
     than the existing dict being replaced outright - this lets a caller
     set one entry of e.g. a `labels` mapping without wiping any others.
+
+    `require_keys`, if given, are key paths that must already exist in
+    the file. If any is missing, nothing is written, committed or pushed
+    and a GitError is raised instead - this stops a caller creating a new,
+    partial entry (e.g. a lone `description` with no `enabled`/
+    `targetRevision` siblings) for a service that was never deployed.
     """
     with new_workdir() as path:
         try:
             await shell.run_command(f"git clone --depth=1 {repo_url} {path}")
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
+
+                for req_key in require_keys or []:
+                    try:
+                        file_data.get_key(req_key)
+                    except YamlFileError as e:
+                        raise GitError(
+                            f"'{req_key}' not found in {file} - nothing was written"
+                        ) from e
 
                 changed: dict[str, YamlTypes] = {}
                 for key, value in keys.items():

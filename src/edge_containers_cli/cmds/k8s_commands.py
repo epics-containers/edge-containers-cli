@@ -23,6 +23,15 @@ from edge_containers_cli.globals import TIME_FORMAT
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import _run_async
 
+# descriptions are an Argo CD Application feature only - the plain-k8s
+# backend has nowhere to store one, so both `ec deploy --desc` and
+# `ec set-desc` must refuse with this rather than silently doing nothing.
+DESC_UNSUPPORTED = (
+    "Descriptions require the Argo CD backend "
+    "(EC_CLI_BACKEND=ARGOCD) - the plain-Kubernetes backend "
+    "does not support descriptions."
+)
+
 
 class K8sCommands(Commands):
     """
@@ -61,11 +70,7 @@ class K8sCommands(Commands):
         self, service_name, version, description, args, confirm_callback=None
     ):
         if description is not None:
-            raise CommandError(
-                "Descriptions require the Argo CD backend "
-                "(EC_CLI_BACKEND=ARGOCD) - the plain-Kubernetes backend "
-                "does not support --desc."
-            )
+            raise CommandError(DESC_UNSUPPORTED)
 
         if not version:
             latest_version = await self._get_latest_version(service_name)
@@ -112,6 +117,9 @@ class K8sCommands(Commands):
         await shell.run_command(
             f"kubectl delete -n {self.target} {pod_name}", skip_on_dryrun=True
         )
+
+    async def set_description(self, service_name, description, confirm_callback=None):
+        raise CommandError(DESC_UNSUPPORTED)
 
     async def start(self, service_name, commit=False):
         await self._check_service(service_name)

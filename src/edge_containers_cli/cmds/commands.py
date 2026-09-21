@@ -152,6 +152,14 @@ class Commands(ABC):
     async def restart(self, service_name: str) -> None:
         raise NotImplementedError
 
+    async def set_description(
+        self,
+        service_name: str,
+        description: str,
+        confirm_callback: Callable[[str | None, str], None] | None = None,
+    ) -> None:
+        raise NotImplementedError
+
     @abstractmethod
     async def start(self, service_name: str, commit: bool = False) -> None:
         raise NotImplementedError

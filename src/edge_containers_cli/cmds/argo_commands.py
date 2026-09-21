@@ -117,11 +117,16 @@ async def push_value(target: str, key: str, value: YamlTypes):
 
 
 @do_retry
-async def push_values(target: str, keys: dict[str, YamlTypes]):
+async def push_values(
+    target: str, keys: dict[str, YamlTypes], require_keys: list[str] | None = None
+):
     """
     Like push_value, but sets several keys in a single commit. Any key
     not present in `keys` is left untouched in the values repo, so a
     caller only ever writes the fields it was asked to change.
+
+    `require_keys`, if given, must already exist in the values repo or
+    nothing is written/committed/pushed - see set_values.
     """
     # Get source details
     app_resp = await shell.run_command(
@@ -131,7 +136,7 @@ async def push_values(target: str, keys: dict[str, YamlTypes]):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    await set_values(repo_url, path / "values.yaml", keys)
+    await set_values(repo_url, path / "values.yaml", keys, require_keys=require_keys)
 
     # Free any possible patched values, their children & refresh repo
     for key in keys:
@@ -229,6 +234,30 @@ class ArgoCommands(Commands):
             deploy_dict[f"services.{service_name}.description"] = description
 
         await push_values(self.target, deploy_dict)
+
+    async def set_description(
+        self, service_name: str, description: str, confirm_callback=None
+    ) -> None:
+        # Only ever touches the description leaf key - never enabled or
+        # targetRevision, so this can never roll the service to another
+        # version or change whether it's enabled.
+        display_description = None
+        try:
+            display_description = await self._get_description(service_name)
+        except CommandError:
+            # Service not yet deployed - push_values below refuses anyway,
+            # since there's no services.<name> entry to update.
+            pass
+
+        if confirm_callback:
+            confirm_callback(display_description, description)
+
+        parent_key = f"services.{service_name}"
+        await push_values(
+            self.target,
+            {f"{parent_key}.description": description},
+            require_keys=[parent_key],
+        )
 
     async def logs(self, service_name, prev):
         await self._logs(service_name, prev)

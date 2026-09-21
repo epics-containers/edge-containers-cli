@@ -1,9 +1,11 @@
 import shutil
 from pathlib import Path
 
+import pytest
 from ruamel.yaml import YAML
 
 from edge_containers_cli.__main__ import cli
+from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from tests.conftest import TMPDIR
 
@@ -175,6 +177,91 @@ def test_ps_shows_description_from_application_annotation(mock_run, ARGOCD):
     mock_run.set_seq(ARGOCD.ps_with_description)
     res = mock_run.run_cli("ps")
     assert "my nice service" in res
+
+
+def test_set_desc_preserves_siblings(mock_run, ARGOCD, data: Path):
+    # `ec set-desc` must touch only the description leaf key - enabled and
+    # targetRevision (and any other field) survive untouched, so a typo
+    # fix can never roll the service to another version.
+    mock_run.set_seq(ARGOCD.set_desc)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: true\n"
+        "    targetRevision: custom-version\n"
+        "    description: old description\n"
+        "    labels:\n"
+        "      foo: bar\n"
+        "    extra: keepme\n"
+    )
+
+    run_cli_args(mock_run, ["set-desc", "bl01t-ea-test-01", "new description"])
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"]["bl01t-ea-test-01"]
+    assert entry["description"] == "new description"
+    assert entry["enabled"] is True
+    assert entry["targetRevision"] == "custom-version"
+    assert entry["labels"] == {"foo": "bar"}
+    assert entry["extra"] == "keepme"
+
+
+def test_set_desc_clears(mock_run, ARGOCD, data: Path):
+    mock_run.set_seq(ARGOCD.set_desc)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: true\n"
+        "    targetRevision: custom-version\n"
+        "    description: old description\n"
+    )
+
+    run_cli_args(mock_run, ["set-desc", "bl01t-ea-test-01", ""])
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"]["bl01t-ea-test-01"]
+    assert entry["description"] == ""
+    assert entry["enabled"] is True
+    assert entry["targetRevision"] == "custom-version"
+
+
+def test_set_desc_is_one_commit(mock_run, ARGOCD, data: Path):
+    mock_run.set_seq(ARGOCD.set_desc)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    run_cli_args(mock_run, ["set-desc", "bl01t-ea-test-01", "new description"])
+
+    assert mock_run.log.count('CMD: git commit -m "Set ') == 1
+    assert mock_run.log.count("CMD: git push") == 1
+
+
+def test_set_desc_refuses_unknown_service(mock_run, ARGOCD, data: Path):
+    # THE CASE THAT MATTERS MOST: no services.<name> entry in the values
+    # repo (here, not even a known Application) - refuse and write
+    # nothing, so argocd-apps never renders a phantom Application from a
+    # lone `description` key.
+    mock_run.set_seq(ARGOCD.set_desc_unknown_service)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    before = values_file.read_text()
+
+    with pytest.raises(GitError, match="not found"):
+        run_cli_args(mock_run, ["set-desc", "unknown-service", "new description"])
+
+    assert values_file.read_text() == before
+    assert "CMD: git commit" not in mock_run.log
+    assert "CMD: git push" not in mock_run.log
 
 
 def test_deploy_clears_enabled_override(mock_run, ARGOCD, data: Path):

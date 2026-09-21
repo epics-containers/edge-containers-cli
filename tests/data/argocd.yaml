@@ -212,6 +212,78 @@ ps_with_description:
       status:
         readyReplicas: 1
 
+# `ec set-desc` on a service that already has a services.<name> entry:
+# only the description leaf key is pushed (never enabled/targetRevision),
+# in a single commit.
+set_desc:
+  - cmd: argocd app get namespace/bl01t
+    rsp: ""
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app get namespace/bl01t-ea-test-01 -o yaml
+    rsp: |
+      metadata:
+        name: bl01t-ea-test-01
+        annotations:
+          epics-containers.github.io/description: old description
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: git add .
+    rsp: ""
+  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.description=*'
+    rsp: ""
+  - cmd: git push
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.description
+    rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
+  - cmd: argocd app get namespace/bl01t --refresh
+    rsp: ""
+
+# `ec set-desc` on a service with no services.<name> entry (and, here, not
+# even a known Application) must refuse before any write: the repo is
+# cloned to check, but nothing is committed or pushed.
+set_desc_unknown_service:
+  - cmd: argocd app get namespace/bl01t
+    rsp: ""
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+
 logs:
   - cmd: argocd app logs namespace/bl01t-ea-test-01
     rsp: ""

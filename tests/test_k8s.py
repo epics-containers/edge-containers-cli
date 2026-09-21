@@ -45,6 +45,14 @@ def test_deploy_desc_unsupported(mock_run, K8S):
         mock_run.run_cli("deploy bl01t-ea-test-01 --desc foo")
 
 
+def test_set_desc_unsupported(mock_run, K8S):
+    # same reasoning as --desc above: the plain-k8s backend has nowhere to
+    # store a description.
+    mock_run.set_seq([])
+    with pytest.raises(CommandError, match="Argo CD"):
+        mock_run.run_cli("set-desc bl01t-ea-test-01 foo")
+
+
 def test_exec(mock_run, K8S):
     mock_run.set_seq(K8S.checks + K8S.exec)
     mock_run.run_cli("exec bl01t-ea-test-01")

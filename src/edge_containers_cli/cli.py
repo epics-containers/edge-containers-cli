@@ -283,6 +283,41 @@ async def restart(
     await backend.commands.restart(service_name)
 
 
+@cli.command(name="set-desc")
+@async_command
+async def set_desc(
+    service_name: str = typer.Argument(
+        ...,
+        help="Name of the service to update",
+        autocompletion=all_svc,
+        show_default=False,
+    ),
+    description: str = typer.Argument(
+        ...,
+        help="New free-text description for the service. Pass an empty "
+        "string to clear it.",
+        show_default=False,
+    ),
+    yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+):
+    """
+    Change a service's description without a version or --desc round trip.
+
+    Does not restart the service, and does not change its deployed
+    version or enabled state.
+    """
+
+    def confirm_callback(old_desc: str | None, new_desc: str):
+        message = (
+            f"[bold]Set description of [white]{service_name.lower()}[/white]"
+            f" on target [white]{backend.commands.target}[/white]"
+            f" from [white]{old_desc}[/white] to [white]{new_desc}[/white][/bold]"
+        )
+        confirmation(message, yes)
+
+    await backend.commands.set_description(service_name, description, confirm_callback)
+
+
 @cli.command()
 @async_command
 async def start(
