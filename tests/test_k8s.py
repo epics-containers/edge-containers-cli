@@ -1,6 +1,9 @@
 import shutil
 from pathlib import Path
 
+import pytest
+
+from edge_containers_cli.cmds.commands import CommandError
 from tests.conftest import TMPDIR
 
 
@@ -31,6 +34,15 @@ def test_deploy(mock_run, K8S, data: Path):
     # prep what deploy expects to find after it cloned bl01t repo
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     mock_run.run_cli("deploy bl01t-ea-test-01")
+
+
+def test_deploy_desc_unsupported(mock_run, K8S):
+    # descriptions are an Argo CD Application feature only - the plain-k8s
+    # backend must refuse --desc with a clear error rather than silently
+    # ignoring it.
+    mock_run.set_seq([])
+    with pytest.raises(CommandError, match="Argo CD"):
+        mock_run.run_cli("deploy bl01t-ea-test-01 --desc foo")
 
 
 def test_exec(mock_run, K8S):

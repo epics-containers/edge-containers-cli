@@ -60,6 +60,13 @@ class K8sCommands(Commands):
     async def deploy(
         self, service_name, version, description, args, confirm_callback=None
     ):
+        if description is not None:
+            raise CommandError(
+                "Descriptions require the Argo CD backend "
+                "(EC_CLI_BACKEND=ARGOCD) - the plain-Kubernetes backend "
+                "does not support --desc."
+            )
+
         if not version:
             latest_version = await self._get_latest_version(service_name)
             version = latest_version

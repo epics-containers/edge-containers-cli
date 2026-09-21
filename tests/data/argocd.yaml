@@ -87,18 +87,12 @@ deploy:
           resources:
             - kind: StatefulSet
               name: bl01t-ea-test-01
-  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+  - cmd: argocd app get namespace/bl01t-ea-test-01 -o yaml
     rsp: |
-      ---
-      apiVersion: apps/v1
-      kind: StatefulSet
       metadata:
         name: bl01t-ea-test-01
-        creationTimestamp: "2024-07-12T13:52:35Z"
-        labels:
-          test: test_label
-      status:
-        readyReplicas: 1
+        annotations:
+          epics-containers.github.io/description: existing description
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:
@@ -126,11 +120,10 @@ deploy:
 
 # `--desc` given: no read-back of the current description is needed for
 # display, so unlike `deploy` above there's no `argocd app list` /
-# `argocd app manifests` call before push_values. Also pushes the
-# services.<name>.labels key (shallow-merged with whatever labels already
-# exist there), which `deploy` above must not (that's the whole point of
-# the leaf-key push: it survives without disturbing any other label
-# already on the service).
+# `argocd app get <ns>/<svc> -o yaml` call before push_values. Also pushes
+# the services.<name>.description key directly, and NEVER touches
+# `labels` (the description is now an Application annotation, not a
+# label) - that's what `deploy` above must not do either.
 deploy_with_desc:
   - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/.*
     rsp: Cloning into /tmp/xxxx...
@@ -179,12 +172,45 @@ deploy_with_desc:
     rsp: ""
   - cmd: argocd app get --show-params namespace/bl01t -o json
     rsp: "{}"
-  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.labels
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.description
     rsp: ""
   - cmd: argocd app get --show-params namespace/bl01t -o json
     rsp: "{}"
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
+
+# Same app-list response as `checks`, but with the description annotation
+# on the Application's own metadata - the reader must pick it up from
+# here, not from the (now description-less) StatefulSet manifest.
+ps_with_description:
+  - cmd: argocd app get namespace/bl01t
+    rsp: ""
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+          annotations:
+            epics-containers.github.io/description: my nice service
+        spec:
+          source:
+            targetRevision: main
+        status:
+          health:
+            status: Healthy
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        creationTimestamp: "2024-07-12T13:52:35Z"
+      status:
+        readyReplicas: 1
 
 logs:
   - cmd: argocd app logs namespace/bl01t-ea-test-01
@@ -334,18 +360,10 @@ deploy_clears_override:
           resources:
             - kind: StatefulSet
               name: bl01t-ea-test-01
-  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+  - cmd: argocd app get namespace/bl01t-ea-test-01 -o yaml
     rsp: |
-      ---
-      apiVersion: apps/v1
-      kind: StatefulSet
       metadata:
         name: bl01t-ea-test-01
-        creationTimestamp: "2024-07-12T13:52:35Z"
-        labels:
-          test: test_label
-      status:
-        readyReplicas: 1
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:

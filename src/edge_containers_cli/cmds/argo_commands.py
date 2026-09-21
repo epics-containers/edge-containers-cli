@@ -36,6 +36,11 @@ TRACKING_ID_RE = re.compile(
     r"^(?P<owner>[^:]+):(?P<group>[^/]*)/(?P<kind>[^:]+):(?P<namespace>[^/]+)/(?P<name>.+)$"
 )
 
+# fixed contract with the argocd-apps helm chart and the values-repo schema:
+# the chart renders a service's `description` value as this annotation on
+# the per-service Application's own metadata.
+DESCRIPTION_ANNOTATION = "epics-containers.github.io/description"
+
 
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
@@ -198,15 +203,11 @@ class ArgoCommands(Commands):
             )
 
         # description is for the confirm-prompt display only here - never
-        # written back unless --desc was actually given. Reading it back
-        # just to re-push it is what let a version-only deploy wipe
-        # sibling label/service keys (set_key replaces whatever value it's
-        # given at its target key); merging via leaf keys below removes
-        # the need for that read-back entirely.
+        # written back unless --desc was actually given.
         display_description = description
         if display_description is None:
             try:
-                display_description = await self._check_description(service_name)
+                display_description = await self._get_description(service_name)
             except CommandError:
                 # Service not yet deployed — no existing description to show
                 pass
@@ -215,18 +216,17 @@ class ArgoCommands(Commands):
             confirm_callback(version, display_description)
 
         # Only write the keys we were asked to change - any other
-        # per-service metadata in the values repo (including other labels,
+        # per-service metadata in the values repo (including any labels,
         # or fields added in future) must survive a deploy untouched.
         deploy_dict: dict[str, YamlTypes] = {
             f"services.{service_name}.enabled": True,
             f"services.{service_name}.targetRevision": version,
         }
         if description is not None:
-            # set_values shallow-merges this into any existing labels dict,
-            # so other labels already on the service survive.
-            deploy_dict[f"services.{service_name}.labels"] = {
-                "description": description
-            }
+            # `--desc ""` explicitly clears the description. Never push
+            # `labels` - the description is now an Application annotation,
+            # not a label.
+            deploy_dict[f"services.{service_name}.description"] = description
 
         await push_values(self.target, deploy_dict)
 
@@ -269,13 +269,18 @@ class ArgoCommands(Commands):
         if not (labels and "enabled" in labels):
             raise CommandError(f"{service_name} does not support stop/start")
 
-    async def _check_description(self, service_name) -> str | None:
-        manifest = await self._get_service_manifest(service_name)
+    async def _get_description(self, service_name) -> str | None:
+        await self._check_service(service_name)
+        namespace, _ = extract_ns_app(self.target)
 
-        # Return None if description doesn't exist or is ''
-        return (
-            val if (val := manifest["metadata"]["labels"].get("description")) else None
+        app_resp = await shell.run_command(
+            f"argocd app get {namespace}/{service_name} -o yaml",
         )
+        app_dict = YAML(typ="safe").load(app_resp)
+
+        # Return None if the annotation doesn't exist or is ''
+        annotations = app_dict.get("metadata", {}).get("annotations", {})
+        return val if (val := annotations.get(DESCRIPTION_ANNOTATION)) else None
 
     async def restart(self, service_name):
         await self._check_stoppable(service_name)
@@ -337,7 +342,14 @@ class ArgoCommands(Commands):
         if any(r.get("kind") == "Application" for r in resources_dict):
             return
 
-        label = app.get("metadata", {}).get("labels", {}).get("device", "service")
+        # the description lives on the Application's own annotations, so
+        # it's already available here with no extra manifest fetch.
+        description = (
+            app.get("metadata", {}).get("annotations", {}).get(DESCRIPTION_ANNOTATION)
+        )
+        label = description or app.get("metadata", {}).get("labels", {}).get(
+            "device", "service"
+        )
 
         # Check for STOPPED label for health comparison later
         stopped = app.get("metadata", {}).get("labels", {}).get("STOPPED", False)
@@ -367,11 +379,10 @@ class ArgoCommands(Commands):
         except ValueError:
             time_stamp = datetime(1970, 1, 1)
 
-        # the "description" label currently lives on the workload's own
-        # manifest metadata, not the Application's - if that ever moves to
-        # the Application itself this whole block (and the manifest fetch)
-        # can go away in favour of just app["metadata"]["labels"]
-        label_set = False
+        # the manifest fetch below is now only needed to find the most
+        # recent workload creationTimestamp (see the block comment above) -
+        # the description no longer needs it, since it's read from
+        # app["metadata"]["annotations"] above.
         if resources_dict:
             async with semaphore:
                 mani_resp = await shell.run_command(
@@ -419,19 +430,6 @@ class ArgoCommands(Commands):
                 # children here.
                 if group != "apps":
                     continue
-
-                # take the label from the first top-level workload found -
-                # if this app owns several, there isn't a meaningful way to
-                # combine multiple description labels into one value
-                if not label_set:
-                    description = (
-                        manifest.get("metadata", {})
-                        .get("labels", {})
-                        .get("description")
-                    )
-                    if description:
-                        label = description
-                        label_set = True
 
                 try:
                     workload_ts = datetime.strptime(
