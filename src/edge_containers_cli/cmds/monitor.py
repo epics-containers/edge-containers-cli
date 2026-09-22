@@ -38,6 +38,7 @@ from textual.worker import get_current_worker
 from edge_containers_cli.cmds.commands import (
     HEALTHY,
     STOPPED_SUFFIX,
+    WIDE_COLUMNS,
     CommandError,
     Commands,
 )
@@ -48,6 +49,11 @@ from edge_containers_cli.shell import ShellError
 from edge_containers_cli.utils import _AsyncFuncType, _run_async
 
 WHITE = Color.parse("white")
+
+# Marks the current sort column's header. The table has a sort key but no
+# separate direction (always ascending), so one arrow suffices - see
+# _get_heading.
+SORT_ARROW = "▲"
 
 # colours for the Argo CD health and sync vocabularies, as in
 # argocd-monitor's status badges. A stopped service's health ends in
@@ -70,8 +76,12 @@ STATUS_COLORS = {
 
 
 def cell_color(column: str, value: Any) -> Color:
+    # argocd-monitor flags a stopped app with a separate red "Stopped"
+    # badge (Badge variant="destructive") next to its health badge, whatever
+    # the underlying health colour. ec folds that into one "Healthy
+    # (Stopped)" string, so show it in the same red as Degraded.
     if column == "health" and str(value).endswith(STOPPED_SUFFIX):
-        return Color.parse("grey")
+        return STATUS_COLORS["health"]["Degraded"]
     return STATUS_COLORS.get(column, {}).get(str(value), WHITE)
 
 
@@ -295,11 +305,12 @@ class IocTable(Widget):
     default_sort_column_id = "name"
     sort_column_id = reactive(default_sort_column_id, init=False)
 
-    def __init__(self, commands, running_only: bool) -> None:
+    def __init__(self, commands, running_only: bool, wide: bool = False) -> None:
         super().__init__()
 
         self.commands = commands
         self.running_only = running_only
+        self.wide = wide
         self._indicator_lock = threading.Lock()
         self._async_lock = asyncio.Lock()
         self._service_indicators = {
@@ -316,16 +327,18 @@ class IocTable(Widget):
             header_height=1,
             show_cursor=False,
             zebra_stripes=True,
-            show_row_labels=True,
         )
         self.table.focus()
         yield self.table
 
     def _get_heading(self, column_id: str):
         if column_id == self.sort_column_id:
-            heading = Text(column_id, justify="center")
+            # The table only ever sorts ascending (table.sort(..., reverse=False)
+            # throughout) - there's no direction to flip, so a single arrow marks
+            # the sort key rather than a pair of ascending/descending glyphs.
+            heading = Text(f"{column_id} {SORT_ARROW}", justify="left")
         else:
-            heading = Text(column_id, justify="center").on(
+            heading = Text(column_id, justify="left").on(
                 click=f"app.sort('{column_id}')"
             )
 
@@ -341,8 +354,9 @@ class IocTable(Widget):
         iocs_df: polars.DataFrame = self._get_services_df(self.running_only)
 
         self.columns = iocs_df.columns
-        # We don't want the description to be a custom column (using DataTable row label instead)
-        self.columns.remove("description")
+        if not self.wide:
+            # match `ec ps`: properties are opt-in via --wide
+            self.columns = [c for c in self.columns if c not in WIDE_COLUMNS]
 
         def _update():
             for column_id in self.columns:
@@ -426,7 +440,7 @@ class IocTable(Widget):
                             ioc[key],
                             str(ioc[key]),
                             cell_color(key, ioc[key]),
-                            justify="center",
+                            justify="left",
                         ),
                     }
                     for key in self.columns
@@ -436,7 +450,6 @@ class IocTable(Widget):
                     table.add_row(
                         *[cell["contents"] for cell in cells],
                         key=row_key,
-                        label=ioc["description"],
                     )
                 else:
                     for cell in cells:
@@ -500,11 +513,13 @@ class MonitorApp(App):
         self,
         commands: Commands,
         running_only: bool,
+        wide: bool = False,
     ) -> None:
         super().__init__()
 
         self.commands = commands
         self.running_only = running_only
+        self.wide = wide
         self.beamline = commands.target
         self.busy_services: ThreadsafeSet = ThreadsafeSet()
         self._queue: Queue[Callable] = Queue()
@@ -514,7 +529,7 @@ class MonitorApp(App):
         yield Header(show_clock=True)
         with Vertical():
             with Static(id="ioc_table_container"):
-                self.table = IocTable(self.commands, self.running_only)
+                self.table = IocTable(self.commands, self.running_only, self.wide)
                 yield ScrollableContainer(self.table)
             yield Collapsible(
                 MonitorLogs(),
