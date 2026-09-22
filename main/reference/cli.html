@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Command line reference &#8212; edge-containers-cli 5.3.1.dev16+g8aeefcc74 documentation</title>
+    <title>Command line reference &#8212; edge-containers-cli 5.3.1.dev24+ge3b4c5ecd documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="../_static/documentation_options.js?v=420d0d1a"></script>
+    <script src="../_static/documentation_options.js?v=c2987688"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -766,19 +766,60 @@ service and supports shell tab-completion.</p>
 </section>
 <section id="ec-ps">
 <h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">ps</span></code><a class="headerlink" href="#ec-ps" title="Link to this heading">#</a></h4>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec ps [-r/--running-only]
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec ps [-r/--running-only] [-w/--wide]
 </pre></div>
 </div>
-<p>List the services in the current target as a table. <code class="docutils literal notranslate"><span class="pre">-r/--running-only</span></code>
-restricts the output to services that are currently running.</p>
+<p>List the services in the current target as a table, with these columns:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>The service name</p></td>
+</tr>
+<tr class="row-odd"><td><p>health</p></td>
+<td><p>Argo CD’s health for the service: <code class="docutils literal notranslate"><span class="pre">Healthy</span></code>, <code class="docutils literal notranslate"><span class="pre">Progressing</span></code>, <code class="docutils literal notranslate"><span class="pre">Degraded</span></code>, <code class="docutils literal notranslate"><span class="pre">Suspended</span></code>, <code class="docutils literal notranslate"><span class="pre">Missing</span></code> or <code class="docutils literal notranslate"><span class="pre">Unknown</span></code>, with <code class="docutils literal notranslate"> <span class="pre">(Stopped)</span></code> appended after <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">stop</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>sync</p></td>
+<td><p>Argo CD’s sync status: <code class="docutils literal notranslate"><span class="pre">Synced</span></code>, <code class="docutils literal notranslate"><span class="pre">OutOfSync</span></code> or <code class="docutils literal notranslate"><span class="pre">Unknown</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>version</p></td>
+<td><p>The version the service is deployed at (its target revision)</p></td>
+</tr>
+<tr class="row-even"><td><p>last sync</p></td>
+<td><p>When Argo CD last finished syncing the service. A deploy and <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">restart</span></code> both update it</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>The service’s description (see <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">set-desc</span></code>), empty when unset</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">-w/--wide</span></code> adds a <code class="docutils literal notranslate"><span class="pre">properties</span></code> column with the service’s labels.
+<code class="docutils literal notranslate"><span class="pre">-r/--running-only</span></code> restricts the output to services that are <code class="docutils literal notranslate"><span class="pre">Healthy</span></code> and
+not stopped.</p>
+<p>On the Argo CD backend, <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">ps</span></code> makes a single <code class="docutils literal notranslate"><span class="pre">argocd</span> <span class="pre">app</span> <span class="pre">list</span></code> call however
+many services there are. The K8S backend shows a service as <code class="docutils literal notranslate"><span class="pre">Healthy</span></code> when a
+replica is ready and <code class="docutils literal notranslate"><span class="pre">Degraded</span></code> otherwise, leaves <code class="docutils literal notranslate"><span class="pre">sync</span></code> and <code class="docutils literal notranslate"><span class="pre">properties</span></code>
+empty, and shows the StatefulSet’s creation time as <code class="docutils literal notranslate"><span class="pre">last</span> <span class="pre">sync</span></code>.</p>
 </section>
 <section id="ec-monitor">
 <h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">monitor</span></code><a class="headerlink" href="#ec-monitor" title="Link to this heading">#</a></h4>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec monitor [-r/--running-only]
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec monitor [-r/--running-only] [-w/--wide]
 </pre></div>
 </div>
-<p>Open the interactive TUI monitor. <code class="docutils literal notranslate"><span class="pre">-r/--running-only</span></code> starts it showing only
-running services. The monitor can also be served as a web application — see the
+<p>Open the interactive TUI monitor. It shows the same columns as <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">ps</span></code>, with
+<code class="docutils literal notranslate"><span class="pre">description</span></code> as a real column; <code class="docutils literal notranslate"><span class="pre">-w/--wide</span></code> adds <code class="docutils literal notranslate"><span class="pre">properties</span></code>, as for <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">ps</span></code>.
+<code class="docutils literal notranslate"><span class="pre">-r/--running-only</span></code> starts it showing only running services.</p>
+<p>Click a column header, or press <code class="docutils literal notranslate"><span class="pre">o</span></code>, to sort by it — the sorted column’s
+header is marked <code class="docutils literal notranslate"><span class="pre">▲</span></code> (ascending) or <code class="docutils literal notranslate"><span class="pre">▼</span></code> (descending). Pressing <code class="docutils literal notranslate"><span class="pre">o</span></code> again
+cycles to the next column (always ascending); clicking the header that’s
+already the sort column, or pressing <code class="docutils literal notranslate"><span class="pre">d</span></code>, toggles its direction instead.
+Sort order is kept across the monitor’s background refreshes.</p>
+<p>The monitor can also be served as a web application — see the
 <a class="reference external" href="https://github.com/epics-containers/edge-containers-cli#monitor">README</a>.</p>
 </section>
 <section id="ec-logs-service">
