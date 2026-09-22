@@ -10,6 +10,8 @@ from textual.widgets.data_table import ColumnKey
 
 from edge_containers_cli.cmds.demo_commands import DemoCommands
 from edge_containers_cli.cmds.monitor import (
+    INDICATOR_COLUMN,
+    INDICATOR_HEADING,
     SORT_ARROW_ASC,
     SORT_ARROW_DESC,
     IocTable,
@@ -154,43 +156,61 @@ def test_monitor_columns_left_justified():
 
 def test_monitor_sort_cycle_default_columns():
     """The 'o' binding (action_sort with no column) cycles the sort arrow
-    through exactly the visible columns, in display order, wrapping back to
-    the start. Exactly one header carries the arrow at every step, always
+    through the sortable columns, in display order, wrapping back to the
+    start. Exactly one header carries the arrow at every step, always
     ascending, and description gets it (it's a real column now, unlike the
-    old row-label bug)."""
+    old row-label bug). The trailing busy/action indicator column
+    (INDICATOR_COLUMN - see monitor.py) isn't real per-service data, so
+    it's excluded from the cycle and keeps a plain text header throughout,
+    never the arrow."""
     app = MonitorApp(DemoCommands(ECContext()), running_only=False)
 
     async def body(pilot, table: DataTable) -> None:
         columns = [str(c.key.value) for c in table.ordered_columns]
         assert "description" in columns
         assert "properties" not in columns
+        assert INDICATOR_COLUMN in columns
+
+        sortable_columns = [c for c in columns if c != INDICATOR_COLUMN]
+        # every column the cycle visits has a real text header, not the
+        # indicator's raw Unicode glyph
+        assert all(c.isascii() and c.strip() for c in sortable_columns)
+        assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
 
         # default sort column is "name", ascending
         assert _sorted_column(table, columns) == ("name", False)
 
-        for expected_column in columns[1:] + columns[:1]:
+        for expected_column in sortable_columns[1:] + sortable_columns[:1]:
             await pilot.press("o")
             await pilot.pause()
             assert _sorted_column(table, columns) == (expected_column, False)
+            assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
 
     asyncio.run(_interact(app, body))
 
 
 def test_monitor_sort_cycle_wide_columns():
-    """Same as above with --wide: properties joins the cycle."""
+    """Same as above with --wide: properties joins the cycle, the
+    indicator column still doesn't."""
     app = MonitorApp(DemoCommands(ECContext()), running_only=False, wide=True)
 
     async def body(pilot, table: DataTable) -> None:
         columns = [str(c.key.value) for c in table.ordered_columns]
         assert "description" in columns
         assert "properties" in columns
+        assert INDICATOR_COLUMN in columns
+
+        sortable_columns = [c for c in columns if c != INDICATOR_COLUMN]
+        assert all(c.isascii() and c.strip() for c in sortable_columns)
+        assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
 
         assert _sorted_column(table, columns) == ("name", False)
 
-        for expected_column in columns[1:] + columns[:1]:
+        for expected_column in sortable_columns[1:] + sortable_columns[:1]:
             await pilot.press("o")
             await pilot.pause()
             assert _sorted_column(table, columns) == (expected_column, False)
+            assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
 
     asyncio.run(_interact(app, body))
 

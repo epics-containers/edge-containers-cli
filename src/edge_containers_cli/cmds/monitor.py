@@ -64,6 +64,18 @@ SORT_ARROW_DESC = "▼"
 # budgeted for would clip.
 _SORT_SUFFIX_WIDTH = 1 + max(cell_len(SORT_ARROW_ASC), cell_len(SORT_ARROW_DESC))
 
+# The rightmost table column is a busy/action indicator, not per-service
+# data: update_indicator_threadsafe fills a service's cell with a road-works
+# or hourglass icon while start/stop/restart is queued or running, and
+# clears it back to "" once it finishes - so it's usually empty. Its column
+# id (used internally to key the underlying DataFrame and DataTable column)
+# is Emoji.exclaim, a Unicode symbol some terminal fonts don't have a glyph
+# for and fall back to rendering as a bare "!". _get_heading gives it a
+# plain-text label instead, and it's excluded from the sort cycle/clicks
+# (cycle_sort_column, set_sort_column) since sorting by it is meaningless.
+INDICATOR_COLUMN = Emoji.exclaim
+INDICATOR_HEADING = "status"
+
 # colours for the Argo CD health and sync vocabularies, as in
 # argocd-monitor's status badges. A stopped service's health ends in
 # STOPPED_SUFFIX and is shown grey.
@@ -342,6 +354,10 @@ class IocTable(Widget):
         yield self.table
 
     def _get_heading(self, column_id: str):
+        if column_id == INDICATOR_COLUMN:
+            # Fixed label, not sortable/clickable - see INDICATOR_COLUMN.
+            return Text(INDICATOR_HEADING, justify="left")
+
         if column_id == self.sort_column_id:
             arrow = SORT_ARROW_DESC if self.sort_reverse else SORT_ARROW_ASC
             suffix = f" {arrow}"
@@ -361,6 +377,8 @@ class IocTable(Widget):
         """Called when a column header is clicked (or `app.sort(col)` is
         run directly). Toggles direction if it's already the sort column,
         otherwise makes it the sort column, ascending."""
+        if column_id == INDICATOR_COLUMN:
+            return  # not a sortable data column - see INDICATOR_COLUMN
         if column_id == self.sort_column_id:
             self.sort_reverse = not self.sort_reverse
         else:
@@ -368,10 +386,13 @@ class IocTable(Widget):
             self.sort_reverse = False
 
     def cycle_sort_column(self) -> None:
-        """Called by the 'o' binding: move the sort key to the next visible
-        column, in display order, wrapping around, and reset to ascending."""
-        col_index = self.columns.index(self.sort_column_id)
-        self.sort_column_id = self.columns[(col_index + 1) % len(self.columns)]
+        """Called by the 'o' binding: move the sort key to the next visible,
+        sortable column (excluding INDICATOR_COLUMN), in display order,
+        wrapping around, and reset to ascending."""
+        sortable_columns = [c for c in self.columns if c != INDICATOR_COLUMN]
+        col_index = sortable_columns.index(self.sort_column_id)
+        new_index = (col_index + 1) % len(sortable_columns)
+        self.sort_column_id = sortable_columns[new_index]
         self.sort_reverse = False
 
     def toggle_sort_direction(self) -> None:
