@@ -36,6 +36,24 @@ TRACKING_ID_RE = re.compile(
     r"^(?P<owner>[^:]+):(?P<group>[^/]*)/(?P<kind>[^:]+):(?P<namespace>[^/]+)/(?P<name>.+)$"
 )
 
+# fixed contract with the argocd-apps helm chart and the values-repo schema:
+# the chart renders a service's `description` value as this annotation on
+# the per-service Application's own metadata.
+DESCRIPTION_ANNOTATION = "epics-containers.github.io/description"
+
+# feature -> (chart dependency, minimum version). An old argocd-apps chart
+# rejects a key its schema doesn't know about, which breaks the root app
+# and stops every service on the deployment syncing - so a feature that
+# depends on a newer argocd-apps must gate its write on this table via
+# push_values(..., require_chart_version=(*CHART_VERSION_GATES[...], feature)).
+# Extend this table, not check_chart_dependency_version, when the next
+# feature needs a floor.
+CHART_VERSION_GATES: dict[str, tuple[str, str]] = {
+    # ec-helm-charts#122: 5.10.0 is the first argocd-apps release that
+    # renders `description` - 5.8.0 and 5.9.0 shipped without it.
+    "description": ("argocd-apps", "5.10.0"),
+}
+
 
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
@@ -112,11 +130,22 @@ async def push_value(target: str, key: str, value: YamlTypes):
 
 
 @do_retry
-async def push_values(target: str, keys: dict[str, YamlTypes]):
+async def push_values(
+    target: str,
+    keys: dict[str, YamlTypes],
+    require_keys: list[str] | None = None,
+    require_chart_version: tuple[str, str, str] | None = None,
+):
     """
     Like push_value, but sets several keys in a single commit. Any key
     not present in `keys` is left untouched in the values repo, so a
     caller only ever writes the fields it was asked to change.
+
+    `require_keys`, if given, must already exist in the values repo or
+    nothing is written/committed/pushed - see set_values.
+
+    `require_chart_version`, if given, is (dependency, min_version,
+    feature) - see set_values.
     """
     # Get source details
     app_resp = await shell.run_command(
@@ -126,7 +155,13 @@ async def push_values(target: str, keys: dict[str, YamlTypes]):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    await set_values(repo_url, path / "values.yaml", keys)
+    await set_values(
+        repo_url,
+        path / "values.yaml",
+        keys,
+        require_keys=require_keys,
+        require_chart_version=require_chart_version,
+    )
 
     # Free any possible patched values, their children & refresh repo
     for key in keys:
@@ -198,15 +233,11 @@ class ArgoCommands(Commands):
             )
 
         # description is for the confirm-prompt display only here - never
-        # written back unless --desc was actually given. Reading it back
-        # just to re-push it is what let a version-only deploy wipe
-        # sibling label/service keys (set_key replaces whatever value it's
-        # given at its target key); merging via leaf keys below removes
-        # the need for that read-back entirely.
+        # written back unless --desc was actually given.
         display_description = description
         if display_description is None:
             try:
-                display_description = await self._check_description(service_name)
+                display_description = await self._get_description(service_name)
             except CommandError:
                 # Service not yet deployed — no existing description to show
                 pass
@@ -215,20 +246,52 @@ class ArgoCommands(Commands):
             confirm_callback(version, display_description)
 
         # Only write the keys we were asked to change - any other
-        # per-service metadata in the values repo (including other labels,
+        # per-service metadata in the values repo (including any labels,
         # or fields added in future) must survive a deploy untouched.
         deploy_dict: dict[str, YamlTypes] = {
             f"services.{service_name}.enabled": True,
             f"services.{service_name}.targetRevision": version,
         }
+        # only gate the write on the argocd-apps chart version when a
+        # description is actually being written - a version-only deploy
+        # must work regardless of how old the deployment's argocd-apps
+        # dependency is.
+        require_chart_version = None
         if description is not None:
-            # set_values shallow-merges this into any existing labels dict,
-            # so other labels already on the service survive.
-            deploy_dict[f"services.{service_name}.labels"] = {
-                "description": description
-            }
+            # `--desc ""` explicitly clears the description. Never push
+            # `labels` - the description is now an Application annotation,
+            # not a label.
+            deploy_dict[f"services.{service_name}.description"] = description
+            require_chart_version = (*CHART_VERSION_GATES["description"], "description")
 
-        await push_values(self.target, deploy_dict)
+        await push_values(
+            self.target, deploy_dict, require_chart_version=require_chart_version
+        )
+
+    async def set_description(
+        self, service_name: str, description: str, confirm_callback=None
+    ) -> None:
+        # Only ever touches the description leaf key - never enabled or
+        # targetRevision, so this can never roll the service to another
+        # version or change whether it's enabled.
+        display_description = None
+        try:
+            display_description = await self._get_description(service_name)
+        except CommandError:
+            # Service not yet deployed - push_values below refuses anyway,
+            # since there's no services.<name> entry to update.
+            pass
+
+        if confirm_callback:
+            confirm_callback(display_description, description)
+
+        parent_key = f"services.{service_name}"
+        await push_values(
+            self.target,
+            {f"{parent_key}.description": description},
+            require_keys=[parent_key],
+            require_chart_version=(*CHART_VERSION_GATES["description"], "description"),
+        )
 
     async def logs(self, service_name, prev):
         await self._logs(service_name, prev)
@@ -269,13 +332,18 @@ class ArgoCommands(Commands):
         if not (labels and "enabled" in labels):
             raise CommandError(f"{service_name} does not support stop/start")
 
-    async def _check_description(self, service_name) -> str | None:
-        manifest = await self._get_service_manifest(service_name)
+    async def _get_description(self, service_name) -> str | None:
+        await self._check_service(service_name)
+        namespace, _ = extract_ns_app(self.target)
 
-        # Return None if description doesn't exist or is ''
-        return (
-            val if (val := manifest["metadata"]["labels"].get("description")) else None
+        app_resp = await shell.run_command(
+            f"argocd app get {namespace}/{service_name} -o yaml",
         )
+        app_dict = YAML(typ="safe").load(app_resp)
+
+        # Return None if the annotation doesn't exist or is ''
+        annotations = app_dict.get("metadata", {}).get("annotations", {})
+        return val if (val := annotations.get(DESCRIPTION_ANNOTATION)) else None
 
     async def restart(self, service_name):
         await self._check_stoppable(service_name)
@@ -320,7 +388,7 @@ class ArgoCommands(Commands):
 
         service_data = {
             "name": [],  # type: ignore
-            "label": [],
+            "description": [],
             "version": [],
             "ready": [],
             "deployed": [],
@@ -337,7 +405,14 @@ class ArgoCommands(Commands):
         if any(r.get("kind") == "Application" for r in resources_dict):
             return
 
-        label = app.get("metadata", {}).get("labels", {}).get("device", "service")
+        # the description lives on the Application's own annotations, so
+        # it's already available here with no extra manifest fetch. No
+        # fallback to any label - an app with no annotation just shows an
+        # empty description.
+        description = (
+            app.get("metadata", {}).get("annotations", {}).get(DESCRIPTION_ANNOTATION)
+            or ""
+        )
 
         # Check for STOPPED label for health comparison later
         stopped = app.get("metadata", {}).get("labels", {}).get("STOPPED", False)
@@ -367,11 +442,10 @@ class ArgoCommands(Commands):
         except ValueError:
             time_stamp = datetime(1970, 1, 1)
 
-        # the "description" label currently lives on the workload's own
-        # manifest metadata, not the Application's - if that ever moves to
-        # the Application itself this whole block (and the manifest fetch)
-        # can go away in favour of just app["metadata"]["labels"]
-        label_set = False
+        # the manifest fetch below is now only needed to find the most
+        # recent workload creationTimestamp (see the block comment above) -
+        # the description no longer needs it, since it's read from
+        # app["metadata"]["annotations"] above.
         if resources_dict:
             async with semaphore:
                 mani_resp = await shell.run_command(
@@ -420,19 +494,6 @@ class ArgoCommands(Commands):
                 if group != "apps":
                     continue
 
-                # take the label from the first top-level workload found -
-                # if this app owns several, there isn't a meaningful way to
-                # combine multiple description labels into one value
-                if not label_set:
-                    description = (
-                        manifest.get("metadata", {})
-                        .get("labels", {})
-                        .get("description")
-                    )
-                    if description:
-                        label = description
-                        label_set = True
-
                 try:
                     workload_ts = datetime.strptime(
                         manifest.get("metadata", {}).get("creationTimestamp", ""),
@@ -445,7 +506,7 @@ class ArgoCommands(Commands):
                     time_stamp = workload_ts
 
         service_data["name"].append(name)
-        service_data["label"].append(label)
+        service_data["description"].append(description)
         service_data["version"].append(
             app.get("spec", {}).get("source", {}).get("targetRevision", "unknown")
         )

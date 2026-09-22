@@ -1,0 +1,11 @@
+apiVersion: v2
+name: applications
+description: Applications managed by the root App
+type: application
+version: 0.1.1
+appVersion: "1.0"
+
+dependencies:
+  - name: argocd-apps
+    version: 5.10.0
+    repository: "oci://ghcr.io/epics-containers/charts"

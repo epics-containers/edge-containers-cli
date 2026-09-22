@@ -1,5 +1,4 @@
 import os
-import re
 from pathlib import Path
 
 import rich
@@ -26,17 +25,6 @@ def confirmation(message: str, yes: bool):
     rich.print(message)
     if not (yes or typer.confirm("Are you sure?")):
         raise typer.Abort()
-
-
-def _check_description(desc_text: str | None):
-    _desc_re = r"^[a-zA-Z0-9](?:(?!--)[a-zA-Z0-9-]){0,62}$"
-    if desc_text is not None:
-        if not re.match(_desc_re, desc_text):
-            raise typer.BadParameter(
-                f"The description '{desc_text}' is not kebab-case or uses illegal characters.\n\
-Only alphanumeric characters and '-' are allowed."
-            )
-    return desc_text
 
 
 class ErrorHandlingTyper(typer.Typer):
@@ -106,8 +94,8 @@ async def deploy(
     description: str | None = typer.Option(
         None,
         "--desc",
-        help="Custom description label for the service",
-        callback=_check_description,
+        help="Free-text description for the service (Argo CD backend only). "
+        "Pass an empty string to clear it.",
     ),
     wait: bool = typer.Option(False, "--wait", help="Waits for readiness"),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
@@ -293,6 +281,41 @@ async def restart(
 ):
     """Restart a service"""
     await backend.commands.restart(service_name)
+
+
+@cli.command(name="set-desc")
+@async_command
+async def set_desc(
+    service_name: str = typer.Argument(
+        ...,
+        help="Name of the service to update",
+        autocompletion=all_svc,
+        show_default=False,
+    ),
+    description: str = typer.Argument(
+        ...,
+        help="New free-text description for the service. Pass an empty "
+        "string to clear it.",
+        show_default=False,
+    ),
+    yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+):
+    """
+    Change a service's description without a version or --desc round trip.
+
+    Does not restart the service, and does not change its deployed
+    version or enabled state.
+    """
+
+    def confirm_callback(old_desc: str | None, new_desc: str):
+        message = (
+            f"[bold]Set description of [white]{service_name.lower()}[/white]"
+            f" on target [white]{backend.commands.target}[/white]"
+            f" from [white]{old_desc}[/white] to [white]{new_desc}[/white][/bold]"
+        )
+        confirmation(message, yes)
+
+    await backend.commands.set_description(service_name, description, confirm_callback)
 
 
 @cli.command()
