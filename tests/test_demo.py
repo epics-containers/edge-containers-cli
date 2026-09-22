@@ -1,3 +1,8 @@
+import pytest
+
+from edge_containers_cli.cmds.commands import CommandError
+
+
 def test_logs(mock_run, DEMO):
     mock_run.run_cli("logs demo-ea-01")
 
@@ -18,10 +23,23 @@ def test_stop(mock_run, DEMO):
     mock_run.run_cli("stop demo-ea-01")
 
 
+def test_set_desc(mock_run, DEMO):
+    # `Commands.set_description` is now abstract - DemoCommands must
+    # implement it (a real decision, e.g. a CommandError like the
+    # plain-k8s backend, or a validate-and-no-op like this) rather than
+    # silently inheriting the base's `raise NotImplementedError`.
+    mock_run.run_cli("set-desc demo-ea-01 new-description")
+
+
+def test_set_desc_unknown_service(mock_run, DEMO):
+    with pytest.raises(CommandError, match="not found"):
+        mock_run.run_cli("set-desc no-such-service new-description")
+
+
 def test_ps(mock_run, DEMO):
     expect = (
         "╭────────────┬────────────────┬─────────┬───────┬──────────────────────╮\n"
-        "│ name       │ label          │ version │ ready │ deployed             │\n"
+        "│ name       │ description    │ version │ ready │ deployed             │\n"
         "├────────────┼────────────────┼─────────┼───────┼──────────────────────┤\n"
         "│ demo-ea-00 │ demo-device-00 │ 1.0.25  │ True  │ 2024-10-22T11:23:08Z │\n"
         "│ demo-ea-01 │ demo-device-01 │ 1.0.24  │ True  │ 2024-10-22T11:23:03Z │\n"

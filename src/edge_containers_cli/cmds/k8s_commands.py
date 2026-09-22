@@ -23,6 +23,15 @@ from edge_containers_cli.globals import TIME_FORMAT
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import _run_async
 
+# descriptions are an Argo CD Application feature only - the plain-k8s
+# backend has nowhere to store one, so both `ec deploy --desc` and
+# `ec set-desc` must refuse with this rather than silently doing nothing.
+DESC_UNSUPPORTED = (
+    "Descriptions require the Argo CD backend "
+    "(EC_CLI_BACKEND=ARGOCD) - the plain-Kubernetes backend "
+    "does not support descriptions."
+)
+
 
 class K8sCommands(Commands):
     """
@@ -60,6 +69,9 @@ class K8sCommands(Commands):
     async def deploy(
         self, service_name, version, description, args, confirm_callback=None
     ):
+        if description is not None:
+            raise CommandError(DESC_UNSUPPORTED)
+
         if not version:
             latest_version = await self._get_latest_version(service_name)
             version = latest_version
@@ -106,6 +118,9 @@ class K8sCommands(Commands):
             f"kubectl delete -n {self.target} {pod_name}", skip_on_dryrun=True
         )
 
+    async def set_description(self, service_name, description, confirm_callback=None):
+        raise CommandError(DESC_UNSUPPORTED)
+
     async def start(self, service_name, commit=False):
         await self._check_service(service_name)
         await shell.run_command(
@@ -144,17 +159,19 @@ class K8sCommands(Commands):
     async def _extract_services_df(self):
         service_data = {
             "name": [],  # type: ignore
-            "label": [],
+            "description": [],
             "ready": [],
             "deployed": [],
         }
         if self.sts_dicts["items"]:
             for sts in self.sts_dicts["items"]:
                 name = sts["metadata"]["name"]
-                try:
-                    label = sts["metadata"]["labels"]["description"]
-                except KeyError:
-                    label = "service"
+                # descriptions are now an Argo CD Application annotation only
+                # (see DESC_UNSUPPORTED above) - the plain-k8s backend has no
+                # per-service description to show here, so it's always
+                # empty; the column is kept only to satisfy the shared
+                # ServicesSchema that both backends' `ps` output share.
+                description = ""
                 time_stamp = datetime.strptime(
                     sts["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
                 )
@@ -165,7 +182,7 @@ class K8sCommands(Commands):
 
                 # Fill app data
                 service_data["name"].append(name)
-                service_data["label"].append(label)
+                service_data["description"].append(description)
                 service_data["ready"].append(is_ready)
                 service_data["deployed"].append(
                     datetime.strftime(time_stamp, TIME_FORMAT)
@@ -176,7 +193,7 @@ class K8sCommands(Commands):
             schema=polars.Schema(
                 {
                     "name": polars.String,
-                    "label": polars.String,
+                    "description": polars.String,
                     "ready": polars.Boolean,
                     "deployed": polars.String,
                 }
@@ -202,7 +219,7 @@ class K8sCommands(Commands):
 
         # Arrange columns
         services_df = services_df.select(
-            ["name", "label", "version", "ready", "deployed"]
+            ["name", "description", "version", "ready", "deployed"]
         )
 
         async with self.async_lock:

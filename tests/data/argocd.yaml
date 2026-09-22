@@ -38,7 +38,7 @@ delete:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Remove services.bl01t-ea-test-01 in apps/values.yaml"
+  - cmd: git commit -m 'Remove services.bl01t-ea-test-01 in apps/values.yaml'
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -87,18 +87,12 @@ deploy:
           resources:
             - kind: StatefulSet
               name: bl01t-ea-test-01
-  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+  - cmd: argocd app get namespace/bl01t-ea-test-01 -o yaml
     rsp: |
-      ---
-      apiVersion: apps/v1
-      kind: StatefulSet
       metadata:
         name: bl01t-ea-test-01
-        creationTimestamp: "2024-07-12T13:52:35Z"
-        labels:
-          test: test_label
-      status:
-        readyReplicas: 1
+        annotations:
+          epics-containers.github.io/description: existing description
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:
@@ -109,7 +103,7 @@ deploy:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.enabled=True.*'
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.enabled=True.*"
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -126,11 +120,10 @@ deploy:
 
 # `--desc` given: no read-back of the current description is needed for
 # display, so unlike `deploy` above there's no `argocd app list` /
-# `argocd app manifests` call before push_values. Also pushes the
-# services.<name>.labels key (shallow-merged with whatever labels already
-# exist there), which `deploy` above must not (that's the whole point of
-# the leaf-key push: it survives without disturbing any other label
-# already on the service).
+# `argocd app get <ns>/<svc> -o yaml` call before push_values. Also pushes
+# the services.<name>.description key directly, and NEVER touches
+# `labels` (the description is now an Application annotation, not a
+# label) - that's what `deploy` above must not do either.
 deploy_with_desc:
   - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/.*
     rsp: Cloning into /tmp/xxxx...
@@ -167,7 +160,7 @@ deploy_with_desc:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.enabled=True.*'
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.enabled=True.*"
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -179,11 +172,189 @@ deploy_with_desc:
     rsp: ""
   - cmd: argocd app get --show-params namespace/bl01t -o json
     rsp: "{}"
-  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.labels
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.description
     rsp: ""
   - cmd: argocd app get --show-params namespace/bl01t -o json
     rsp: "{}"
   - cmd: argocd app get namespace/bl01t --refresh
+    rsp: ""
+
+# Same app-list response as `checks`, but with the description annotation
+# on the Application's own metadata - the reader must pick it up from
+# here, not from the (now description-less) StatefulSet manifest.
+ps_with_description:
+  - cmd: argocd app get namespace/bl01t
+    rsp: ""
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+          annotations:
+            epics-containers.github.io/description: my nice service
+        spec:
+          source:
+            targetRevision: main
+        status:
+          health:
+            status: Healthy
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+    rsp: |
+      ---
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: bl01t-ea-test-01
+        creationTimestamp: "2024-07-12T13:52:35Z"
+      status:
+        readyReplicas: 1
+
+# `ec set-desc` on a service that already has a services.<name> entry:
+# only the description leaf key is pushed (never enabled/targetRevision),
+# in a single commit.
+set_desc:
+  - cmd: argocd app get namespace/bl01t
+    rsp: ""
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app get namespace/bl01t-ea-test-01 -o yaml
+    rsp: |
+      metadata:
+        name: bl01t-ea-test-01
+        annotations:
+          epics-containers.github.io/description: old description
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: git add .
+    rsp: ""
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.description=*"
+    rsp: ""
+  - cmd: git push
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.description
+    rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
+  - cmd: argocd app get namespace/bl01t --refresh
+    rsp: ""
+
+# `ec set-desc` on a service with no services.<name> entry (and, here, not
+# even a known Application) must refuse before any write: the repo is
+# cloned to check, but nothing is committed or pushed.
+set_desc_unknown_service:
+  - cmd: argocd app get namespace/bl01t
+    rsp: ""
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+
+# `ec set-desc` on a known service, but the deployment repo's Chart.yaml
+# pins argocd-apps below the version that renders `description` - must
+# refuse before any write, same shape as set_desc_unknown_service but
+# reaching the chart-version gate instead of the require_keys gate.
+set_desc_old_chart_version:
+  - cmd: argocd app get namespace/bl01t
+    rsp: ""
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: bl01t-ea-test-01
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: bl01t-ea-test-01
+  - cmd: argocd app get namespace/bl01t-ea-test-01 -o yaml
+    rsp: |
+      metadata:
+        name: bl01t-ea-test-01
+        annotations:
+          epics-containers.github.io/description: old description
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+
+# `ec deploy --desc` where the deployment repo's Chart.yaml pins
+# argocd-apps below the version that renders `description` - must refuse
+# before any write. Same prefix as deploy_with_desc, truncated right
+# after the deployment-repo clone (no add/commit/push/unset/refresh).
+deploy_desc_old_chart_version:
+  - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/.*
+    rsp: Cloning into /tmp/xxxx...
+  - cmd: git tag --sort=committerdate
+    rsp: |
+      1.0
+      2.0
+  - cmd: git ls-tree -r 1.0 --name-only
+    rsp: |
+      services/bl01t-ea-test-01
+  - cmd: git ls-tree -r 1.0
+    rsp: |
+      100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
+  - cmd: git diff 1.0 2.0 --name-only
+    rsp: ""
+  - cmd: git ls-tree -r 2.0
+    rsp: |
+      100644 blob b7b39845b55fb4d45d58ba86ef4527917877d556    services/bl01t-ea-test-01/Chart.yaml
+  - cmd: git clone https://github.com/epics-containers/bl01t-services -b 1.0 /tmp/ec_tests
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
     rsp: ""
 
 logs:
@@ -227,7 +398,7 @@ start_commit:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Set services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
+  - cmd: git commit -m 'Set services.bl01t-ea-test-01.enabled=True in apps/values.yaml'
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -334,18 +505,10 @@ deploy_clears_override:
           resources:
             - kind: StatefulSet
               name: bl01t-ea-test-01
-  - cmd: argocd app manifests namespace/bl01t-ea-test-01 --source live
+  - cmd: argocd app get namespace/bl01t-ea-test-01 -o yaml
     rsp: |
-      ---
-      apiVersion: apps/v1
-      kind: StatefulSet
       metadata:
         name: bl01t-ea-test-01
-        creationTimestamp: "2024-07-12T13:52:35Z"
-        labels:
-          test: test_label
-      status:
-        readyReplicas: 1
   - cmd: argocd app get namespace/bl01t -o yaml
     rsp: |
       spec:
@@ -356,7 +519,7 @@ deploy_clears_override:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.enabled=True.*'
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.enabled=True.*"
     rsp: ""
   - cmd: git push
     rsp: ""

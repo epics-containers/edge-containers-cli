@@ -31,7 +31,7 @@ def process_t(time_string) -> str:
 
 sample_data = {
     "name": [f"demo-ea-0{cnt}" for cnt in range(NUM_SERVICES)],
-    "label": [f"demo-device-0{cnt}" for cnt in range(NUM_SERVICES)],
+    "description": [f"demo-device-0{cnt}" for cnt in range(NUM_SERVICES)],
     "version": ["1.0." + str(25 - cnt) for cnt in range(NUM_SERVICES)],
     "ready": [True] * NUM_SERVICES,
     "deployed": [
@@ -102,6 +102,17 @@ class DemoCommands(Commands):
     async def restart(self, service_name):
         await self._stop(service_name, commit=False)
         await self._start(service_name, commit=False)
+
+    @demo_message
+    async def set_description(self, service_name, description, confirm_callback=None):
+        # Descriptions are stored as an Argo CD Application annotation -
+        # the demo backend has no such store, so there's nothing to
+        # persist here. Still validate the service and run the same
+        # confirmation flow as the real backends, so `ec set-desc` behaves
+        # consistently in demo mode instead of silently doing nothing.
+        await self._check_service(service_name)
+        if confirm_callback:
+            confirm_callback(None, description)
 
     @demo_message
     async def start(self, service_name, commit=False):

@@ -22,11 +22,13 @@ built and discarded, the process fell through to a normal return, and
 748e9a7, "Refactor for argocd (#160)", so it is a bug in the released
 CLI, not something new.
 
-`delete` is exercised here because it's the simplest command that
-commits+pushes: it shares the exact same `git.py` helper (`del_key`) and
-the exact same top-level `ErrorHandlingTyper` error handling as
-`deploy`'s `set_values`/`set_value` path, so the fix covers all of them;
-a second scenario per command would only re-test the same two lines.
+`delete` and `set-desc` are exercised here: both commit+push through the
+same top-level `ErrorHandlingTyper` error handling, but via different
+`git.py` helpers (`del_key` vs `set_values`, through `push_remove_key`/
+`push_values` in `argo_commands.py`), so together they cover both write
+paths `deploy` also shares (`set_value`/`set_values`). A second scenario
+per command would only re-test the same two lines, so one of each is
+enough.
 """
 
 import os
@@ -150,35 +152,29 @@ def _write_fake_argocd(bin_dir: Path, bare_repo: Path) -> None:
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
 
 
-def _run_ec_delete(tmp_path: Path, bin_dir: Path) -> subprocess.CompletedProcess:
+def _run_ec(
+    tmp_path: Path, bin_dir: Path, args: list[str]
+) -> subprocess.CompletedProcess:
     env = {
         **os.environ,
         "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
         "EC_CLI_BACKEND": "ARGOCD",
-        # `ec delete` makes its own clone (in git.py's del_key) and commits
-        # to it directly - unlike the seed repo above, that clone/commit
-        # is real production code, not test setup, so it can't be handed
-        # an env dict here; it inherits this subprocess's env instead. A
-        # dev machine's global git config usually has an identity set,
-        # but the GitHub Actions runner image doesn't, so without this
-        # the commit fails with "Author identity unknown" before it ever
-        # reaches the push this test is actually about.
+        # `ec` makes its own clone (in git.py's del_key/set_values) and
+        # commits to it directly - unlike the seed repo above, that
+        # clone/commit is real production code, not test setup, so it
+        # can't be handed an env dict here; it inherits this subprocess's
+        # env instead. A dev machine's global git config usually has an
+        # identity set, but the GitHub Actions runner image doesn't, so
+        # without this the commit fails with "Author identity unknown"
+        # before it ever reaches the push this test is actually about.
         "GIT_AUTHOR_NAME": "t",
         "GIT_AUTHOR_EMAIL": "t@example.com",
         "GIT_COMMITTER_NAME": "t",
         "GIT_COMMITTER_EMAIL": "t@example.com",
     }
     return subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "edge_containers_cli",
-            "-t",
-            "bl01t/bl01t-ea-test-01",
-            "delete",
-            "bl01t-ea-test-01",
-            "-y",
-        ],
+        [sys.executable, "-m", "edge_containers_cli", "-t", "bl01t/bl01t-ea-test-01"]
+        + args,
         cwd=tmp_path,
         env=env,
         capture_output=True,
@@ -187,13 +183,22 @@ def _run_ec_delete(tmp_path: Path, bin_dir: Path) -> subprocess.CompletedProcess
     )
 
 
-def test_rejected_push_fails_loudly(tmp_path: Path):
+@pytest.mark.parametrize(
+    "args",
+    [
+        pytest.param(["delete", "bl01t-ea-test-01", "-y"], id="delete"),
+        pytest.param(
+            ["set-desc", "bl01t-ea-test-01", "new-description", "-y"], id="set-desc"
+        ),
+    ],
+)
+def test_rejected_push_fails_loudly(tmp_path: Path, args: list[str]):
     bare_repo = _init_rejecting_remote(tmp_path)
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     _write_fake_argocd(bin_dir, bare_repo)
 
-    result = _run_ec_delete(tmp_path, bin_dir)
+    result = _run_ec(tmp_path, bin_dir, args)
 
     # Loud: git's own rejection reason reaches the user.
     assert "GH013" in result.stderr, result.stderr

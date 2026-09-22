@@ -22,7 +22,7 @@ class CommandError(Exception):
 ServicesSchema = polars.Schema(
     {
         "name": polars.String,  # type: ignore
-        "label": polars.String,
+        "description": polars.String,
         "version": polars.String,
         "ready": polars.Boolean,
         "deployed": polars.String,
@@ -150,6 +150,15 @@ class Commands(ABC):
 
     @abstractmethod
     async def restart(self, service_name: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def set_description(
+        self,
+        service_name: str,
+        description: str,
+        confirm_callback: Callable[[str | None, str], None] | None = None,
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
