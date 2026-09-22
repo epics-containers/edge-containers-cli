@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from pathlib import Path
 
 import rich
@@ -44,8 +45,14 @@ class ErrorHandlingTyper(typer.Typer):
         try:
             super().__call__(*args, **kwargs)
         except (CommandError, ShellError, GitError) as e:
+            # super().__call__() has already returned/raised by this point,
+            # so we are outside typer/click's own invocation context and
+            # `raise typer.Exit(1)` here would do nothing but propagate as
+            # an unhandled RuntimeError - it is only meaningful when raised
+            # from inside a command. sys.exit() is what actually reports
+            # the failure to the calling shell.
             log.error(e)
-            typer.Exit(1)
+            sys.exit(1)
 
 
 cli = ErrorHandlingTyper(pretty_exceptions_show_locals=False)
