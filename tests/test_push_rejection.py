@@ -52,6 +52,20 @@ def _init_rejecting_remote(tmp_path: Path) -> Path:
     """
     bare = tmp_path / "deployment.git"
     subprocess.run(["git", "init", "--quiet", "--bare", str(bare)], check=True)
+    # Pin the bare repo's HEAD to `main` regardless of the environment's
+    # `init.defaultBranch` (still "master" on GitHub Actions' runner
+    # image, but "main" on machines configured to override it): the
+    # production code clones with no `-b`, so it follows HEAD, and if
+    # HEAD points at a branch that's never actually pushed to (here
+    # "master") that clone comes back empty, failing with
+    # "No such file or directory: 'apps/values.yaml'" before the push is
+    # even attempted - this is unrelated to the push-rejection behaviour
+    # under test. `symbolic-ref` accepts a target that doesn't exist yet,
+    # so this is safe before anything has been pushed.
+    subprocess.run(
+        ["git", "--git-dir", str(bare), "symbolic-ref", "HEAD", "refs/heads/main"],
+        check=True,
+    )
 
     seed = tmp_path / "seed"
     subprocess.run(["git", "clone", "--quiet", str(bare), str(seed)], check=True)
