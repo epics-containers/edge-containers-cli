@@ -119,11 +119,11 @@ def test_monitor_columns():
     columns = [str(column.key.value) for column in table.ordered_columns]
     assert columns == [
         "name",
+        "description",
         "health",
         "sync",
         "version",
         "last sync",
-        "description",
     ]
 
     assert table.row_count == 8
@@ -143,11 +143,11 @@ def test_monitor_columns_wide():
     columns = [str(column.key.value) for column in table.ordered_columns]
     assert columns == [
         "name",
+        "description",
         "health",
         "sync",
         "version",
         "last sync",
-        "description",
         "properties",
     ]
 

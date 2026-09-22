@@ -19,23 +19,28 @@ class CommandError(Exception):
     pass
 
 
-# The columns of `ec ps` and `ec monitor`, modelled on argocd-monitor's
-# Applications table (github.com/epics-containers/argocd-monitor,
-# src/components/app-table/columns.tsx):
-#   health     - Argo CD health vocabulary: Healthy, Progressing, Degraded,
-#                Suspended, Missing or Unknown, with " (Stopped)" appended
-#                when the service has been stopped with `ec stop`
-#   sync       - Argo CD sync vocabulary: Synced, OutOfSync or Unknown
-#   last sync  - when the last sync operation finished
-#   properties - the service's labels, shown only by `ec ps --wide`
+# The columns of `ec ps` and `ec monitor`, in the same order as
+# argocd-monitor's Applications overview table (github.com/epics-containers/
+# argocd-monitor, src/components/app-table/columns.tsx: name, description,
+# health, sync, namespace, revision, last sync, properties). ec has no
+# namespace column, and maps argocd-monitor's "Target Revision" to
+# "version" and "Properties" (labels) to "properties":
+#   description - the service's free-text description
+#   health      - Argo CD health vocabulary: Healthy, Progressing, Degraded,
+#                 Suspended, Missing or Unknown, with " (Stopped)" appended
+#                 when the service has been stopped with `ec stop`
+#   sync        - Argo CD sync vocabulary: Synced, OutOfSync or Unknown
+#   last sync   - when the last sync operation finished
+#   properties  - the service's labels, shown only by `ec ps --wide`, as
+#                 argocd-monitor's Properties column
 ServicesSchema = polars.Schema(
     {
         "name": polars.String,  # type: ignore
+        "description": polars.String,
         "health": polars.String,
         "sync": polars.String,
         "version": polars.String,
         "last sync": polars.String,
-        "description": polars.String,
         "properties": polars.String,
     }
 )
