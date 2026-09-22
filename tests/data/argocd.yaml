@@ -38,7 +38,7 @@ delete:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Remove services.bl01t-ea-test-01 in apps/values.yaml"
+  - cmd: git commit -m 'Remove services.bl01t-ea-test-01 in apps/values.yaml'
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -103,7 +103,7 @@ deploy:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.enabled=True.*'
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.enabled=True.*"
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -160,7 +160,7 @@ deploy_with_desc:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.enabled=True.*'
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.enabled=True.*"
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -246,7 +246,7 @@ set_desc:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.description=*'
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.description=*"
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -398,7 +398,7 @@ start_commit:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: git commit -m "Set services.bl01t-ea-test-01.enabled=True in apps/values.yaml"
+  - cmd: git commit -m 'Set services.bl01t-ea-test-01.enabled=True in apps/values.yaml'
     rsp: ""
   - cmd: git push
     rsp: ""
@@ -519,7 +519,7 @@ deploy_clears_override:
     rsp: ""
   - cmd: git add .
     rsp: ""
-  - cmd: 'git commit -m "Set services.bl01t-ea-test-01.enabled=True.*'
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01.enabled=True.*"
     rsp: ""
   - cmd: git push
     rsp: ""

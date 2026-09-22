@@ -1,3 +1,4 @@
+import shlex
 import shutil
 from pathlib import Path
 
@@ -167,7 +168,7 @@ def test_deploy_is_one_commit(mock_run, ARGOCD, data: Path):
 
     mock_run.run_cli("deploy bl01t-ea-test-01 --desc new-description")
 
-    commit_count = mock_run.log.count('CMD: git commit -m "Set ')
+    commit_count = mock_run.log.count("CMD: git commit -m 'Set ")
     assert commit_count == 1
 
 
@@ -210,6 +211,52 @@ def test_set_desc_preserves_siblings(mock_run, ARGOCD, data: Path):
     assert entry["extra"] == "keepme"
 
 
+def test_set_desc_quotes_shell_metacharacters(mock_run, ARGOCD, data: Path):
+    # git.py's set_values builds `git commit -m "<message>"` from the
+    # description text, and shell.run_command executes it via
+    # asyncio.create_subprocess_shell - so a description containing shell
+    # metacharacters (a literal `"`, a `$(...)` command substitution) must
+    # be safely quoted, not interpolated raw where it could break out of
+    # the quoting and run injected shell commands.
+    mock_run.set_seq(ARGOCD.set_desc)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: true\n"
+        "    targetRevision: custom-version\n"
+        "    description: old description\n"
+    )
+
+    malicious = 'bad"; $(touch pwned); echo "done'
+    run_cli_args(mock_run, ["set-desc", "bl01t-ea-test-01", malicious])
+
+    # The description is written through unmangled...
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"]["bl01t-ea-test-01"]["description"] == malicious
+
+    # ...and the actual git commit command embeds it as a single,
+    # safely-quoted shell argument: shlex.split recovering exactly one
+    # `-m` argument, equal to the original message, proves it was passed
+    # through literally rather than executed.
+    commit_lines = [
+        line.removeprefix("CMD: ")
+        for line in mock_run.log.splitlines()
+        if line.startswith("CMD: git commit")
+    ]
+    assert len(commit_lines) == 1
+    tokens = shlex.split(commit_lines[0])
+    assert tokens == [
+        "git",
+        "commit",
+        "-m",
+        f"Set services.bl01t-ea-test-01.description={malicious} in apps/values.yaml",
+    ]
+
+
 def test_set_desc_clears(mock_run, ARGOCD, data: Path):
     mock_run.set_seq(ARGOCD.set_desc)
     TMPDIR.mkdir()
@@ -240,7 +287,7 @@ def test_set_desc_is_one_commit(mock_run, ARGOCD, data: Path):
 
     run_cli_args(mock_run, ["set-desc", "bl01t-ea-test-01", "new description"])
 
-    assert mock_run.log.count('CMD: git commit -m "Set ') == 1
+    assert mock_run.log.count("CMD: git commit -m 'Set ") == 1
     assert mock_run.log.count("CMD: git push") == 1
 
 

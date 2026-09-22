@@ -4,6 +4,8 @@ Utility functions for working with git
 
 import os
 import re
+import shlex
+from collections.abc import Mapping
 from pathlib import Path
 
 import polars
@@ -127,7 +129,7 @@ async def set_value(
 
                 commit_msg = f"Set {key}={value} in {file}"
                 await shell.run_command("git add .")
-                await shell.run_command(f'git commit -m "{commit_msg}"')
+                await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
                 await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
@@ -175,11 +177,17 @@ async def set_values(
 
                 for req_key in require_keys or []:
                     try:
-                        file_data.get_key(req_key)
+                        req_value = file_data.get_key(req_key)
                     except YamlFileError as e:
                         raise GitError(
                             f"'{req_key}' not found in {file} - nothing was written"
                         ) from e
+                    if not isinstance(req_value, Mapping):
+                        raise GitError(
+                            f"'{req_key}' in {file} is not a mapping "
+                            f"(found {type(req_value).__name__}) - "
+                            "nothing was written"
+                        )
 
                 changed: dict[str, YamlTypes] = {}
                 for key, value in keys.items():
@@ -208,7 +216,7 @@ async def set_values(
                 changes = ", ".join(f"{k}={v}" for k, v in changed.items())
                 commit_msg = f"Set {changes} in {file}"
                 await shell.run_command("git add .")
-                await shell.run_command(f'git commit -m "{commit_msg}"')
+                await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
                 await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
@@ -229,7 +237,7 @@ async def del_key(repo_url: str, file: Path, key: str) -> None:
 
                 commit_msg = f"Remove {key} in {file}"
                 await shell.run_command("git add .")
-                await shell.run_command(f'git commit -m "{commit_msg}"')
+                await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
                 await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:

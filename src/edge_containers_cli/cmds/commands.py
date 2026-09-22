@@ -152,6 +152,7 @@ class Commands(ABC):
     async def restart(self, service_name: str) -> None:
         raise NotImplementedError
 
+    @abstractmethod
     async def set_description(
         self,
         service_name: str,
