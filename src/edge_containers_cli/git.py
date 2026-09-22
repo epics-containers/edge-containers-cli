@@ -8,6 +8,7 @@ from pathlib import Path
 
 import polars
 from natsort import natsorted
+from ruamel.yaml import YAML
 
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
@@ -23,6 +24,80 @@ from edge_containers_cli.utils import (
 
 class GitError(Exception):
     pass
+
+
+# an exact `X.Y.Z[-pre]` release version - a range/constraint (`^5.9.0`,
+# `>=5.8.0`), a non-numeric scheme (`file://...`) or a git ref never
+# matches, so it's treated as "can't prove it's new enough" by
+# check_chart_dependency_version.
+_RELEASE_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-.+)?$")
+
+
+def _release_tuple(version: str) -> tuple[int, int, int] | None:
+    """
+    The (major, minor, patch) release segment of an exact semver string,
+    ignoring any pre-release/build suffix, or None if `version` isn't a
+    single exact version ec can compare.
+    """
+    match = _RELEASE_RE.match(version.strip())
+    if match is None:
+        return None
+    major, minor, patch = match.groups()
+    return int(major), int(minor), int(patch)
+
+
+def _read_dependency_version(chart_yaml: Path, dependency: str) -> str | None:
+    """
+    The version string pinned for `dependency` in `chart_yaml`'s
+    `dependencies` list, or None if the file is missing/unreadable, isn't
+    a Chart.yaml-shaped mapping, or has no entry named `dependency`.
+    """
+    try:
+        with open(chart_yaml) as fp:
+            chart = YAML(typ="safe").load(fp)
+    except (OSError, YamlFileError):
+        return None
+    if not isinstance(chart, dict):
+        return None
+    for dep in chart.get("dependencies") or []:
+        if isinstance(dep, dict) and dep.get("name") == dependency:
+            version = dep.get("version")
+            return str(version) if version is not None else None
+    return None
+
+
+def check_chart_dependency_version(
+    chart_dir: Path,
+    dependency: str,
+    min_version: str,
+    feature: str,
+) -> None:
+    """
+    Raise GitError unless `chart_dir`/Chart.yaml pins `dependency` at or
+    above `min_version`. Reads the Chart.yaml that already sits next to
+    the values.yaml a caller is about to write - no extra clone.
+
+    Fails closed: a missing Chart.yaml, a missing/unparsable `dependency`
+    entry, or a version that isn't an exact `X.Y.Z[-pre]` (a range, a
+    `file://` path, a git ref, ...) is treated as "can't prove it's new
+    enough" and refused, not allowed through - there's no committed
+    Chart.lock here to say what a range would actually resolve to. Only
+    the release segment (major.minor.patch) is compared, so a pre-release
+    of `min_version` itself (e.g. `5.10.0-rc1`) passes.
+    """
+    chart_yaml = chart_dir / "Chart.yaml"
+    dep_version = _read_dependency_version(chart_yaml, dependency)
+    dep_release = _release_tuple(dep_version) if dep_version is not None else None
+    min_release = _release_tuple(min_version)
+    assert min_release is not None, f"invalid min_version {min_version!r}"
+
+    if dep_release is None or dep_release < min_release:
+        raise GitError(
+            f"'{feature}' needs the {dependency} chart at >= {min_version}, "
+            f"but {chart_yaml} pins {dep_version or '(undetermined)'}. "
+            f"Upgrade the {dependency} dependency in {chart_yaml} first - "
+            "a version-only deploy (no description change) is unaffected."
+        )
 
 
 async def set_value(
@@ -64,6 +139,7 @@ async def set_values(
     file: Path,
     keys: dict[str, YamlTypes],
     require_keys: list[str] | None = None,
+    require_chart_version: tuple[str, str, str] | None = None,
 ) -> None:
     """
     sets several key,value pairs in a yaml file in a single commit and
@@ -81,12 +157,21 @@ async def set_values(
     and a GitError is raised instead - this stops a caller creating a new,
     partial entry (e.g. a lone `description` with no `enabled`/
     `targetRevision` siblings) for a service that was never deployed.
+
+    `require_chart_version`, if given, is `(dependency, min_version,
+    feature)`. Before any write, check_chart_dependency_version is run
+    against the Chart.yaml beside `file` - if `dependency` isn't pinned to
+    at least `min_version`, nothing is written, committed or pushed and a
+    GitError is raised instead.
     """
     with new_workdir() as path:
         try:
             await shell.run_command(f"git clone --depth=1 {repo_url} {path}")
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
+
+                if require_chart_version is not None:
+                    check_chart_dependency_version(file.parent, *require_chart_version)
 
                 for req_key in require_keys or []:
                     try:

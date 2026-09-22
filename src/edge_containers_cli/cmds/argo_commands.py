@@ -41,6 +41,19 @@ TRACKING_ID_RE = re.compile(
 # the per-service Application's own metadata.
 DESCRIPTION_ANNOTATION = "epics-containers.github.io/description"
 
+# feature -> (chart dependency, minimum version). An old argocd-apps chart
+# rejects a key its schema doesn't know about, which breaks the root app
+# and stops every service on the deployment syncing - so a feature that
+# depends on a newer argocd-apps must gate its write on this table via
+# push_values(..., require_chart_version=(*CHART_VERSION_GATES[...], feature)).
+# Extend this table, not check_chart_dependency_version, when the next
+# feature needs a floor.
+CHART_VERSION_GATES: dict[str, tuple[str, str]] = {
+    # ec-helm-charts#122: 5.10.0 is the first argocd-apps release that
+    # renders `description` - 5.8.0 and 5.9.0 shipped without it.
+    "description": ("argocd-apps", "5.10.0"),
+}
+
 
 def extract_ns_app(target: str) -> tuple[str, str]:
     namespace, app = target.split("/")
@@ -118,7 +131,10 @@ async def push_value(target: str, key: str, value: YamlTypes):
 
 @do_retry
 async def push_values(
-    target: str, keys: dict[str, YamlTypes], require_keys: list[str] | None = None
+    target: str,
+    keys: dict[str, YamlTypes],
+    require_keys: list[str] | None = None,
+    require_chart_version: tuple[str, str, str] | None = None,
 ):
     """
     Like push_value, but sets several keys in a single commit. Any key
@@ -127,6 +143,9 @@ async def push_values(
 
     `require_keys`, if given, must already exist in the values repo or
     nothing is written/committed/pushed - see set_values.
+
+    `require_chart_version`, if given, is (dependency, min_version,
+    feature) - see set_values.
     """
     # Get source details
     app_resp = await shell.run_command(
@@ -136,7 +155,13 @@ async def push_values(
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    await set_values(repo_url, path / "values.yaml", keys, require_keys=require_keys)
+    await set_values(
+        repo_url,
+        path / "values.yaml",
+        keys,
+        require_keys=require_keys,
+        require_chart_version=require_chart_version,
+    )
 
     # Free any possible patched values, their children & refresh repo
     for key in keys:
@@ -227,13 +252,21 @@ class ArgoCommands(Commands):
             f"services.{service_name}.enabled": True,
             f"services.{service_name}.targetRevision": version,
         }
+        # only gate the write on the argocd-apps chart version when a
+        # description is actually being written - a version-only deploy
+        # must work regardless of how old the deployment's argocd-apps
+        # dependency is.
+        require_chart_version = None
         if description is not None:
             # `--desc ""` explicitly clears the description. Never push
             # `labels` - the description is now an Application annotation,
             # not a label.
             deploy_dict[f"services.{service_name}.description"] = description
+            require_chart_version = (*CHART_VERSION_GATES["description"], "description")
 
-        await push_values(self.target, deploy_dict)
+        await push_values(
+            self.target, deploy_dict, require_chart_version=require_chart_version
+        )
 
     async def set_description(
         self, service_name: str, description: str, confirm_callback=None
@@ -257,6 +290,7 @@ class ArgoCommands(Commands):
             self.target,
             {f"{parent_key}.description": description},
             require_keys=[parent_key],
+            require_chart_version=(*CHART_VERSION_GATES["description"], "description"),
         )
 
     async def logs(self, service_name, prev):

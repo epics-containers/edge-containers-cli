@@ -264,6 +264,72 @@ def test_set_desc_refuses_unknown_service(mock_run, ARGOCD, data: Path):
     assert "CMD: git push" not in mock_run.log
 
 
+def test_set_desc_refuses_old_chart_version(mock_run, ARGOCD, data: Path):
+    # An argocd-apps below the version that renders `description` must
+    # refuse the write - an old chart rejects the key in its schema and
+    # breaks the root app for every service, not just this one.
+    mock_run.set_seq(ARGOCD.set_desc_old_chart_version)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    (TMPDIR / "apps" / "Chart.yaml").write_text(
+        "apiVersion: v2\n"
+        "name: applications\n"
+        "version: 0.1.1\n"
+        "appVersion: '1.0'\n"
+        "dependencies:\n"
+        "  - name: argocd-apps\n"
+        "    version: 5.7.0\n"
+    )
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: true\n"
+        "    targetRevision: custom-version\n"
+        "    description: old description\n"
+    )
+    before = values_file.read_text()
+
+    with pytest.raises(GitError, match="argocd-apps"):
+        run_cli_args(mock_run, ["set-desc", "bl01t-ea-test-01", "new description"])
+
+    assert values_file.read_text() == before
+    assert "CMD: git commit" not in mock_run.log
+    assert "CMD: git push" not in mock_run.log
+
+
+def test_deploy_desc_refuses_old_chart_version(mock_run, ARGOCD, data: Path):
+    # Same gate, reached via `ec deploy --desc` rather than `ec set-desc`.
+    mock_run.set_seq(ARGOCD.deploy_desc_old_chart_version)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    (TMPDIR / "apps" / "Chart.yaml").write_text(
+        "apiVersion: v2\n"
+        "name: applications\n"
+        "version: 0.1.1\n"
+        "appVersion: '1.0'\n"
+        "dependencies:\n"
+        "  - name: argocd-apps\n"
+        "    version: 5.7.0\n"
+    )
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    before = values_file.read_text()
+
+    with pytest.raises(GitError, match="argocd-apps"):
+        run_cli_args(
+            mock_run, ["deploy", "bl01t-ea-test-01", "--desc", "new description"]
+        )
+
+    assert values_file.read_text() == before
+    assert "CMD: git commit" not in mock_run.log
+    assert "CMD: git push" not in mock_run.log
+
+
 def test_deploy_clears_enabled_override(mock_run, ARGOCD, data: Path):
     # Regression: a lingering `services.X.enabled=false` parameter override
     # (set by `ec stop --no-commit` or Monitor) must be unset by the next
