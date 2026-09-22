@@ -10,6 +10,7 @@ from queue import Empty, Queue
 from typing import Any, cast
 
 import polars
+from rich.cells import cell_len
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
@@ -50,10 +51,18 @@ from edge_containers_cli.utils import _AsyncFuncType, _run_async
 
 WHITE = Color.parse("white")
 
-# Marks the current sort column's header. The table has a sort key but no
-# separate direction (always ascending), so one arrow suffices - see
+# Marks the current sort column's header and its direction - see
 # _get_heading.
-SORT_ARROW = "▲"
+SORT_ARROW_ASC = "▲"
+SORT_ARROW_DESC = "▼"
+
+# Every header reserves this much trailing width for " <arrow>", whether or
+# not it is currently the sort column - see _get_heading. A column's width
+# is only computed once, from the header Text passed to add_column(); when
+# the sort key later moves, _apply_sort() swaps a column's label in place
+# without recomputing its width, so a header that grew an arrow it hadn't
+# budgeted for would clip.
+_SORT_SUFFIX_WIDTH = 1 + max(cell_len(SORT_ARROW_ASC), cell_len(SORT_ARROW_DESC))
 
 # colours for the Argo CD health and sync vocabularies, as in
 # argocd-monitor's status badges. A stopped service's health ends in
@@ -304,6 +313,7 @@ class IocTable(Widget):
 
     default_sort_column_id = "name"
     sort_column_id = reactive(default_sort_column_id, init=False)
+    sort_reverse = reactive(False, init=False)
 
     def __init__(self, commands, running_only: bool, wide: bool = False) -> None:
         super().__init__()
@@ -333,16 +343,41 @@ class IocTable(Widget):
 
     def _get_heading(self, column_id: str):
         if column_id == self.sort_column_id:
-            # The table only ever sorts ascending (table.sort(..., reverse=False)
-            # throughout) - there's no direction to flip, so a single arrow marks
-            # the sort key rather than a pair of ascending/descending glyphs.
-            heading = Text(f"{column_id} {SORT_ARROW}", justify="left")
+            arrow = SORT_ARROW_DESC if self.sort_reverse else SORT_ARROW_ASC
+            suffix = f" {arrow}"
         else:
-            heading = Text(column_id, justify="left").on(
-                click=f"app.sort('{column_id}')"
-            )
+            # Reserve the same width as " <arrow>" so this header doesn't
+            # need to grow - and clip the arrow while it's too narrow - the
+            # moment it becomes the sort column. See _SORT_SUFFIX_WIDTH.
+            suffix = " " * _SORT_SUFFIX_WIDTH
+        heading = Text(f"{column_id}{suffix}", justify="left")
 
-        return heading
+        # Clicking any header sorts by it: a click on the current sort
+        # column toggles its direction (set_sort_column), a click on
+        # another column makes it the (ascending) sort column.
+        return heading.on(click=f"app.sort('{column_id}')")
+
+    def set_sort_column(self, column_id: str) -> None:
+        """Called when a column header is clicked (or `app.sort(col)` is
+        run directly). Toggles direction if it's already the sort column,
+        otherwise makes it the sort column, ascending."""
+        if column_id == self.sort_column_id:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column_id = column_id
+            self.sort_reverse = False
+
+    def cycle_sort_column(self) -> None:
+        """Called by the 'o' binding: move the sort key to the next visible
+        column, in display order, wrapping around, and reset to ascending."""
+        col_index = self.columns.index(self.sort_column_id)
+        self.sort_column_id = self.columns[(col_index + 1) % len(self.columns)]
+        self.sort_reverse = False
+
+    def toggle_sort_direction(self) -> None:
+        """Called by the direction-toggle binding: flip the current sort
+        column's direction without changing which column is sorted."""
+        self.sort_reverse = not self.sort_reverse
 
     def on_mount(self) -> None:
         self.table.display = False  # hide until ready
@@ -407,15 +442,25 @@ class IocTable(Widget):
 
     def watch_sort_column_id(self, sort_column_id: str) -> None:
         """Called when the sort_column_id attribute changes."""
+        self._apply_sort()
+
+    def watch_sort_reverse(self, sort_reverse: bool) -> None:  # noqa: FBT001
+        """Called when the sort_reverse attribute changes (a direction
+        toggle on the current sort column, with no column change)."""
+        self._apply_sort()
+
+    def _apply_sort(self) -> None:
+        """(Re)draw every header to reflect sort_column_id/sort_reverse,
+        and (re)sort the rows to match. Called whenever either changes."""
         table = self.query_one("#body_table", DataTable)
 
-        # Reformat headings based on new sorted column
+        # Reformat headings based on the current sort column and direction
         for i, _column in enumerate(self.columns):
             table.ordered_columns[i].label = self._get_heading(_column)
 
-        sorted_col = self.columns.index(sort_column_id)
+        sorted_col = self.columns.index(self.sort_column_id)
 
-        table.sort(table.ordered_columns[sorted_col].key, reverse=False)
+        table.sort(table.ordered_columns[sorted_col].key, reverse=self.sort_reverse)
 
     def populate_table(self, iocs_df) -> None:
         """Method to render the TUI table."""
@@ -456,16 +501,24 @@ class IocTable(Widget):
                         current = table.get_cell(row_key, cell["col_key"])
                         # only update if value has actually changed
                         if str(current) != str(cell["contents"]):
+                            # update_width=True: a refreshed cell can grow
+                            # (e.g. "Healthy" -> "Healthy (Stopped)") and the
+                            # column must widen to fit, as it would for a
+                            # freshly added row.
                             table.update_cell(
-                                row_key, cell["col_key"], cell["contents"]
+                                row_key,
+                                cell["col_key"],
+                                cell["contents"],
+                                update_width=True,
                             )
 
             # If any IOC has been removed, remove it from the table
             for old_row_key in curr_ioc_set - new_ioc_set:
                 table.remove_row(old_row_key)
 
-            # Sort by column
-            table.sort(self.sort_column_id, reverse=False)
+            # Sort by column, preserving the current direction across
+            # polling refreshes
+            table.sort(self.sort_column_id, reverse=self.sort_reverse)
 
 
 class MonitorLogHandler(logging.Handler):
@@ -506,6 +559,7 @@ class MonitorApp(App):
         Binding("r", "restart_ioc", "Restart IOC"),
         Binding("l", "ioc_logs", "IOC Logs"),
         Binding("o", "sort", "Sort"),
+        Binding("d", "toggle_sort_direction", "Direction"),
         Binding("m", "monitor_logs", "Monitor logs", show=False),
     ]
 
@@ -523,6 +577,19 @@ class MonitorApp(App):
         self.beamline = commands.target
         self.busy_services: ThreadsafeSet = ThreadsafeSet()
         self._queue: Queue[Callable] = Queue()
+
+    def _set_pointer_shape(self, shape: str) -> None:
+        """Silence Textual's Kitty pointer-shape escape (OSC 22).
+
+        `App._set_pointer_shape` (private API - hence the `textual<9` pin in
+        pyproject.toml) writes `ESC ] 22 ; <shape> BEL` unconditionally,
+        with no terminal-capability check, right after parking the cursor
+        at (0, 0) for the frame. A terminal that doesn't consume OSC 22
+        prints it as literal text over the Header's icon instead - e.g.
+        clicking anywhere in the table leaves "]22;text" stuck there. ec's
+        monitor doesn't need the pointer shape changed, so this overrides
+        it to do nothing rather than trying to detect terminal support.
+        """
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -643,30 +710,29 @@ class MonitorApp(App):
 
     def action_sort(self, col_name: str = "") -> None:
         """An action to sort the table rows by column heading."""
+        table = self.query_one(IocTable)
         if col_name != "":
-            # If col_name is provided, sort by that column
-            # e.g. if a column heading is clicked
-            new_col = col_name
+            # col_name is provided when a column heading is clicked: sort by
+            # it (toggling direction if it's already the sort column).
+            log.info(f"Sort column selected: '{col_name}'")
+            table.set_sort_column(col_name)
         else:
-            # If no column name is provided (e.g. by pressing the key bind),
-            # then just cycle to the next column
-            table = self.query_one(IocTable)
-            col_name = table.sort_column_id
-            cols = table.columns
-            col_index = cols.index(col_name)
-            new_col = cols[(col_index + 1) % len(cols)]
-        self.update_sort_key(new_col)
+            # No column name (the 'o' key bind): cycle to the next visible
+            # column, resetting to ascending.
+            table.cycle_sort_column()
+            log.info(f"New sort key '{table.sort_column_id}'")
+
+    def action_toggle_sort_direction(self) -> None:
+        """An action to flip the current sort column's direction."""
+        table = self.query_one(IocTable)
+        table.toggle_sort_direction()
+        direction = "descending" if table.sort_reverse else "ascending"
+        log.info(f"Sort direction: {direction}")
 
     def action_monitor_logs(self) -> None:
         """Get a new hello and update the content area."""
         collapsed_state = self.query_one(Collapsible).collapsed
         self.query_one(Collapsible).collapsed = not collapsed_state
-
-    def update_sort_key(self, col_name: str) -> None:
-        """Method called to update the table sort key attribute."""
-        table = self.query_one(IocTable)
-        log.info(f"New sort key '{col_name}'")
-        table.sort_column_id = col_name
 
 
 class ThreadsafeSet:

@@ -166,9 +166,15 @@ $ ec monitor [-r/--running-only] [-w/--wide]
 
 Open the interactive TUI monitor. It shows the same columns as `ec ps`, with
 `description` as a real column; `-w/--wide` adds `properties`, as for `ec ps`.
-`-r/--running-only` starts it showing only running services. Click a column
-header, or press `o`, to sort by it — the sorted column's header is marked
-with `▲`. The monitor can also be served as a web application — see the
+`-r/--running-only` starts it showing only running services.
+
+Click a column header, or press `o`, to sort by it — the sorted column's
+header is marked `▲` (ascending) or `▼` (descending). Pressing `o` again
+cycles to the next column (always ascending); clicking the header that's
+already the sort column, or pressing `d`, toggles its direction instead.
+Sort order is kept across the monitor's background refreshes.
+
+The monitor can also be served as a web application — see the
 [README](https://github.com/epics-containers/edge-containers-cli#monitor).
 
 #### `ec logs SERVICE`
