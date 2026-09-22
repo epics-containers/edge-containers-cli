@@ -1,6 +1,8 @@
 import shutil
 from pathlib import Path
 
+from ruamel.yaml import YAML
+
 from tests.conftest import TMPDIR
 
 
@@ -17,6 +19,81 @@ def test_deploy(mock_run, ARGOCD, data: Path):
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
     mock_run.run_cli("deploy bl01t-ea-test-01")
+
+
+def test_deploy_preserves_service_keys(mock_run, ARGOCD, data: Path):
+    # THE CRUX: push_values must merge into the existing services.<name>
+    # entry rather than replace it wholesale (set_key replaces whatever
+    # value it's given at its target key) - a version-only deploy (no
+    # --desc) must leave the existing description label, any other label,
+    # and any other unrelated field already in the values repo untouched.
+    mock_run.set_seq(ARGOCD.deploy)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: false\n"
+        "    labels:\n"
+        "      description: existing-description\n"
+        "      foo: bar\n"
+        "    extra: keepme\n"
+    )
+
+    mock_run.run_cli("deploy bl01t-ea-test-01")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"]["bl01t-ea-test-01"]
+    assert entry["labels"] == {"description": "existing-description", "foo": "bar"}
+    assert entry["extra"] == "keepme"
+    assert entry["enabled"] is True
+    assert entry["targetRevision"] == "1.0"
+
+
+def test_deploy_desc_preserves_other_labels(mock_run, ARGOCD, data: Path):
+    # `--desc` writes only the labels.description leaf key - any other
+    # label already on the service must survive.
+    mock_run.set_seq(ARGOCD.deploy_with_desc)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: false\n"
+        "    labels:\n"
+        "      description: old-description\n"
+        "      foo: bar\n"
+        "    extra: keepme\n"
+    )
+
+    mock_run.run_cli("deploy bl01t-ea-test-01 --desc new-description")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"]["bl01t-ea-test-01"]
+    assert entry["labels"] == {"description": "new-description", "foo": "bar"}
+    assert entry["extra"] == "keepme"
+    assert entry["enabled"] is True
+    assert entry["targetRevision"] == "1.0"
+
+
+def test_deploy_is_one_commit(mock_run, ARGOCD, data: Path):
+    # Whether or not --desc is given, a deploy must push all of its
+    # leaf-key changes in a single commit, not one commit per key.
+    mock_run.set_seq(ARGOCD.deploy_with_desc)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    mock_run.run_cli("deploy bl01t-ea-test-01 --desc new-description")
+
+    commit_count = mock_run.log.count('CMD: git commit -m "Set ')
+    assert commit_count == 1
 
 
 def test_deploy_clears_enabled_override(mock_run, ARGOCD, data: Path):

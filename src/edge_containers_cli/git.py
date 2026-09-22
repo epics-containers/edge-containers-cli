@@ -59,6 +59,62 @@ async def set_value(
             raise GitError(str(e)) from e
 
 
+async def set_values(
+    repo_url: str,
+    file: Path,
+    keys: dict[str, YamlTypes],
+) -> None:
+    """
+    sets several key,value pairs in a yaml file in a single commit and
+    pushes the changes. Any key not present in `keys` is left untouched -
+    this lets a caller change only the fields it knows about without
+    disturbing sibling fields (present or future) at the same parent.
+
+    If a value is itself a dict and the key already holds a dict in the
+    repo, the two are shallow-merged (the new value's keys win) rather
+    than the existing dict being replaced outright - this lets a caller
+    set one entry of e.g. a `labels` mapping without wiping any others.
+    """
+    with new_workdir() as path:
+        try:
+            await shell.run_command(f"git clone --depth=1 {repo_url} {path}")
+            with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
+                file_data = YamlFile(file)
+
+                changed: dict[str, YamlTypes] = {}
+                for key, value in keys.items():
+                    try:
+                        value_repo = file_data.get_key(key)
+                    except YamlFileError:
+                        value_repo = None
+
+                    if isinstance(value, dict) and isinstance(value_repo, dict):
+                        merged = dict(value_repo)
+                        merged.update(value)
+                        value = merged
+
+                    if value_repo == value:
+                        log.debug(f"{key} already set as {value}")
+                        continue
+
+                    file_data.set_key(key, value)
+                    changed[key] = value
+
+                if not changed:
+                    return None
+
+                file_data.dump_file()
+
+                changes = ", ".join(f"{k}={v}" for k, v in changed.items())
+                commit_msg = f"Set {changes} in {file}"
+                await shell.run_command("git add .")
+                await shell.run_command(f'git commit -m "{commit_msg}"')
+                await shell.run_command("git push", skip_on_dryrun=True)
+
+        except (FileNotFoundError, ShellError) as e:
+            raise GitError(str(e)) from e
+
+
 async def del_key(repo_url: str, file: Path, key: str) -> None:
     """
     remove a key from a yaml file and push the changes

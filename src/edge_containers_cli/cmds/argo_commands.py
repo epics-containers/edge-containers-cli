@@ -24,7 +24,7 @@ from edge_containers_cli.cmds.commands import (
     ServicesSchema,
 )
 from edge_containers_cli.definitions import ENV, ECContext
-from edge_containers_cli.git import check_exists, del_key, set_value
+from edge_containers_cli.git import check_exists, del_key, set_value, set_values
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import YamlTypes, _AsyncFuncType, _run_async
@@ -112,6 +112,31 @@ async def push_value(target: str, key: str, value: YamlTypes):
 
 
 @do_retry
+async def push_values(target: str, keys: dict[str, YamlTypes]):
+    """
+    Like push_value, but sets several keys in a single commit. Any key
+    not present in `keys` is left untouched in the values repo, so a
+    caller only ever writes the fields it was asked to change.
+    """
+    # Get source details
+    app_resp = await shell.run_command(
+        f"argocd app get {target} -o yaml",
+    )
+    app_dicts = YAML(typ="safe").load(app_resp)
+    repo_url = app_dicts["spec"]["source"]["repoURL"]
+    path = Path(app_dicts["spec"]["source"]["path"])
+
+    await set_values(repo_url, path / "values.yaml", keys)
+
+    # Free any possible patched values, their children & refresh repo
+    for key in keys:
+        await _unset_key_and_children(target, key)
+    cmd_refresh = f"argocd app get {target} --refresh"
+    await shell.run_command(cmd_refresh, skip_on_dryrun=True)
+    # Rely on argocd autosync to get the cluster into the right state
+
+
+@do_retry
 async def push_remove_key(target: str, key: str):
     # Get source details
     app_resp = await shell.run_command(
@@ -172,22 +197,38 @@ class ArgoCommands(Commands):
                 f"'{self.repo}' with branch/tag '{version}'"
             )
 
-        if description is None:
+        # description is for the confirm-prompt display only here - never
+        # written back unless --desc was actually given. Reading it back
+        # just to re-push it is what let a version-only deploy wipe
+        # sibling label/service keys (set_key replaces whatever value it's
+        # given at its target key); merging via leaf keys below removes
+        # the need for that read-back entirely.
+        display_description = description
+        if display_description is None:
             try:
-                description = await self._check_description(service_name)
+                display_description = await self._check_description(service_name)
             except CommandError:
-                # Service not yet deployed — no existing description to retrieve
+                # Service not yet deployed — no existing description to show
                 pass
 
         if confirm_callback:
-            confirm_callback(version, description)
-        deploy_dict: YamlTypes = {
-            "enabled": True,
-            "targetRevision": version,
-            "labels": {"description": description},
-        }
+            confirm_callback(version, display_description)
 
-        await push_value(self.target, f"services.{service_name}", deploy_dict)
+        # Only write the keys we were asked to change - any other
+        # per-service metadata in the values repo (including other labels,
+        # or fields added in future) must survive a deploy untouched.
+        deploy_dict: dict[str, YamlTypes] = {
+            f"services.{service_name}.enabled": True,
+            f"services.{service_name}.targetRevision": version,
+        }
+        if description is not None:
+            # set_values shallow-merges this into any existing labels dict,
+            # so other labels already on the service survive.
+            deploy_dict[f"services.{service_name}.labels"] = {
+                "description": description
+            }
+
+        await push_values(self.target, deploy_dict)
 
     async def logs(self, service_name, prev):
         await self._logs(service_name, prev)
