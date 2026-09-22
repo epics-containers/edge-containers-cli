@@ -19,6 +19,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Grid, ScrollableContainer, Vertical
+from textual.geometry import Region
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
@@ -70,7 +71,7 @@ _SORT_SUFFIX_WIDTH = 1 + max(cell_len(SORT_ARROW_ASC), cell_len(SORT_ARROW_DESC)
 # Argo can take a moment longer to reflect the change. Both go through the
 # same refresh path as the poll loop (IocTable._refresh_once), so neither
 # can overlap it or each other - see there.
-ACTION_REFRESH_DELAY = 0.5
+ACTION_REFRESH_DELAY = 1.0
 ACTION_REFRESH_FOLLOW_UP_DELAY = 3.0
 
 # colours for the Argo CD health and sync vocabularies, as in
@@ -472,6 +473,38 @@ class IocTable(Widget):
         sorted_col = self.columns.index(self.sort_column_id)
 
         table.sort(table.ordered_columns[sorted_col].key, reverse=self.sort_reverse)
+        self._scroll_sort_column_into_view(table, sorted_col)
+
+    def _scroll_sort_column_into_view(
+        self, table: DataTable, column_index: int
+    ) -> None:
+        """Scroll the table horizontally, only if needed, so the sort
+        column - including its header arrow - is fully visible. Never
+        moves the row cursor or the vertical scroll.
+
+        DataTable has no public "scroll to column" API. This mirrors what
+        its own `_scroll_cursor_into_view` does for a "column"-type cursor
+        (private, but the same private surface `_set_pointer_shape` above
+        already relies on, under the same `textual<9` pin): build the
+        column's region and hand it to the public `scroll_to_region`,
+        which only scrolls if the region isn't already visible - but for
+        the sort column rather than the cursor, and x-axis only (the
+        region's y already matches the current scroll_y, and y_axis=False
+        rules it out regardless).
+        """
+        column_x, _y, width, full_height = table._get_column_region(  # noqa: SLF001
+            column_index
+        )
+        fixed_offset = table._get_fixed_offset()  # noqa: SLF001
+        region = Region(
+            column_x,
+            int(table.scroll_y) + fixed_offset.top,
+            width,
+            full_height - fixed_offset.top,
+        )
+        table.scroll_to_region(
+            region, animate=False, spacing=fixed_offset, force=True, y_axis=False
+        )
 
     def populate_table(self, iocs_df) -> None:
         """Method to render the TUI table."""

@@ -42,14 +42,18 @@ async def _run_table(app: MonitorApp) -> DataTable:
 
 
 async def _interact(
-    app: MonitorApp, body: Callable[["object", DataTable], Awaitable[None]]
+    app: MonitorApp,
+    body: Callable[["object", DataTable], Awaitable[None]],
+    size: tuple[int, int] | None = None,
 ) -> None:
     """Run `body(pilot, table)` against a mounted, loaded MonitorApp,
-    restoring the log handlers MonitorLogs swaps out."""
+    restoring the log handlers MonitorLogs swaps out. `size` forces the
+    terminal size (defaults to run_test's own default, 80x24)."""
     handlers = list(log.handlers)
 
     async def run() -> None:
-        async with app.run_test() as pilot:
+        run_test_cm = app.run_test() if size is None else app.run_test(size=size)
+        async with run_test_cm as pilot:
             table = app.query_one("#body_table", DataTable)
             for _ in range(50):
                 if table.row_count:
@@ -61,6 +65,21 @@ async def _interact(
         await run()
     finally:
         log.handlers[:] = handlers
+
+
+def _visible_window(table: DataTable):
+    """The table's currently visible content region, at its current
+    scroll offset."""
+    return table.scrollable_content_region.at_offset(table.scroll_offset)
+
+
+def _column_region(table: DataTable, column_id: str):
+    """The full region (header + rows) of the named column, however far
+    off-screen it currently is."""
+    index = next(
+        i for i, c in enumerate(table.ordered_columns) if str(c.key.value) == column_id
+    )
+    return table._get_column_region(index)  # noqa: SLF001
 
 
 def _heading(table: DataTable, column_id: str) -> str:
@@ -351,6 +370,66 @@ def test_monitor_sort_arrow_does_not_clip_header():
         await pilot.press("d")
         await pilot.pause()
         assert version_width() >= len(f"version {SORT_ARROW_DESC}")
+
+    asyncio.run(_interact(app, body))
+
+
+def test_monitor_sort_scrolls_offscreen_column_into_view():
+    """Cycling the sort key ('o') onto a column that's off-screen at a
+    narrow terminal width scrolls the table horizontally so the column -
+    header arrow included - is fully inside the viewport, without moving
+    the row cursor or the vertical scroll. At 30 columns wide, "version"
+    (the fourth default column) no longer fits alongside the earlier
+    ones."""
+    app = MonitorApp(DemoCommands(ECContext()), running_only=False)
+
+    async def body(pilot, table: DataTable) -> None:
+        ioc_table = app.query_one(IocTable)
+
+        assert table.scroll_x == 0
+        cursor_row_before = table.cursor_row
+        scroll_y_before = table.scroll_y
+
+        target = "version"
+        target_region = _column_region(table, target)
+        assert not _visible_window(table).contains_region(target_region), (
+            "test setup: 'version' should start off-screen at this width"
+        )
+
+        while ioc_table.sort_column_id != target:
+            await pilot.press("o")
+            await pilot.pause()
+
+        assert table.scroll_x > 0
+        assert _visible_window(table).contains_region(target_region)
+        assert table.cursor_row == cursor_row_before
+        assert table.scroll_y == scroll_y_before
+
+    asyncio.run(_interact(app, body, size=(30, 24)))
+
+
+def test_monitor_sort_does_not_scroll_when_column_already_visible():
+    """When every column already fits in the viewport (the default 80-wide
+    terminal, as every other test in this file uses), cycling the sort key
+    never scrolls the table - scroll_to_region's own "already visible"
+    check makes this a no-op, covering the 'd' direction-toggle case too
+    (it never changes which column is sorted, so there's never anything
+    new to reveal)."""
+    app = MonitorApp(DemoCommands(ECContext()), running_only=False)
+
+    async def body(pilot, table: DataTable) -> None:
+        ioc_table = app.query_one(IocTable)
+        columns = [str(c.key.value) for c in table.ordered_columns]
+
+        for _ in columns:
+            await pilot.press("o")
+            await pilot.pause()
+            assert table.scroll_x == 0
+
+        await pilot.press("d")
+        await pilot.pause()
+        assert table.scroll_x == 0
+        assert ioc_table.sort_reverse
 
     asyncio.run(_interact(app, body))
 
