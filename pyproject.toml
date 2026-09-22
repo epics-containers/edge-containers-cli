@@ -16,7 +16,7 @@ description = "CLI for deploying and managing epics containers IOCs and services
 
 dependencies = [
     "natsort",
-    "typer[all]",
+    "typer",
     "requests",
     "ruamel.yaml",
     "jinja2",
