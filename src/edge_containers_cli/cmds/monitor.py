@@ -10,6 +10,7 @@ from queue import Empty, Queue
 from typing import Any, cast
 
 import polars
+from rich.cells import cell_len
 from rich.style import Style
 from rich.syntax import Syntax
 from rich.text import Text
@@ -18,6 +19,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Grid, ScrollableContainer, Vertical
+from textual.geometry import Region
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
@@ -35,14 +37,71 @@ from textual.widgets import (
 from textual.widgets.data_table import RowKey
 from textual.worker import get_current_worker
 
-from edge_containers_cli.cmds.commands import CommandError, Commands
-from edge_containers_cli.definitions import ECLogLevels, Emoji
+from edge_containers_cli.cmds.commands import (
+    HEALTHY,
+    STOPPED_SUFFIX,
+    WIDE_COLUMNS,
+    CommandError,
+    Commands,
+)
+from edge_containers_cli.definitions import ECLogLevels
 from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
 from edge_containers_cli.utils import _AsyncFuncType, _run_async
 
 WHITE = Color.parse("white")
+
+# Marks the current sort column's header and its direction - see
+# _get_heading.
+SORT_ARROW_ASC = "▲"
+SORT_ARROW_DESC = "▼"
+
+# Every header reserves this much trailing width for " <arrow>", whether or
+# not it is currently the sort column - see _get_heading. A column's width
+# is only computed once, from the header Text passed to add_column(); when
+# the sort key later moves, _apply_sort() swaps a column's label in place
+# without recomputing its width, so a header that grew an arrow it hadn't
+# budgeted for would clip.
+_SORT_SUFFIX_WIDTH = 1 + max(cell_len(SORT_ARROW_ASC), cell_len(SORT_ARROW_DESC))
+
+# Delays (seconds) from the moment an action's (start/stop/restart) command
+# returns, at which IocTable.refresh_now() is scheduled: a first refresh
+# once the action's own effect should be visible, and a follow-up since
+# Argo can take a moment longer to reflect the change. Both go through the
+# same refresh path as the poll loop (IocTable._refresh_once), so neither
+# can overlap it or each other - see there.
+ACTION_REFRESH_DELAY = 1.0
+ACTION_REFRESH_FOLLOW_UP_DELAY = 3.0
+
+# colours for the Argo CD health and sync vocabularies, as in
+# argocd-monitor's status badges. A stopped service's health ends in
+# STOPPED_SUFFIX and is shown grey.
+STATUS_COLORS = {
+    "health": {
+        HEALTHY: Color.parse("green"),
+        "Progressing": Color.parse("dodgerblue"),
+        "Degraded": Color.parse("red"),
+        "Missing": Color.parse("yellow"),
+        "Suspended": Color.parse("grey"),
+        "Unknown": Color.parse("grey"),
+    },
+    "sync": {
+        "Synced": Color.parse("green"),
+        "OutOfSync": Color.parse("yellow"),
+        "Unknown": Color.parse("grey"),
+    },
+}
+
+
+def cell_color(column: str, value: Any) -> Color:
+    # argocd-monitor flags a stopped app with a separate red "Stopped"
+    # badge (Badge variant="destructive") next to its health badge, whatever
+    # the underlying health colour. ec folds that into one "Healthy
+    # (Stopped)" string, so show it in the same red as Degraded.
+    if column == "health" and str(value).endswith(STOPPED_SUFFIX):
+        return STATUS_COLORS["health"]["Degraded"]
+    return STATUS_COLORS.get(column, {}).get(str(value), WHITE)
 
 
 class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
@@ -264,18 +323,16 @@ class IocTable(Widget):
 
     default_sort_column_id = "name"
     sort_column_id = reactive(default_sort_column_id, init=False)
+    sort_reverse = reactive(False, init=False)
 
-    def __init__(self, commands, running_only: bool) -> None:
+    def __init__(self, commands, running_only: bool, wide: bool = False) -> None:
         super().__init__()
 
         self.commands = commands
         self.running_only = running_only
-        self._indicator_lock = threading.Lock()
+        self.wide = wide
+        self._refresh_lock = threading.Lock()
         self._async_lock = asyncio.Lock()
-        self._service_indicators = {
-            "name": [""],
-            Emoji.exclaim: [""],
-        }
         self._polling_rate_hz = 1
 
     def compose(self) -> ComposeResult:
@@ -286,20 +343,49 @@ class IocTable(Widget):
             header_height=1,
             show_cursor=False,
             zebra_stripes=True,
-            show_row_labels=True,
         )
         self.table.focus()
         yield self.table
 
     def _get_heading(self, column_id: str):
         if column_id == self.sort_column_id:
-            heading = Text(column_id, justify="center")
+            arrow = SORT_ARROW_DESC if self.sort_reverse else SORT_ARROW_ASC
+            suffix = f" {arrow}"
         else:
-            heading = Text(column_id, justify="center").on(
-                click=f"app.sort('{column_id}')"
-            )
+            # Reserve the same width as " <arrow>" so this header doesn't
+            # need to grow - and clip the arrow while it's too narrow - the
+            # moment it becomes the sort column. See _SORT_SUFFIX_WIDTH.
+            suffix = " " * _SORT_SUFFIX_WIDTH
+        heading = Text(f"{column_id}{suffix}", justify="left")
 
-        return heading
+        # Clicking any header sorts by it: a click on the current sort
+        # column toggles its direction (set_sort_column), a click on
+        # another column makes it the (ascending) sort column.
+        return heading.on(click=f"app.sort('{column_id}')")
+
+    def set_sort_column(self, column_id: str) -> None:
+        """Called when a column header is clicked (or `app.sort(col)` is
+        run directly). Toggles direction if it's already the sort column,
+        otherwise makes it the sort column, ascending."""
+        if column_id == self.sort_column_id:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column_id = column_id
+            self.sort_reverse = False
+
+    def cycle_sort_column(self) -> None:
+        """Called by the 'o' binding: move the sort key to the next visible
+        column, in display order, wrapping around, and reset to
+        ascending."""
+        col_index = self.columns.index(self.sort_column_id)
+        new_index = (col_index + 1) % len(self.columns)
+        self.sort_column_id = self.columns[new_index]
+        self.sort_reverse = False
+
+    def toggle_sort_direction(self) -> None:
+        """Called by the direction-toggle binding: flip the current sort
+        column's direction without changing which column is sorted."""
+        self.sort_reverse = not self.sort_reverse
 
     def on_mount(self) -> None:
         self.table.display = False  # hide until ready
@@ -311,8 +397,9 @@ class IocTable(Widget):
         iocs_df: polars.DataFrame = self._get_services_df(self.running_only)
 
         self.columns = iocs_df.columns
-        # We don't want the description to be a custom column (using DataTable row label instead)
-        self.columns.remove("description")
+        if not self.wide:
+            # match `ec ps`: properties are opt-in via --wide
+            self.columns = [c for c in self.columns if c not in WIDE_COLUMNS]
 
         def _update():
             for column_id in self.columns:
@@ -338,46 +425,86 @@ class IocTable(Widget):
         worker = get_current_worker()
 
         while not worker.is_cancelled:
-            result = self._get_services_df(self.running_only)
-            self.app.call_from_thread(partial(self.populate_table, result))
+            self._refresh_once()
             time.sleep(1 / self._polling_rate_hz)
 
-    def _get_services_df(self, running_only):
-        services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
-        services_df = services_df.with_columns(
-            polars.when(polars.col("ready"))
-            .then(polars.lit(Emoji.check_mark))
-            .otherwise(polars.lit(Emoji.cross_mark))
-            .alias("ready")
-        )
-        indicators_df = polars.DataFrame(self._service_indicators)
-        result = services_df.join(
-            indicators_df,
-            on="name",
-            how="left",
-        ).fill_null("")
-        return result
+    def _refresh_once(self) -> None:
+        """Fetch fresh data and redraw the table. This is the single data
+        path used both by the poll loop and by an on-demand refresh
+        (refresh_now) - e.g. right after start/stop/restart completes.
+        Skips rather than blocking if a refresh is already in flight, so
+        an on-demand refresh can't overlap the poll loop or another
+        on-demand refresh."""
+        if not self._refresh_lock.acquire(blocking=False):
+            return
+        try:
+            result = self._get_services_df(self.running_only)
+            self.app.call_from_thread(partial(self.populate_table, result))
+        finally:
+            self._refresh_lock.release()
 
-    def update_indicator_threadsafe(self, name: str, indicator: str):
-        with self._indicator_lock:
-            if name in self._service_indicators["name"]:
-                index = self._service_indicators["name"].index(name)
-                self._service_indicators[Emoji.exclaim][index] = indicator
-            else:
-                self._service_indicators["name"].append(name)
-                self._service_indicators[Emoji.exclaim].append(indicator)
+    def refresh_now(self) -> None:
+        """Trigger an immediate, one-off refresh outside the normal poll
+        cadence, through the same path (_refresh_once) the poll loop uses.
+        Safe to call from any thread."""
+        self.run_worker(self._refresh_once, thread=True, group="on_demand_refresh")
+
+    def _get_services_df(self, running_only):
+        return self.commands._get_services_df(running_only)  # noqa: SLF001
 
     def watch_sort_column_id(self, sort_column_id: str) -> None:
         """Called when the sort_column_id attribute changes."""
+        self._apply_sort()
+
+    def watch_sort_reverse(self, sort_reverse: bool) -> None:  # noqa: FBT001
+        """Called when the sort_reverse attribute changes (a direction
+        toggle on the current sort column, with no column change)."""
+        self._apply_sort()
+
+    def _apply_sort(self) -> None:
+        """(Re)draw every header to reflect sort_column_id/sort_reverse,
+        and (re)sort the rows to match. Called whenever either changes."""
         table = self.query_one("#body_table", DataTable)
 
-        # Reformat headings based on new sorted column
+        # Reformat headings based on the current sort column and direction
         for i, _column in enumerate(self.columns):
             table.ordered_columns[i].label = self._get_heading(_column)
 
-        sorted_col = self.columns.index(sort_column_id)
+        sorted_col = self.columns.index(self.sort_column_id)
 
-        table.sort(table.ordered_columns[sorted_col].key, reverse=False)
+        table.sort(table.ordered_columns[sorted_col].key, reverse=self.sort_reverse)
+        self._scroll_sort_column_into_view(table, sorted_col)
+
+    def _scroll_sort_column_into_view(
+        self, table: DataTable, column_index: int
+    ) -> None:
+        """Scroll the table horizontally, only if needed, so the sort
+        column - including its header arrow - is fully visible. Never
+        moves the row cursor or the vertical scroll.
+
+        DataTable has no public "scroll to column" API. This mirrors what
+        its own `_scroll_cursor_into_view` does for a "column"-type cursor
+        (private, but the same private surface `_set_pointer_shape` above
+        already relies on, under the same `textual<9` pin): build the
+        column's region and hand it to the public `scroll_to_region`,
+        which only scrolls if the region isn't already visible - but for
+        the sort column rather than the cursor, and x-axis only (the
+        region's y already matches the current scroll_y, and y_axis=False
+        rules it out regardless).
+        """
+        column_x, _y, width, full_height = table._get_column_region(  # noqa: SLF001
+            column_index
+        )
+        fixed_offset = table._get_fixed_offset()  # noqa: SLF001
+        region = Region(
+            column_x,
+            int(table.scroll_y) + fixed_offset.top,
+            width,
+            full_height - fixed_offset.top,
+        )
+        table.scroll_to_region(
+            region, animate=False, spacing=fixed_offset, force=True, y_axis=False
+        )
 
     def populate_table(self, iocs_df) -> None:
         """Method to render the TUI table."""
@@ -401,8 +528,8 @@ class IocTable(Widget):
                         "contents": SortableText(
                             ioc[key],
                             str(ioc[key]),
-                            WHITE,
-                            justify="center",
+                            cell_color(key, ioc[key]),
+                            justify="left",
                         ),
                     }
                     for key in self.columns
@@ -412,23 +539,30 @@ class IocTable(Widget):
                     table.add_row(
                         *[cell["contents"] for cell in cells],
                         key=row_key,
-                        label=ioc["description"],
                     )
                 else:
                     for cell in cells:
                         current = table.get_cell(row_key, cell["col_key"])
                         # only update if value has actually changed
                         if str(current) != str(cell["contents"]):
+                            # update_width=True: a refreshed cell can grow
+                            # (e.g. "Healthy" -> "Healthy (Stopped)") and the
+                            # column must widen to fit, as it would for a
+                            # freshly added row.
                             table.update_cell(
-                                row_key, cell["col_key"], cell["contents"]
+                                row_key,
+                                cell["col_key"],
+                                cell["contents"],
+                                update_width=True,
                             )
 
             # If any IOC has been removed, remove it from the table
             for old_row_key in curr_ioc_set - new_ioc_set:
                 table.remove_row(old_row_key)
 
-            # Sort by column
-            table.sort(self.sort_column_id, reverse=False)
+            # Sort by column, preserving the current direction across
+            # polling refreshes
+            table.sort(self.sort_column_id, reverse=self.sort_reverse)
 
 
 class MonitorLogHandler(logging.Handler):
@@ -469,6 +603,7 @@ class MonitorApp(App):
         Binding("r", "restart_ioc", "Restart IOC"),
         Binding("l", "ioc_logs", "IOC Logs"),
         Binding("o", "sort", "Sort"),
+        Binding("d", "toggle_sort_direction", "Direction"),
         Binding("m", "monitor_logs", "Monitor logs", show=False),
     ]
 
@@ -476,21 +611,36 @@ class MonitorApp(App):
         self,
         commands: Commands,
         running_only: bool,
+        wide: bool = False,
     ) -> None:
         super().__init__()
 
         self.commands = commands
         self.running_only = running_only
+        self.wide = wide
         self.beamline = commands.target
         self.busy_services: ThreadsafeSet = ThreadsafeSet()
         self._queue: Queue[Callable] = Queue()
+
+    def _set_pointer_shape(self, shape: str) -> None:
+        """Silence Textual's Kitty pointer-shape escape (OSC 22).
+
+        `App._set_pointer_shape` (private API - hence the `textual<9` pin in
+        pyproject.toml) writes `ESC ] 22 ; <shape> BEL` unconditionally,
+        with no terminal-capability check, right after parking the cursor
+        at (0, 0) for the frame. A terminal that doesn't consume OSC 22
+        prints it as literal text over the Header's icon instead - e.g.
+        clicking anywhere in the table leaves "]22;text" stuck there. ec's
+        monitor doesn't need the pointer shape changed, so this overrides
+        it to do nothing rather than trying to detect terminal support.
+        """
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
         with Vertical():
             with Static(id="ioc_table_container"):
-                self.table = IocTable(self.commands, self.running_only)
+                self.table = IocTable(self.commands, self.running_only, self.wide)
                 yield ScrollableContainer(self.table)
             yield Collapsible(
                 MonitorLogs(),
@@ -541,20 +691,29 @@ class MonitorApp(App):
         if service_name := self._get_highlighted_cell("name"):
             return service_name
 
+    def _schedule_action_refresh(self) -> None:
+        """Schedule the on-demand refresh(es) triggered by a start/stop/
+        restart action completing - see ACTION_REFRESH_DELAY and
+        ACTION_REFRESH_FOLLOW_UP_DELAY. Must run on the app thread (Timer
+        creation needs a running event loop), so callers on a worker
+        thread reach this via call_from_thread."""
+        table = self.query_one(IocTable)
+        self.set_timer(ACTION_REFRESH_DELAY, table.refresh_now)
+        self.set_timer(ACTION_REFRESH_FOLLOW_UP_DELAY, table.refresh_now)
+
     def _do_confirmed_action(self, action: str, command: Callable):
         if service_name := self._get_service_name():
-            table = self.query_one(IocTable)
 
             def do_task(command, service_name):
                 def _do_task():
                     try:
-                        table.update_indicator_threadsafe(
-                            service_name, Emoji.road_works
-                        )
                         _run_async(command(service_name))
                     finally:
-                        table.update_indicator_threadsafe(service_name, Emoji.none)
                         self.busy_services.remove(service_name)
+                        # Show the result without waiting for the next poll
+                        # tick - runs on this worker thread, so hop back to
+                        # the app thread to schedule the timers.
+                        self.call_from_thread(self._schedule_action_refresh)
 
                 return _do_task
 
@@ -567,9 +726,6 @@ class MonitorApp(App):
                     else:
                         log.info(f"Scheduled: {action} {service_name}")
                         self.busy_services.add(service_name)
-                        table.update_indicator_threadsafe(
-                            service_name, Emoji.hour_glass
-                        )
                         self._queue.put(do_task(command, service_name))
 
             self.push_screen(
@@ -594,43 +750,39 @@ class MonitorApp(App):
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
         if service_name := self._get_service_name():
-            # Convert to corresponding bool
-            ready = self._get_highlighted_cell("ready") == Emoji.check_mark
-
-            if ready:
+            if self._get_highlighted_cell("health") == HEALTHY:
                 command = self.commands._get_logs  # noqa: SLF001
                 self.push_screen(LogsScreen(command, service_name))
             else:
-                log.info(f"Ignore request for logs - {service_name} not ready")
+                log.info(f"Ignore request for logs - {service_name} not healthy")
         else:
             log.info("No services available to perform: 'logs'")
 
     def action_sort(self, col_name: str = "") -> None:
         """An action to sort the table rows by column heading."""
+        table = self.query_one(IocTable)
         if col_name != "":
-            # If col_name is provided, sort by that column
-            # e.g. if a column heading is clicked
-            new_col = col_name
+            # col_name is provided when a column heading is clicked: sort by
+            # it (toggling direction if it's already the sort column).
+            log.info(f"Sort column selected: '{col_name}'")
+            table.set_sort_column(col_name)
         else:
-            # If no column name is provided (e.g. by pressing the key bind),
-            # then just cycle to the next column
-            table = self.query_one(IocTable)
-            col_name = table.sort_column_id
-            cols = table.columns
-            col_index = cols.index(col_name)
-            new_col = cols[0 if col_index + 1 > 3 else col_index + 1]
-        self.update_sort_key(new_col)
+            # No column name (the 'o' key bind): cycle to the next visible
+            # column, resetting to ascending.
+            table.cycle_sort_column()
+            log.info(f"New sort key '{table.sort_column_id}'")
+
+    def action_toggle_sort_direction(self) -> None:
+        """An action to flip the current sort column's direction."""
+        table = self.query_one(IocTable)
+        table.toggle_sort_direction()
+        direction = "descending" if table.sort_reverse else "ascending"
+        log.info(f"Sort direction: {direction}")
 
     def action_monitor_logs(self) -> None:
         """Get a new hello and update the content area."""
         collapsed_state = self.query_one(Collapsible).collapsed
         self.query_one(Collapsible).collapsed = not collapsed_state
-
-    def update_sort_key(self, col_name: str) -> None:
-        """Method called to update the table sort key attribute."""
-        table = self.query_one(IocTable)
-        log.info(f"New sort key '{col_name}'")
-        table.sort_column_id = col_name
 
 
 class ThreadsafeSet:

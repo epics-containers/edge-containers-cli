@@ -186,6 +186,13 @@ def data() -> Path:
     return DATA_PATH
 
 
+@fixture
+def wide_console(monkeypatch):
+    # Rich renders to ~80 columns when not on a tty, which would truncate
+    # the ps table - give it room so the tests see every cell in full.
+    monkeypatch.setenv("COLUMNS", "200")
+
+
 @fixture()
 def K8S(mocker, data):
     mocker.patch.dict(

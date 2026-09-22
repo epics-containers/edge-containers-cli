@@ -386,7 +386,7 @@ requires-dist = [
     { name = "polars-lts-cpu" },
     { name = "requests" },
     { name = "ruamel-yaml" },
-    { name = "textual", specifier = ">=7.4" },
+    { name = "textual", specifier = ">=7.4,<9" },
     { name = "typer" },
     { name = "urllib3", specifier = "<2.4.0" },
 ]

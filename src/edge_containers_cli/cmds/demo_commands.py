@@ -11,6 +11,8 @@ from random import randrange, seed
 import polars
 
 from edge_containers_cli.cmds.commands import (
+    HEALTHY,
+    STOPPED_SUFFIX,
     CommandError,
     Commands,
     ServicesDataFrame,
@@ -31,19 +33,23 @@ def process_t(time_string) -> str:
 
 sample_data = {
     "name": [f"demo-ea-0{cnt}" for cnt in range(NUM_SERVICES)],
-    "description": [f"demo-device-0{cnt}" for cnt in range(NUM_SERVICES)],
+    "health": [HEALTHY] * NUM_SERVICES,
+    "sync": ["Synced"] * NUM_SERVICES,
     "version": ["1.0." + str(25 - cnt) for cnt in range(NUM_SERVICES)],
-    "ready": [True] * NUM_SERVICES,
-    "deployed": [
+    "last sync": [
         process_t(f"2024-10-22T11:23:0{randrange(1, 9)}Z")
         for cnt in range(NUM_SERVICES)
     ],
+    "description": [f"demo-device-0{cnt}" for cnt in range(NUM_SERVICES)],
+    "properties": [f"location=bench-{cnt % 2}" for cnt in range(NUM_SERVICES)],
 }
 
 if NUM_SERVICES == 0:
     SampleServicesDataFrame = polars.DataFrame(schema=ServicesSchema)
 else:
-    SampleServicesDataFrame = ServicesDataFrame(polars.from_dict(sample_data))
+    SampleServicesDataFrame = ServicesDataFrame(
+        polars.from_dict(sample_data, schema=ServicesSchema)
+    )
 
 
 def demo_wrapper():
@@ -95,8 +101,8 @@ class DemoCommands(Commands):
         pass
 
     @demo_message
-    def ps(self, running_only):
-        self._ps(running_only)
+    def ps(self, running_only, wide=False):
+        self._ps(running_only, wide)
 
     @demo_message
     async def restart(self, service_name):
@@ -123,9 +129,9 @@ class DemoCommands(Commands):
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(
             polars.when(polars.col("name") == service_name)
-            .then(True)
-            .otherwise(polars.col("ready"))
-            .alias("ready")
+            .then(polars.lit(HEALTHY))
+            .otherwise(polars.col("health"))
+            .alias("health")
         )
 
     @demo_message
@@ -137,9 +143,9 @@ class DemoCommands(Commands):
         time.sleep(DELAY)
         self._stateDF = self._stateDF.with_columns(
             polars.when(polars.col("name") == service_name)
-            .then(False)
-            .otherwise(polars.col("ready"))
-            .alias("ready")
+            .then(polars.lit(HEALTHY + STOPPED_SUFFIX))
+            .otherwise(polars.col("health"))
+            .alias("health")
         )
 
     async def _get_logs(self, service_name, prev) -> str:
@@ -153,7 +159,9 @@ class DemoCommands(Commands):
 
     def _get_services_df(self, running_only) -> ServicesDataFrame:
         if running_only:
-            return ServicesDataFrame(self._stateDF.filter(polars.col("ready").eq(True)))
+            return ServicesDataFrame(
+                self._stateDF.filter(polars.col("health").eq(HEALTHY))
+            )
         else:
             return ServicesDataFrame(self._stateDF)
 

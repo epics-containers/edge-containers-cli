@@ -83,21 +83,24 @@ def test_stop(mock_run, K8S):
     mock_run.run_cli("stop bl01t-ea-test-01")
 
 
-def test_ps(mock_run, K8S):
-    expect = (
-        "╭──────────────────┬─────────────┬───────────────┬───────┬─────────────────────╮\n"
-        "│ name             │ description │ version       │ ready │ deployed            │\n"
-        "├──────────────────┼─────────────┼───────────────┼───────┼─────────────────────┤\n"
-        "│ bl01t-ea-test-01 │             │ 2024.7.824f-b │ True  │ 2024-07-26T08:16:0… │\n"
-        "╰──────────────────┴─────────────┴───────────────┴───────┴─────────────────────╯\n"
-    )
+K8S_PS_EXPECT = (
+    "╭──────────────────┬─────────┬──────┬───────────────┬──────────────────────┬─────────────╮\n"
+    "│ name             │ health  │ sync │ version       │ last sync            │ description │\n"
+    "├──────────────────┼─────────┼──────┼───────────────┼──────────────────────┼─────────────┤\n"
+    "│ bl01t-ea-test-01 │ Healthy │      │ 2024.7.824f-b │ 2024-07-26T08:16:07Z │             │\n"
+    "╰──────────────────┴─────────┴──────┴───────────────┴──────────────────────┴─────────────╯\n"
+)
+
+
+def test_ps(mock_run, K8S, wide_console):
+    expect = K8S_PS_EXPECT
     mock_run.set_seq(K8S.checks)
     res = mock_run.run_cli("ps")
 
     assert res == expect
 
 
-def test_ps_ignores_stale_description_label(mock_run, K8S):
+def test_ps_ignores_stale_description_label(mock_run, K8S, wide_console):
     # descriptions are an Argo CD Application annotation only now - even if
     # a StatefulSet still carries a leftover `description` label from
     # before that change, the K8s backend must not read or display it.
@@ -132,11 +135,4 @@ metadata:
     res = mock_run.run_cli("ps")
 
     assert stale_label not in res
-    expect = (
-        "╭──────────────────┬─────────────┬───────────────┬───────┬─────────────────────╮\n"
-        "│ name             │ description │ version       │ ready │ deployed            │\n"
-        "├──────────────────┼─────────────┼───────────────┼───────┼─────────────────────┤\n"
-        "│ bl01t-ea-test-01 │             │ 2024.7.824f-b │ True  │ 2024-07-26T08:16:0… │\n"
-        "╰──────────────────┴─────────────┴───────────────┴───────┴─────────────────────╯\n"
-    )
-    assert res == expect
+    assert res == K8S_PS_EXPECT

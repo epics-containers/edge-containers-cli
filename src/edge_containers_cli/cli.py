@@ -256,13 +256,16 @@ def monitor(
     running_only: bool = typer.Option(
         False, "-r", "--running-only", help="list only services that are running"
     ),
+    wide: bool = typer.Option(
+        False, "-w", "--wide", help="also show each service's properties (labels)"
+    ),
 ):
     """Open monitor TUI"""
     from edge_containers_cli.cmds.monitor import (
         MonitorApp,  # Lazy import for performace
     )
 
-    app = MonitorApp(backend.commands, running_only)
+    app = MonitorApp(backend.commands, running_only, wide)
     app.run()
 
 
@@ -271,9 +274,12 @@ def ps(
     running_only: bool = typer.Option(
         False, "-r", "--running-only", help="list only services that are running"
     ),
+    wide: bool = typer.Option(
+        False, "-w", "--wide", help="also show each service's properties (labels)"
+    ),
 ):
     """List the services running in the current target"""
-    backend.commands.ps(running_only)
+    backend.commands.ps(running_only, wide)
 
 
 @cli.command()

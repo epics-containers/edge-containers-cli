@@ -21,7 +21,10 @@ dependencies = [
     "ruamel.yaml",
     "jinja2",
     "polars-lts-cpu",
-    "textual>=7.4",
+    # <9: MonitorApp overrides the private _set_pointer_shape (see monitor.py)
+    # to silence Textual's unconditional OSC 22 pointer-shape escape, which
+    # some terminals print as garbage. Re-check that override on any bump.
+    "textual>=7.4,<9",
     # urllib>=2.4.0 fails to validate DLS Kubernetes certificates
     # https://github.com/kubernetes-client/python/issues/2394
     "urllib3<2.4.0",
