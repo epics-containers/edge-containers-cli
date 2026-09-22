@@ -33,12 +33,3 @@ class ECContext:
     repo: str = ""
     target: str = ""
     log_url: str = ""
-
-
-class Emoji(str, Enum):
-    none = ""
-    road_works = "\U0001f6a7"
-    exclaim = "\U00002755"
-    check_mark = "\U00002705"
-    cross_mark = "\U0000274c"
-    hour_glass = "\U000023f3c"

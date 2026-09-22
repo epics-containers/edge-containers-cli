@@ -43,7 +43,7 @@ from edge_containers_cli.cmds.commands import (
     CommandError,
     Commands,
 )
-from edge_containers_cli.definitions import ECLogLevels, Emoji
+from edge_containers_cli.definitions import ECLogLevels
 from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError
@@ -64,17 +64,14 @@ SORT_ARROW_DESC = "▼"
 # budgeted for would clip.
 _SORT_SUFFIX_WIDTH = 1 + max(cell_len(SORT_ARROW_ASC), cell_len(SORT_ARROW_DESC))
 
-# The rightmost table column is a busy/action indicator, not per-service
-# data: update_indicator_threadsafe fills a service's cell with a road-works
-# or hourglass icon while start/stop/restart is queued or running, and
-# clears it back to "" once it finishes - so it's usually empty. Its column
-# id (used internally to key the underlying DataFrame and DataTable column)
-# is Emoji.exclaim, a Unicode symbol some terminal fonts don't have a glyph
-# for and fall back to rendering as a bare "!". _get_heading gives it a
-# plain-text label instead, and it's excluded from the sort cycle/clicks
-# (cycle_sort_column, set_sort_column) since sorting by it is meaningless.
-INDICATOR_COLUMN = Emoji.exclaim
-INDICATOR_HEADING = "status"
+# Delays (seconds) from the moment an action's (start/stop/restart) command
+# returns, at which IocTable.refresh_now() is scheduled: a first refresh
+# once the action's own effect should be visible, and a follow-up since
+# Argo can take a moment longer to reflect the change. Both go through the
+# same refresh path as the poll loop (IocTable._refresh_once), so neither
+# can overlap it or each other - see there.
+ACTION_REFRESH_DELAY = 0.5
+ACTION_REFRESH_FOLLOW_UP_DELAY = 3.0
 
 # colours for the Argo CD health and sync vocabularies, as in
 # argocd-monitor's status badges. A stopped service's health ends in
@@ -333,12 +330,8 @@ class IocTable(Widget):
         self.commands = commands
         self.running_only = running_only
         self.wide = wide
-        self._indicator_lock = threading.Lock()
+        self._refresh_lock = threading.Lock()
         self._async_lock = asyncio.Lock()
-        self._service_indicators = {
-            "name": [""],
-            Emoji.exclaim: [""],
-        }
         self._polling_rate_hz = 1
 
     def compose(self) -> ComposeResult:
@@ -354,10 +347,6 @@ class IocTable(Widget):
         yield self.table
 
     def _get_heading(self, column_id: str):
-        if column_id == INDICATOR_COLUMN:
-            # Fixed label, not sortable/clickable - see INDICATOR_COLUMN.
-            return Text(INDICATOR_HEADING, justify="left")
-
         if column_id == self.sort_column_id:
             arrow = SORT_ARROW_DESC if self.sort_reverse else SORT_ARROW_ASC
             suffix = f" {arrow}"
@@ -377,8 +366,6 @@ class IocTable(Widget):
         """Called when a column header is clicked (or `app.sort(col)` is
         run directly). Toggles direction if it's already the sort column,
         otherwise makes it the sort column, ascending."""
-        if column_id == INDICATOR_COLUMN:
-            return  # not a sortable data column - see INDICATOR_COLUMN
         if column_id == self.sort_column_id:
             self.sort_reverse = not self.sort_reverse
         else:
@@ -386,13 +373,12 @@ class IocTable(Widget):
             self.sort_reverse = False
 
     def cycle_sort_column(self) -> None:
-        """Called by the 'o' binding: move the sort key to the next visible,
-        sortable column (excluding INDICATOR_COLUMN), in display order,
-        wrapping around, and reset to ascending."""
-        sortable_columns = [c for c in self.columns if c != INDICATOR_COLUMN]
-        col_index = sortable_columns.index(self.sort_column_id)
-        new_index = (col_index + 1) % len(sortable_columns)
-        self.sort_column_id = sortable_columns[new_index]
+        """Called by the 'o' binding: move the sort key to the next visible
+        column, in display order, wrapping around, and reset to
+        ascending."""
+        col_index = self.columns.index(self.sort_column_id)
+        new_index = (col_index + 1) % len(self.columns)
+        self.sort_column_id = self.columns[new_index]
         self.sort_reverse = False
 
     def toggle_sort_direction(self) -> None:
@@ -438,28 +424,32 @@ class IocTable(Widget):
         worker = get_current_worker()
 
         while not worker.is_cancelled:
-            result = self._get_services_df(self.running_only)
-            self.app.call_from_thread(partial(self.populate_table, result))
+            self._refresh_once()
             time.sleep(1 / self._polling_rate_hz)
 
-    def _get_services_df(self, running_only):
-        services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
-        indicators_df = polars.DataFrame(self._service_indicators)
-        result = services_df.join(
-            indicators_df,
-            on="name",
-            how="left",
-        ).fill_null("")
-        return result
+    def _refresh_once(self) -> None:
+        """Fetch fresh data and redraw the table. This is the single data
+        path used both by the poll loop and by an on-demand refresh
+        (refresh_now) - e.g. right after start/stop/restart completes.
+        Skips rather than blocking if a refresh is already in flight, so
+        an on-demand refresh can't overlap the poll loop or another
+        on-demand refresh."""
+        if not self._refresh_lock.acquire(blocking=False):
+            return
+        try:
+            result = self._get_services_df(self.running_only)
+            self.app.call_from_thread(partial(self.populate_table, result))
+        finally:
+            self._refresh_lock.release()
 
-    def update_indicator_threadsafe(self, name: str, indicator: str):
-        with self._indicator_lock:
-            if name in self._service_indicators["name"]:
-                index = self._service_indicators["name"].index(name)
-                self._service_indicators[Emoji.exclaim][index] = indicator
-            else:
-                self._service_indicators["name"].append(name)
-                self._service_indicators[Emoji.exclaim].append(indicator)
+    def refresh_now(self) -> None:
+        """Trigger an immediate, one-off refresh outside the normal poll
+        cadence, through the same path (_refresh_once) the poll loop uses.
+        Safe to call from any thread."""
+        self.run_worker(self._refresh_once, thread=True, group="on_demand_refresh")
+
+    def _get_services_df(self, running_only):
+        return self.commands._get_services_df(running_only)  # noqa: SLF001
 
     def watch_sort_column_id(self, sort_column_id: str) -> None:
         """Called when the sort_column_id attribute changes."""
@@ -668,20 +658,29 @@ class MonitorApp(App):
         if service_name := self._get_highlighted_cell("name"):
             return service_name
 
+    def _schedule_action_refresh(self) -> None:
+        """Schedule the on-demand refresh(es) triggered by a start/stop/
+        restart action completing - see ACTION_REFRESH_DELAY and
+        ACTION_REFRESH_FOLLOW_UP_DELAY. Must run on the app thread (Timer
+        creation needs a running event loop), so callers on a worker
+        thread reach this via call_from_thread."""
+        table = self.query_one(IocTable)
+        self.set_timer(ACTION_REFRESH_DELAY, table.refresh_now)
+        self.set_timer(ACTION_REFRESH_FOLLOW_UP_DELAY, table.refresh_now)
+
     def _do_confirmed_action(self, action: str, command: Callable):
         if service_name := self._get_service_name():
-            table = self.query_one(IocTable)
 
             def do_task(command, service_name):
                 def _do_task():
                     try:
-                        table.update_indicator_threadsafe(
-                            service_name, Emoji.road_works
-                        )
                         _run_async(command(service_name))
                     finally:
-                        table.update_indicator_threadsafe(service_name, Emoji.none)
                         self.busy_services.remove(service_name)
+                        # Show the result without waiting for the next poll
+                        # tick - runs on this worker thread, so hop back to
+                        # the app thread to schedule the timers.
+                        self.call_from_thread(self._schedule_action_refresh)
 
                 return _do_task
 
@@ -694,9 +693,6 @@ class MonitorApp(App):
                     else:
                         log.info(f"Scheduled: {action} {service_name}")
                         self.busy_services.add(service_name)
-                        table.update_indicator_threadsafe(
-                            service_name, Emoji.hour_glass
-                        )
                         self._queue.put(do_task(command, service_name))
 
             self.push_screen(

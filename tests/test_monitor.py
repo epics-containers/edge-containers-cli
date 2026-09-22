@@ -10,15 +10,15 @@ from textual.widgets.data_table import ColumnKey
 
 from edge_containers_cli.cmds.demo_commands import DemoCommands
 from edge_containers_cli.cmds.monitor import (
-    INDICATOR_COLUMN,
-    INDICATOR_HEADING,
+    ACTION_REFRESH_DELAY,
+    ACTION_REFRESH_FOLLOW_UP_DELAY,
     SORT_ARROW_ASC,
     SORT_ARROW_DESC,
     IocTable,
     MonitorApp,
     cell_color,
 )
-from edge_containers_cli.definitions import ECContext, Emoji
+from edge_containers_cli.definitions import ECContext
 from edge_containers_cli.logging import log
 
 
@@ -105,7 +105,6 @@ def test_monitor_columns():
         "version",
         "last sync",
         "description",
-        Emoji.exclaim,
     ]
 
     assert table.row_count == 8
@@ -131,7 +130,6 @@ def test_monitor_columns_wide():
         "last sync",
         "description",
         "properties",
-        Emoji.exclaim,
     ]
 
     row = table.get_row("demo-ea-00")
@@ -156,61 +154,46 @@ def test_monitor_columns_left_justified():
 
 def test_monitor_sort_cycle_default_columns():
     """The 'o' binding (action_sort with no column) cycles the sort arrow
-    through the sortable columns, in display order, wrapping back to the
+    through every visible column, in display order, wrapping back to the
     start. Exactly one header carries the arrow at every step, always
     ascending, and description gets it (it's a real column now, unlike the
-    old row-label bug). The trailing busy/action indicator column
-    (INDICATOR_COLUMN - see monitor.py) isn't real per-service data, so
-    it's excluded from the cycle and keeps a plain text header throughout,
-    never the arrow."""
+    old row-label bug)."""
     app = MonitorApp(DemoCommands(ECContext()), running_only=False)
 
     async def body(pilot, table: DataTable) -> None:
         columns = [str(c.key.value) for c in table.ordered_columns]
         assert "description" in columns
         assert "properties" not in columns
-        assert INDICATOR_COLUMN in columns
-
-        sortable_columns = [c for c in columns if c != INDICATOR_COLUMN]
-        # every column the cycle visits has a real text header, not the
-        # indicator's raw Unicode glyph
-        assert all(c.isascii() and c.strip() for c in sortable_columns)
-        assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
+        # every column the cycle visits has a real text header
+        assert all(c.isascii() and c.strip() for c in columns)
 
         # default sort column is "name", ascending
         assert _sorted_column(table, columns) == ("name", False)
 
-        for expected_column in sortable_columns[1:] + sortable_columns[:1]:
+        for expected_column in columns[1:] + columns[:1]:
             await pilot.press("o")
             await pilot.pause()
             assert _sorted_column(table, columns) == (expected_column, False)
-            assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
 
     asyncio.run(_interact(app, body))
 
 
 def test_monitor_sort_cycle_wide_columns():
-    """Same as above with --wide: properties joins the cycle, the
-    indicator column still doesn't."""
+    """Same as above with --wide: properties joins the cycle too."""
     app = MonitorApp(DemoCommands(ECContext()), running_only=False, wide=True)
 
     async def body(pilot, table: DataTable) -> None:
         columns = [str(c.key.value) for c in table.ordered_columns]
         assert "description" in columns
         assert "properties" in columns
-        assert INDICATOR_COLUMN in columns
-
-        sortable_columns = [c for c in columns if c != INDICATOR_COLUMN]
-        assert all(c.isascii() and c.strip() for c in sortable_columns)
-        assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
+        assert all(c.isascii() and c.strip() for c in columns)
 
         assert _sorted_column(table, columns) == ("name", False)
 
-        for expected_column in sortable_columns[1:] + sortable_columns[:1]:
+        for expected_column in columns[1:] + columns[:1]:
             await pilot.press("o")
             await pilot.pause()
             assert _sorted_column(table, columns) == (expected_column, False)
-            assert _heading(table, INDICATOR_COLUMN) == INDICATOR_HEADING
 
     asyncio.run(_interact(app, body))
 
@@ -419,6 +402,65 @@ def test_monitor_click_does_not_leak_osc22():
         asyncio.run(run())
     finally:
         log.handlers[:] = handlers
+
+
+def test_monitor_action_schedules_refresh():
+    """Completing an action (start/stop/restart) doesn't wait for the next
+    poll tick to show its effect: MonitorApp._schedule_action_refresh
+    schedules a refresh - through the same path (IocTable.refresh_now)
+    the poll loop uses - ACTION_REFRESH_DELAY after the command returns,
+    plus a follow-up ACTION_REFRESH_FOLLOW_UP_DELAY later, since Argo can
+    take a moment longer to catch up. `set_timer` is captured instead of
+    actually waited on, so this asserts the two refreshes are scheduled -
+    at the right delays, targeting refresh_now - independent of (and
+    without needing to wait out) the regular 1s poll timer, which keeps
+    running untouched throughout."""
+    app = MonitorApp(DemoCommands(ECContext()), running_only=False)
+
+    async def body(pilot, table: DataTable) -> None:
+        ioc_table = app.query_one(IocTable)
+
+        scheduled: list[tuple[float, Callable]] = []
+
+        def fake_set_timer(delay, callback, *args, **kwargs):
+            scheduled.append((delay, callback))
+
+        app.set_timer = fake_set_timer
+
+        refresh_calls = 0
+
+        def counting_refresh_now() -> None:
+            nonlocal refresh_calls
+            refresh_calls += 1
+
+        ioc_table.refresh_now = counting_refresh_now
+
+        # Start the highlighted service and confirm the dialog - the real
+        # start/confirm flow, not a direct call to the scheduling method.
+        await pilot.press("s")
+        await pilot.pause()
+        await pilot.press("y")
+
+        # Wait for the queued action to finish (DemoCommands.start sleeps
+        # briefly) and schedule its refreshes.
+        for _ in range(50):
+            if len(scheduled) == 2:
+                break
+            await pilot.pause(0.1)
+
+        assert [delay for delay, _ in scheduled] == [
+            ACTION_REFRESH_DELAY,
+            ACTION_REFRESH_FOLLOW_UP_DELAY,
+        ]
+        assert all(callback is counting_refresh_now for _, callback in scheduled)
+
+        # Firing the scheduled callbacks - as the real timers eventually
+        # would - drives exactly those two refreshes, no more.
+        for _, callback in scheduled:
+            callback()
+        assert refresh_calls == 2
+
+    asyncio.run(_interact(app, body))
 
 
 def test_monitor_status_colors():
