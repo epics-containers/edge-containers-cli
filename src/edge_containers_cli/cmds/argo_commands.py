@@ -388,7 +388,7 @@ class ArgoCommands(Commands):
 
         service_data = {
             "name": [],  # type: ignore
-            "label": [],
+            "description": [],
             "version": [],
             "ready": [],
             "deployed": [],
@@ -406,12 +406,12 @@ class ArgoCommands(Commands):
             return
 
         # the description lives on the Application's own annotations, so
-        # it's already available here with no extra manifest fetch.
+        # it's already available here with no extra manifest fetch. No
+        # fallback to any label - an app with no annotation just shows an
+        # empty description.
         description = (
             app.get("metadata", {}).get("annotations", {}).get(DESCRIPTION_ANNOTATION)
-        )
-        label = description or app.get("metadata", {}).get("labels", {}).get(
-            "device", "service"
+            or ""
         )
 
         # Check for STOPPED label for health comparison later
@@ -506,7 +506,7 @@ class ArgoCommands(Commands):
                     time_stamp = workload_ts
 
         service_data["name"].append(name)
-        service_data["label"].append(label)
+        service_data["description"].append(description)
         service_data["version"].append(
             app.get("spec", {}).get("source", {}).get("targetRevision", "unknown")
         )

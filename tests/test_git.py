@@ -207,35 +207,59 @@ def test_del_key_quotes_commit_message(tmp_path, mocker):
     ]
 
 
-# --- require_keys must fail clearly on a non-mapping intermediate --------
+# --- require_keys on a non-mapping intermediate --------------------------
 #
 # `set_values(..., require_keys=[...])` exists to stop a caller creating a
 # new, partial services.<name> entry for a service that was never
-# deployed. It must refuse just as clearly when services.<name> already
-# exists but isn't a mapping (null, or a scalar) - not silently let
-# YamlFile.set_key reshape a null entry into a dict, and not let a scalar
-# raise an unrelated, uncaught TypeError instead.
+# deployed. A bare `name:` entry is ordinary YAML for "an empty mapping -
+# use every default" (t11-deployment's apps/values.yaml has several), so
+# it must be accepted and turned into a real mapping the write can land
+# in - not confused with a missing key or a genuinely wrong type. A real
+# scalar or a list at that path is still refused, just as clearly as
+# before, and not left to raise an unrelated, uncaught TypeError instead.
 
 
-def test_set_values_require_keys_rejects_null_intermediate(tmp_path, mocker):
+def test_set_values_require_keys_accepts_null_intermediate(tmp_path, mocker):
     values_file = tmp_path / "values.yaml"
-    before = "services:\n  bl01t-ea-test-01:\n"  # null value
+    # A sibling service, a comment and a bare (null) target entry, in among
+    # other real content, to prove the ruamel round-trip only touches what
+    # it's asked to.
+    before = (
+        "# top-of-file comment\n"
+        "services:\n"
+        "  bl01t-ea-existing-01:\n"
+        "    enabled: true\n"
+        "    targetRevision: 1.0\n"
+        "  bl01t-ea-test-01:  # uses every default\n"
+        "  bl01t-ea-other-01:\n"
+        "    enabled: false\n"
+    )
     values_file.write_text(before)
     calls = _mock_shell(mocker, tmp_path)
 
-    with pytest.raises(GitError, match="not a mapping"):
-        _run(
-            set_values(
-                REPO_URL,
-                Path("values.yaml"),
-                {"services.bl01t-ea-test-01.description": "new description"},
-                require_keys=["services.bl01t-ea-test-01"],
-            )
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {"services.bl01t-ea-test-01.description": "simulation of 2 motors"},
+            require_keys=["services.bl01t-ea-test-01"],
         )
+    )
 
-    assert values_file.read_text() == before
-    assert not any(c.startswith("git commit") for c in calls)
-    assert not any(c == "git push" for c in calls)
+    after = values_file.read_text()
+    assert after == (
+        "# top-of-file comment\n"
+        "services:\n"
+        "  bl01t-ea-existing-01:\n"
+        "    enabled: true\n"
+        "    targetRevision: 1.0\n"
+        "  bl01t-ea-test-01:  # uses every default\n"
+        "    description: simulation of 2 motors\n"
+        "  bl01t-ea-other-01:\n"
+        "    enabled: false\n"
+    )
+    assert any(c.startswith("git commit") for c in calls)
+    assert any(c == "git push" for c in calls)
 
 
 def test_set_values_require_keys_rejects_scalar_intermediate(tmp_path, mocker):

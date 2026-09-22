@@ -39,7 +39,7 @@ def test_set_desc_unknown_service(mock_run, DEMO):
 def test_ps(mock_run, DEMO):
     expect = (
         "╭────────────┬────────────────┬─────────┬───────┬──────────────────────╮\n"
-        "│ name       │ label          │ version │ ready │ deployed             │\n"
+        "│ name       │ description    │ version │ ready │ deployed             │\n"
         "├────────────┼────────────────┼─────────┼───────┼──────────────────────┤\n"
         "│ demo-ea-00 │ demo-device-00 │ 1.0.25  │ True  │ 2024-10-22T11:23:08Z │\n"
         "│ demo-ea-01 │ demo-device-01 │ 1.0.24  │ True  │ 2024-10-22T11:23:03Z │\n"

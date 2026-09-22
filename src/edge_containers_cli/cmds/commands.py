@@ -22,7 +22,7 @@ class CommandError(Exception):
 ServicesSchema = polars.Schema(
     {
         "name": polars.String,  # type: ignore
-        "label": polars.String,
+        "description": polars.String,
         "version": polars.String,
         "ready": polars.Boolean,
         "deployed": polars.String,

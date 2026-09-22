@@ -311,8 +311,8 @@ class IocTable(Widget):
         iocs_df: polars.DataFrame = self._get_services_df(self.running_only)
 
         self.columns = iocs_df.columns
-        # We don't want the label to be a custom column (using DataTable row label instead)
-        self.columns.remove("label")
+        # We don't want the description to be a custom column (using DataTable row label instead)
+        self.columns.remove("description")
 
         def _update():
             for column_id in self.columns:
@@ -412,7 +412,7 @@ class IocTable(Widget):
                     table.add_row(
                         *[cell["contents"] for cell in cells],
                         key=row_key,
-                        label=ioc["label"],
+                        label=ioc["description"],
                     )
                 else:
                     for cell in cells:

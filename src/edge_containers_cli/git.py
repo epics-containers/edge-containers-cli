@@ -158,7 +158,11 @@ async def set_values(
     the file. If any is missing, nothing is written, committed or pushed
     and a GitError is raised instead - this stops a caller creating a new,
     partial entry (e.g. a lone `description` with no `enabled`/
-    `targetRevision` siblings) for a service that was never deployed.
+    `targetRevision` siblings) for a service that was never deployed. A
+    key that exists but holds YAML null (a bare `name:` entry, valid
+    shorthand for "use every default") is treated as an empty mapping and
+    created as one; a key holding a real scalar or a list is still
+    rejected.
 
     `require_chart_version`, if given, is `(dependency, min_version,
     feature)`. Before any write, check_chart_dependency_version is run
@@ -182,7 +186,14 @@ async def set_values(
                         raise GitError(
                             f"'{req_key}' not found in {file} - nothing was written"
                         ) from e
-                    if not isinstance(req_value, Mapping):
+                    if req_value is None:
+                        # A bare `name:` entry is valid YAML for "use every
+                        # default" - it's an empty mapping, not an absent
+                        # one, so create it rather than refusing a
+                        # perfectly ordinary deployment. Real scalars
+                        # (below) and lists are still rejected.
+                        file_data.set_key(req_key, {})
+                    elif not isinstance(req_value, Mapping):
                         raise GitError(
                             f"'{req_key}' in {file} is not a mapping "
                             f"(found {type(req_value).__name__}) - "

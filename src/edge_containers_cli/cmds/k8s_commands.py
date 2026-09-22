@@ -159,7 +159,7 @@ class K8sCommands(Commands):
     async def _extract_services_df(self):
         service_data = {
             "name": [],  # type: ignore
-            "label": [],
+            "description": [],
             "ready": [],
             "deployed": [],
         }
@@ -168,10 +168,10 @@ class K8sCommands(Commands):
                 name = sts["metadata"]["name"]
                 # descriptions are now an Argo CD Application annotation only
                 # (see DESC_UNSUPPORTED above) - the plain-k8s backend has no
-                # per-service label to show here, so `label` is a fixed
-                # placeholder, just enough to satisfy the shared
+                # per-service description to show here, so it's always
+                # empty; the column is kept only to satisfy the shared
                 # ServicesSchema that both backends' `ps` output share.
-                label = "service"
+                description = ""
                 time_stamp = datetime.strptime(
                     sts["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
                 )
@@ -182,7 +182,7 @@ class K8sCommands(Commands):
 
                 # Fill app data
                 service_data["name"].append(name)
-                service_data["label"].append(label)
+                service_data["description"].append(description)
                 service_data["ready"].append(is_ready)
                 service_data["deployed"].append(
                     datetime.strftime(time_stamp, TIME_FORMAT)
@@ -193,7 +193,7 @@ class K8sCommands(Commands):
             schema=polars.Schema(
                 {
                     "name": polars.String,
-                    "label": polars.String,
+                    "description": polars.String,
                     "ready": polars.Boolean,
                     "deployed": polars.String,
                 }
@@ -219,7 +219,7 @@ class K8sCommands(Commands):
 
         # Arrange columns
         services_df = services_df.select(
-            ["name", "label", "version", "ready", "deployed"]
+            ["name", "description", "version", "ready", "deployed"]
         )
 
         async with self.async_lock:
