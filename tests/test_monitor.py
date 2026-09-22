@@ -404,7 +404,7 @@ def test_monitor_click_does_not_leak_osc22():
         log.handlers[:] = handlers
 
 
-def test_monitor_action_schedules_refresh():
+def test_monitor_action_schedules_refresh(monkeypatch):
     """Completing an action (start/stop/restart) doesn't wait for the next
     poll tick to show its effect: MonitorApp._schedule_action_refresh
     schedules a refresh - through the same path (IocTable.refresh_now)
@@ -425,7 +425,7 @@ def test_monitor_action_schedules_refresh():
         def fake_set_timer(delay, callback, *args, **kwargs):
             scheduled.append((delay, callback))
 
-        app.set_timer = fake_set_timer
+        monkeypatch.setattr(app, "set_timer", fake_set_timer)
 
         refresh_calls = 0
 
@@ -433,7 +433,7 @@ def test_monitor_action_schedules_refresh():
             nonlocal refresh_calls
             refresh_calls += 1
 
-        ioc_table.refresh_now = counting_refresh_now
+        monkeypatch.setattr(ioc_table, "refresh_now", counting_refresh_now)
 
         # Start the highlighted service and confirm the dialog - the real
         # start/confirm flow, not a direct call to the scheduling method.
