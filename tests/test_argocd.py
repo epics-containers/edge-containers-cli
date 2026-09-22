@@ -1,5 +1,6 @@
 import shlex
 import shutil
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -427,15 +428,92 @@ def test_stop(mock_run, ARGOCD):
     mock_run.run_cli("stop bl01t-ea-test-01")
 
 
-def test_ps(mock_run, ARGOCD):
-    expect = (
-        "╭──────────────────┬─────────────┬─────────┬───────┬──────────────────────╮\n"
-        "│ name             │ description │ version │ ready │ deployed             │\n"
-        "├──────────────────┼─────────────┼─────────┼───────┼──────────────────────┤\n"
-        "│ bl01t-ea-test-01 │             │ main    │ True  │ 2024-07-12T13:52:35Z │\n"
-        "╰──────────────────┴─────────────┴─────────┴───────┴──────────────────────╯\n"
-    )
-    mock_run.set_seq(ARGOCD.checks + ARGOCD.manifest_check)
+def test_ps(mock_run, ARGOCD, wide_console):
+    expect = PS_EXPECT
+    mock_run.set_seq(ARGOCD.ps)
     res = mock_run.run_cli("ps")
 
     assert res == expect
+
+
+def test_ps_wide(mock_run, ARGOCD, wide_console):
+    expect = PS_WIDE_EXPECT
+    mock_run.set_seq(ARGOCD.ps)
+    res = mock_run.run_cli("ps --wide")
+
+    assert res == expect
+
+
+def test_ps_running_only(mock_run, ARGOCD, wide_console):
+    # only a Healthy service that has not been stopped counts as running
+    mock_run.set_seq(ARGOCD.ps)
+    res = mock_run.run_cli("ps --running-only")
+
+    assert "bl01t-ea-test-01" in res
+    assert "bl01t-mo-sim-01" not in res
+    assert "bl01t-di-cam-01" not in res
+
+
+@pytest.mark.parametrize("app_count", [1, 5, 50])
+def test_ps_makes_one_argocd_call(mock_run, ARGOCD, app_count):
+    # edge-containers-cli#256: ps reads everything from a single
+    # `argocd app list`, however many services there are. The mock fails
+    # the test if ps makes any call after that list, such as the per-app
+    # `argocd app manifests` fetch that ps used to make.
+    apps = [
+        {
+            "metadata": {"name": f"bl01t-ea-test-{i:02}"},
+            "spec": {"source": {"targetRevision": "main"}},
+            "status": {
+                "health": {"status": "Healthy"},
+                "sync": {"status": "Synced"},
+                "resources": [{"kind": "StatefulSet", "name": f"bl01t-ea-test-{i:02}"}],
+            },
+        }
+        for i in range(app_count)
+    ]
+    app_list = {
+        "cmd": "argocd app list --app-namespace namespace -o yaml",
+        "rsp": yaml_dump(apps),
+    }
+    mock_run.set_seq([ARGOCD.ps[0], app_list])
+    res = mock_run.run_cli("ps")
+
+    # the first call is the target check every ec command makes
+    argocd_calls = [
+        line for line in mock_run.log.splitlines() if line.startswith("CMD: argocd")
+    ]
+    assert argocd_calls == [
+        "CMD: argocd app get namespace/bl01t",
+        "CMD: argocd app list --app-namespace namespace -o yaml",
+    ]
+    assert res.count("bl01t-ea-test-") == app_count
+
+
+def yaml_dump(data) -> str:
+    stream = StringIO()
+    YAML(typ="safe").dump(data, stream)
+    return stream.getvalue()
+
+
+# the umbrella app is skipped, the STOPPED label shows in health rather than
+# in properties, argocd.argoproj.io/instance is hidden and the
+# argocd.argoproj.io/ prefix is stripped - all as argocd-monitor does
+PS_EXPECT = (
+    "╭──────────────────┬───────────────────┬───────────┬──────────┬──────────────────────┬─────────────────╮\n"
+    "│ name             │ health            │ sync      │ version  │ last sync            │ description     │\n"
+    "├──────────────────┼───────────────────┼───────────┼──────────┼──────────────────────┼─────────────────┤\n"
+    "│ bl01t-di-cam-01  │ Progressing       │ OutOfSync │ main     │                      │                 │\n"
+    "│ bl01t-ea-test-01 │ Healthy           │ Synced    │ 2024.7.1 │ 2026-09-22T09:03:19Z │ my nice service │\n"
+    "│ bl01t-mo-sim-01  │ Healthy (Stopped) │ Synced    │ 2024.7.2 │ 2026-09-21T14:12:02Z │                 │\n"
+    "╰──────────────────┴───────────────────┴───────────┴──────────┴──────────────────────┴─────────────────╯\n"
+)
+PS_WIDE_EXPECT = (
+    "╭──────────────────┬───────────────────┬───────────┬──────────┬──────────────────────┬─────────────────┬────────────────────────────╮\n"
+    "│ name             │ health            │ sync      │ version  │ last sync            │ description     │ properties                 │\n"
+    "├──────────────────┼───────────────────┼───────────┼──────────┼──────────────────────┼─────────────────┼────────────────────────────┤\n"
+    "│ bl01t-di-cam-01  │ Progressing       │ OutOfSync │ main     │                      │                 │                            │\n"
+    "│ bl01t-ea-test-01 │ Healthy           │ Synced    │ 2024.7.1 │ 2026-09-22T09:03:19Z │ my nice service │ location=bench team=optics │\n"
+    "│ bl01t-mo-sim-01  │ Healthy (Stopped) │ Synced    │ 2024.7.2 │ 2026-09-21T14:12:02Z │                 │                            │\n"
+    "╰──────────────────┴───────────────────┴───────────┴──────────┴──────────────────────┴─────────────────┴────────────────────────────╯\n"
+)

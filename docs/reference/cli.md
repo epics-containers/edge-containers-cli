@@ -135,11 +135,28 @@ List all tagged versions of `SERVICE` found in the repository.
 #### `ec ps`
 
 ```
-$ ec ps [-r/--running-only]
+$ ec ps [-r/--running-only] [-w/--wide]
 ```
 
-List the services in the current target as a table. `-r/--running-only`
-restricts the output to services that are currently running.
+List the services in the current target as a table, with these columns:
+
+| Column | Meaning |
+|---|---|
+| name | The service name |
+| health | Argo CD's health for the service: `Healthy`, `Progressing`, `Degraded`, `Suspended`, `Missing` or `Unknown`, with ` (Stopped)` appended after `ec stop` |
+| sync | Argo CD's sync status: `Synced`, `OutOfSync` or `Unknown` |
+| version | The version the service is deployed at (its target revision) |
+| last sync | When Argo CD last finished syncing the service. A deploy and `ec restart` both update it |
+| description | The service's description (see `ec set-desc`), empty when unset |
+
+`-w/--wide` adds a `properties` column with the service's labels.
+`-r/--running-only` restricts the output to services that are `Healthy` and
+not stopped.
+
+On the Argo CD backend, `ec ps` makes a single `argocd app list` call however
+many services there are. The K8S backend shows a service as `Healthy` when a
+replica is ready and `Degraded` otherwise, leaves `sync` and `properties`
+empty, and shows the StatefulSet's creation time as `last sync`.
 
 #### `ec monitor`
 
@@ -147,8 +164,9 @@ restricts the output to services that are currently running.
 $ ec monitor [-r/--running-only]
 ```
 
-Open the interactive TUI monitor. `-r/--running-only` starts it showing only
-running services. The monitor can also be served as a web application — see the
+Open the interactive TUI monitor. It shows the same columns as `ec ps --wide`,
+with each service's description as its row label. `-r/--running-only` starts
+it showing only running services. The monitor can also be served as a web application — see the
 [README](https://github.com/epics-containers/edge-containers-cli#monitor).
 
 #### `ec logs SERVICE`

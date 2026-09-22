@@ -4,7 +4,6 @@ implements commands for deploying and managing service instances suing argocd
 Relies on the Helm class for deployment aspects.
 """
 
-import asyncio
 import os
 import re
 import webbrowser
@@ -18,6 +17,8 @@ from ruamel.yaml import YAML
 
 from edge_containers_cli import globals
 from edge_containers_cli.cmds.commands import (
+    HEALTHY,
+    STOPPED_SUFFIX,
     CommandError,
     Commands,
     ServicesDataFrame,
@@ -29,17 +30,85 @@ from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import YamlTypes, _AsyncFuncType, _run_async
 
-# argocd stamps every resource it manages with a tracking-id annotation of
-# the form "<app-instance-name>:<group>/<kind>:<namespace>/<name>", e.g.
-#   "i19-beamline_i19:argoproj.io/Application:i19-beamline/bl19i-ea-eiger-01"
-TRACKING_ID_RE = re.compile(
-    r"^(?P<owner>[^:]+):(?P<group>[^/]*)/(?P<kind>[^:]+):(?P<namespace>[^/]+)/(?P<name>.+)$"
-)
-
 # fixed contract with the argocd-apps helm chart and the values-repo schema:
 # the chart renders a service's `description` value as this annotation on
 # the per-service Application's own metadata.
 DESCRIPTION_ANNOTATION = "epics-containers.github.io/description"
+
+# Application labels left out of the `properties` column, and label key
+# prefixes stripped for brevity - both as argocd-monitor does
+# (src/components/app-table/columns.tsx). STOPPED is shown in `health`
+# instead.
+STOPPED_LABEL = "STOPPED"
+HIDDEN_LABELS = {"argocd.argoproj.io/instance", STOPPED_LABEL}
+STRIP_LABEL_PREFIXES = ["argocd.argoproj.io/"]
+
+
+def _format_label_key(key: str) -> str:
+    for prefix in STRIP_LABEL_PREFIXES:
+        if key.startswith(prefix):
+            return key.removeprefix(prefix)
+    return key
+
+
+def _format_time(time_string: str) -> str:
+    try:
+        time_stamp = datetime.strptime(time_string, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return time_string
+    return datetime.strftime(time_stamp, globals.TIME_FORMAT)
+
+
+def app_to_row(app: dict) -> dict[str, str] | None:
+    """
+    Turn one Application from `argocd app list` into a row of `ec ps`,
+    reading only the Application itself - never its live resources. Returns
+    None for an app-of-apps umbrella, which is not a service.
+    """
+    metadata = app.get("metadata") or {}
+    spec = app.get("spec") or {}
+    status = app.get("status") or {}
+    labels = metadata.get("labels") or {}
+    annotations = metadata.get("annotations") or {}
+
+    # an app-of-apps umbrella (e.g. "i19") owns nested child Applications
+    # rather than a workload. status.resources lists each managed
+    # resource's kind, so it can be skipped without any further lookup.
+    resources = status.get("resources") or []
+    if any(r.get("kind") == "Application" for r in resources):
+        return None
+
+    # Argo CD already aggregates health across every resource the
+    # Application manages. The argocd-apps chart sets the STOPPED label on
+    # a service stopped with `ec stop`, which argocd-monitor shows as a
+    # badge next to the health.
+    health = (status.get("health") or {}).get("status") or "Unknown"
+    if labels.get(STOPPED_LABEL):
+        health += STOPPED_SUFFIX
+
+    # `ec restart` deletes the StatefulSet, and only Argo CD's automated
+    # self-heal sync brings it back - so a restart shows here as a new
+    # sync operation, and needs no lookup of the live StatefulSet.
+    finished_at = (status.get("operationState") or {}).get("finishedAt") or ""
+
+    properties = " ".join(
+        f"{_format_label_key(key)}={value}"
+        for key, value in labels.items()
+        if key not in HIDDEN_LABELS
+    )
+
+    return {
+        "name": metadata.get("name", "unknown"),
+        "health": health,
+        "sync": (status.get("sync") or {}).get("status") or "Unknown",
+        "version": (spec.get("source") or {}).get("targetRevision", "unknown"),
+        "last sync": _format_time(finished_at),
+        # the description is an annotation on the Application (see
+        # DESCRIPTION_ANNOTATION), empty when unset
+        "description": annotations.get(DESCRIPTION_ANNOTATION) or "",
+        "properties": properties,
+    }
+
 
 # feature -> (chart dependency, minimum version). An old argocd-apps chart
 # rejects a key its schema doesn't know about, which breaks the root app
@@ -210,9 +279,7 @@ class ArgoCommands(Commands):
     ):
         super().__init__(ctx)
 
-        self.app_dicts = {}
-        self.services_df = polars.DataFrame()
-        self.async_lock = asyncio.Lock()
+        self.app_dicts: list[dict] = []
 
     async def delete(self, service_name: str) -> None:
         await self._check_service(service_name)
@@ -301,8 +368,8 @@ class ArgoCommands(Commands):
         url = self.log_url.format(service_name=service_name)
         webbrowser.open(url)
 
-    def ps(self, running_only):
-        self._ps(running_only)
+    def ps(self, running_only, wide=False):
+        self._ps(running_only, wide)
 
     async def _get_service_manifest(self, service_name) -> dict:
         await self._check_service(service_name)
@@ -383,174 +450,17 @@ class ArgoCommands(Commands):
         )
         self.app_dicts = YAML(typ="safe").load(app_resp)
 
-    async def _extract_app_manifests(self, app: dict, semaphore: asyncio.Semaphore):
-        namespace, _ = extract_ns_app(self.target)
-
-        service_data = {
-            "name": [],  # type: ignore
-            "description": [],
-            "version": [],
-            "ready": [],
-            "deployed": [],
-        }
-
-        name = app.get("metadata", {}).get("name", "unknown")
-        resources_dict = app.get("status", {}).get("resources", [])
-
-        # an app-of-apps umbrella (e.g. "i19") owns nested child
-        # Applications rather than a real workload - status.resources
-        # reports each resource's kind directly from ArgoCD's own resource
-        # tree, so we can detect and skip this without even fetching live
-        # manifests, rather than inferring it from an absence of matches.
-        if any(r.get("kind") == "Application" for r in resources_dict):
-            return
-
-        # the description lives on the Application's own annotations, so
-        # it's already available here with no extra manifest fetch. No
-        # fallback to any label - an app with no annotation just shows an
-        # empty description.
-        description = (
-            app.get("metadata", {}).get("annotations", {}).get(DESCRIPTION_ANNOTATION)
-            or ""
-        )
-
-        # Check for STOPPED label for health comparison later
-        stopped = app.get("metadata", {}).get("labels", {}).get("STOPPED", False)
-
-        # ArgoCD already aggregates health across every resource it manages
-        # for this Application (all StatefulSets, Services, ConfigMaps,
-        # etc.) - if any child resource is degraded/missing, that's already
-        # reflected here, the same way argocd-monitor reads
-        # `status.health.status` directly rather than re-deriving it from
-        # individual resources.
-        health_status = app.get("status", {}).get("health", {}).get("status")
-
-        is_ready = (health_status == "Healthy") and not stopped
-
-        # start from the Application's own creation time, but a top-level
-        # workload can be deleted and recreated independently of the
-        # Application (e.g. `ec restart` deletes the StatefulSet and lets
-        # ArgoCD recreate it on the next sync) - take the most recent of
-        # the Application's and every matched workload's creationTimestamp
-        # so this reflects the true "last activity" time, not just when
-        # the Application itself was originally deployed.
-        try:
-            time_stamp = datetime.strptime(
-                app.get("metadata", {}).get("creationTimestamp", ""),
-                "%Y-%m-%dT%H:%M:%SZ",
-            )
-        except ValueError:
-            time_stamp = datetime(1970, 1, 1)
-
-        # the manifest fetch below is now only needed to find the most
-        # recent workload creationTimestamp (see the block comment above) -
-        # the description no longer needs it, since it's read from
-        # app["metadata"]["annotations"] above.
-        if resources_dict:
-            async with semaphore:
-                mani_resp = await shell.run_command(
-                    f"argocd app manifests {namespace}/{name} --source live",
-                )
-            for manifest in YAML(typ="safe").load_all(mani_resp):
-                if not isinstance(manifest, dict):
-                    continue
-
-                # argocd stamps every live-managed resource with a
-                # tracking-id annotation of the form
-                #   "<owner>:<group>/<kind>:<namespace>/<name>"
-                # <owner> is usually just the Application name, but for
-                # Applications living outside the argocd control-plane
-                # namespace (the "apps in any namespace" feature) it's
-                # "<app-namespace>_<app-name>" instead - accept either.
-                # Prefer this annotation when present, since it's robust to
-                # fullnameOverride/chart naming conventions and confirms
-                # ownership explicitly. `argocd app manifests <ns>/<app>`
-                # is already scoped to this app though, so when the
-                # annotation is absent (e.g. a hand-written test fixture,
-                # or an older resource-tracking-method) fall back to the
-                # manifest's own apiVersion to get the API group instead.
-                tracking_id = (
-                    manifest.get("metadata", {})
-                    .get("annotations", {})
-                    .get("argocd.argoproj.io/tracking-id", "")
-                )
-                match = TRACKING_ID_RE.match(tracking_id)
-                if match is not None:
-                    owner = match.group("owner")
-                    if owner not in (name, f"{namespace}_{name}"):
-                        continue
-                    group = match.group("group")
-                else:
-                    api_version = manifest.get("apiVersion", "")
-                    group = api_version.split("/", 1)[0] if "/" in api_version else ""
-
-                # a top-level workload (Deployment/StatefulSet/DaemonSet)
-                # lives in the "apps" API group. `argocd app manifests
-                # --source live` only ever returns the app's own
-                # tracked/desired resources (confirmed empirically - no
-                # ReplicaSet/Pod ever appears in its output), so we don't
-                # need an ownerReferences check to exclude runtime-spawned
-                # children here.
-                if group != "apps":
-                    continue
-
-                try:
-                    workload_ts = datetime.strptime(
-                        manifest.get("metadata", {}).get("creationTimestamp", ""),
-                        "%Y-%m-%dT%H:%M:%SZ",
-                    )
-                except ValueError:
-                    workload_ts = datetime(1970, 1, 1)
-
-                if workload_ts > time_stamp:
-                    time_stamp = workload_ts
-
-        service_data["name"].append(name)
-        service_data["description"].append(description)
-        service_data["version"].append(
-            app.get("spec", {}).get("source", {}).get("targetRevision", "unknown")
-        )
-        service_data["ready"].append(is_ready)
-        service_data["deployed"].append(
-            datetime.strftime(time_stamp, globals.TIME_FORMAT)
-        )
-
-        service_df = polars.from_dict(service_data, schema=ServicesSchema)
-
-        async with self.async_lock:
-            if self.services_df.is_empty():
-                self.services_df = service_df
-            else:
-                self.services_df.extend(service_df)
-
-    async def _get_service_data(self):
-        # 2 is just a backup for if for some reason cpu_count() returns None.
-        # 2 would treat it like a dual-core system.
-        cpus = os.cpu_count() or 2
-        max_processes = 64
-        sem = asyncio.Semaphore(min(cpus * 5, max_processes))
-
-        await self._get_services()
-
-        try:
-            async with asyncio.TaskGroup() as group:
-                for app in self.app_dicts:
-                    group.create_task(self._extract_app_manifests(app, sem))
-        except* ValueError as eg:
-            for exc in eg.exceptions:
-                print("Value Error:", exc)
-
     def _get_services_df(self, running_only) -> ServicesDataFrame:
-        # Clear the current dataframe before polling the current manifests
-        self.services_df = self.services_df.clear()
+        # Everything `ps` shows comes from this single `argocd app list`,
+        # however many services there are - the same way argocd-monitor
+        # builds its Applications table from one GET /api/v1/applications.
+        _run_async(self._get_services())
 
-        # Helper function being used to help run asynchronously
-        _run_async(self._get_service_data())
-
-        services_df = self.services_df
+        rows = [row for app in self.app_dicts or [] if (row := app_to_row(app))]
+        services_df = polars.DataFrame(rows, schema=ServicesSchema)
 
         if running_only:
-            services_df = services_df.filter(polars.col("ready").eq(True))
+            services_df = services_df.filter(polars.col("health").eq(HEALTHY))
         return ServicesDataFrame(services_df)
 
     async def _check_service(self, service_name: str):

@@ -35,7 +35,12 @@ from textual.widgets import (
 from textual.widgets.data_table import RowKey
 from textual.worker import get_current_worker
 
-from edge_containers_cli.cmds.commands import CommandError, Commands
+from edge_containers_cli.cmds.commands import (
+    HEALTHY,
+    STOPPED_SUFFIX,
+    CommandError,
+    Commands,
+)
 from edge_containers_cli.definitions import ECLogLevels, Emoji
 from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
@@ -43,6 +48,31 @@ from edge_containers_cli.shell import ShellError
 from edge_containers_cli.utils import _AsyncFuncType, _run_async
 
 WHITE = Color.parse("white")
+
+# colours for the Argo CD health and sync vocabularies, as in
+# argocd-monitor's status badges. A stopped service's health ends in
+# STOPPED_SUFFIX and is shown grey.
+STATUS_COLORS = {
+    "health": {
+        HEALTHY: Color.parse("green"),
+        "Progressing": Color.parse("dodgerblue"),
+        "Degraded": Color.parse("red"),
+        "Missing": Color.parse("yellow"),
+        "Suspended": Color.parse("grey"),
+        "Unknown": Color.parse("grey"),
+    },
+    "sync": {
+        "Synced": Color.parse("green"),
+        "OutOfSync": Color.parse("yellow"),
+        "Unknown": Color.parse("grey"),
+    },
+}
+
+
+def cell_color(column: str, value: Any) -> Color:
+    if column == "health" and str(value).endswith(STOPPED_SUFFIX):
+        return Color.parse("grey")
+    return STATUS_COLORS.get(column, {}).get(str(value), WHITE)
 
 
 class ConfirmScreen(ModalScreen[bool], inherit_bindings=False):
@@ -344,12 +374,6 @@ class IocTable(Widget):
 
     def _get_services_df(self, running_only):
         services_df = self.commands._get_services_df(running_only)  # noqa: SLF001
-        services_df = services_df.with_columns(
-            polars.when(polars.col("ready"))
-            .then(polars.lit(Emoji.check_mark))
-            .otherwise(polars.lit(Emoji.cross_mark))
-            .alias("ready")
-        )
         indicators_df = polars.DataFrame(self._service_indicators)
         result = services_df.join(
             indicators_df,
@@ -401,7 +425,7 @@ class IocTable(Widget):
                         "contents": SortableText(
                             ioc[key],
                             str(ioc[key]),
-                            WHITE,
+                            cell_color(key, ioc[key]),
                             justify="center",
                         ),
                     }
@@ -594,14 +618,11 @@ class MonitorApp(App):
     def action_ioc_logs(self) -> None:
         """Display the logs of the IOC that is currently highlighted."""
         if service_name := self._get_service_name():
-            # Convert to corresponding bool
-            ready = self._get_highlighted_cell("ready") == Emoji.check_mark
-
-            if ready:
+            if self._get_highlighted_cell("health") == HEALTHY:
                 command = self.commands._get_logs  # noqa: SLF001
                 self.push_screen(LogsScreen(command, service_name))
             else:
-                log.info(f"Ignore request for logs - {service_name} not ready")
+                log.info(f"Ignore request for logs - {service_name} not healthy")
         else:
             log.info("No services available to perform: 'logs'")
 
@@ -618,7 +639,7 @@ class MonitorApp(App):
             col_name = table.sort_column_id
             cols = table.columns
             col_index = cols.index(col_name)
-            new_col = cols[0 if col_index + 1 > 3 else col_index + 1]
+            new_col = cols[(col_index + 1) % len(cols)]
         self.update_sort_key(new_col)
 
     def action_monitor_logs(self) -> None:

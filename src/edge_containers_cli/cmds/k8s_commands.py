@@ -13,9 +13,11 @@ import polars
 from ruamel.yaml import YAML
 
 from edge_containers_cli.cmds.commands import (
+    HEALTHY,
     CommandError,
     Commands,
     ServicesDataFrame,
+    ServicesSchema,
 )
 from edge_containers_cli.cmds.helm import Helm
 from edge_containers_cli.definitions import ECContext
@@ -106,8 +108,8 @@ class K8sCommands(Commands):
         url = self.log_url.format(service_name=service_name)
         webbrowser.open(url)
 
-    def ps(self, running_only):
-        self._ps(running_only)
+    def ps(self, running_only, wide=False):
+        self._ps(running_only, wide)
 
     async def restart(self, service_name):
         await self._check_service(service_name)
@@ -157,11 +159,20 @@ class K8sCommands(Commands):
         self.sts_dicts = YAML(typ="safe").load(kubectl_res)
 
     async def _extract_services_df(self):
+        # This backend has no Argo CD Application to read health, sync or
+        # properties from, so it maps what a StatefulSet does have onto the
+        # shared ServicesSchema columns:
+        #   health     - Healthy when a replica is ready, else Degraded
+        #   sync       - empty: there is no desired state to be in sync with
+        #   last sync  - the StatefulSet's creationTimestamp
+        #   properties - empty
         service_data = {
             "name": [],  # type: ignore
+            "health": [],
+            "sync": [],
+            "last sync": [],
             "description": [],
-            "ready": [],
-            "deployed": [],
+            "properties": [],
         }
         if self.sts_dicts["items"]:
             for sts in self.sts_dicts["items"]:
@@ -182,20 +193,21 @@ class K8sCommands(Commands):
 
                 # Fill app data
                 service_data["name"].append(name)
-                service_data["description"].append(description)
-                service_data["ready"].append(is_ready)
-                service_data["deployed"].append(
+                service_data["health"].append(HEALTHY if is_ready else "Degraded")
+                service_data["sync"].append("")
+                service_data["last sync"].append(
                     datetime.strftime(time_stamp, TIME_FORMAT)
                 )
+                service_data["description"].append(description)
+                service_data["properties"].append("")
 
         services_df = polars.from_dict(
             service_data,
             schema=polars.Schema(
                 {
-                    "name": polars.String,
-                    "description": polars.String,
-                    "ready": polars.Boolean,
-                    "deployed": polars.String,
+                    name: dtype
+                    for name, dtype in ServicesSchema.items()
+                    if name != "version"
                 }
             ),
         )
@@ -218,9 +230,7 @@ class K8sCommands(Commands):
         )
 
         # Arrange columns
-        services_df = services_df.select(
-            ["name", "description", "version", "ready", "deployed"]
-        )
+        services_df = services_df.select(ServicesSchema.names())
 
         async with self.async_lock:
             if self.services_df.is_empty():
@@ -242,7 +252,7 @@ class K8sCommands(Commands):
         services_df = self.services_df
 
         if running_only:
-            services_df = services_df.filter(polars.col("ready").eq(True))
+            services_df = services_df.filter(polars.col("health").eq(HEALTHY))
         return ServicesDataFrame(services_df)
 
     async def _get_logs(self, service_name, prev):

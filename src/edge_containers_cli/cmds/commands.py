@@ -19,15 +19,34 @@ class CommandError(Exception):
     pass
 
 
+# The columns of `ec ps` and `ec monitor`, modelled on argocd-monitor's
+# Applications table (github.com/epics-containers/argocd-monitor,
+# src/components/app-table/columns.tsx):
+#   health     - Argo CD health vocabulary: Healthy, Progressing, Degraded,
+#                Suspended, Missing or Unknown, with " (Stopped)" appended
+#                when the service has been stopped with `ec stop`
+#   sync       - Argo CD sync vocabulary: Synced, OutOfSync or Unknown
+#   last sync  - when the last sync operation finished
+#   properties - the service's labels, shown only by `ec ps --wide`
 ServicesSchema = polars.Schema(
     {
         "name": polars.String,  # type: ignore
-        "description": polars.String,
+        "health": polars.String,
+        "sync": polars.String,
         "version": polars.String,
-        "ready": polars.Boolean,
-        "deployed": polars.String,
+        "last sync": polars.String,
+        "description": polars.String,
+        "properties": polars.String,
     }
 )
+
+# the health of a service that is up and running - `ps --running-only`
+# lists only services in this state
+HEALTHY = "Healthy"
+STOPPED_SUFFIX = " (Stopped)"
+
+# columns that `ec ps` shows only with --wide
+WIDE_COLUMNS = ["properties"]
 
 
 class ServicesDataFrame(polars.DataFrame):
@@ -145,7 +164,7 @@ class Commands(ABC):
     async def log_history(self, service_name: str) -> None:
         raise NotImplementedError
 
-    def ps(self, running_only: bool) -> None:
+    def ps(self, running_only: bool, wide: bool = False) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -179,8 +198,10 @@ class Commands(ABC):
     def _get_services_df(self, running_only: bool) -> ServicesDataFrame:
         raise NotImplementedError
 
-    def _ps(self, running_only: bool) -> None:
-        services_df = self._get_services_df(running_only)
+    def _ps(self, running_only: bool, wide: bool = False) -> None:
+        services_df: polars.DataFrame = self._get_services_df(running_only)
+        if not wide:
+            services_df = services_df.drop(WIDE_COLUMNS)
 
         console = Console()
         table = Table(
