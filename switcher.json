@@ -4,6 +4,10 @@
     "url": "https://epics-containers.github.io/edge-containers-cli/main/"
   },
   {
+    "version": "5.4.1",
+    "url": "https://epics-containers.github.io/edge-containers-cli/5.4.1/"
+  },
+  {
     "version": "5.4.0",
     "url": "https://epics-containers.github.io/edge-containers-cli/5.4.0/"
   },
