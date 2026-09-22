@@ -155,6 +155,18 @@ def _run_ec_delete(tmp_path: Path, bin_dir: Path) -> subprocess.CompletedProcess
         **os.environ,
         "PATH": f"{bin_dir}:{os.environ.get('PATH', '')}",
         "EC_CLI_BACKEND": "ARGOCD",
+        # `ec delete` makes its own clone (in git.py's del_key) and commits
+        # to it directly - unlike the seed repo above, that clone/commit
+        # is real production code, not test setup, so it can't be handed
+        # an env dict here; it inherits this subprocess's env instead. A
+        # dev machine's global git config usually has an identity set,
+        # but the GitHub Actions runner image doesn't, so without this
+        # the commit fails with "Author identity unknown" before it ever
+        # reaches the push this test is actually about.
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@example.com",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@example.com",
     }
     return subprocess.run(
         [
