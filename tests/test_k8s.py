@@ -95,3 +95,41 @@ def test_ps(mock_run, K8S):
     res = mock_run.run_cli("ps")
 
     assert res == expect
+
+
+def test_ps_ignores_stale_description_label(mock_run, K8S):
+    # descriptions are an Argo CD Application annotation only now - even if
+    # a StatefulSet still carries a leftover `description` label from
+    # before that change, the K8s backend must not read or display it.
+    stale_label = "should never appear in ps output"
+    checks = [
+        {"cmd": "kubectl get namespace bl01t", "rsp": ""},
+        {
+            "cmd": 'kubectl get statefulset -l "is_ioc==true" -n bl01t -o yaml',
+            "rsp": f"""
+apiVersion: v1
+items:
+- apiVersion: apps/v1
+  kind: StatefulSet
+  metadata:
+    creationTimestamp: "2024-07-26T08:16:07Z"
+    name: bl01t-ea-test-01
+    labels:
+      description: "{stale_label}"
+  status:
+    readyReplicas: 1
+kind: List
+metadata:
+  resourceVersion: ""
+""",
+        },
+        {
+            "cmd": "helm list -n bl01t -o json",
+            "rsp": '[{ "name": "bl01t-ea-test-01", "app_version": "2024.7.824f-b" }]\n',
+        },
+    ]
+    mock_run.set_seq(checks)
+    res = mock_run.run_cli("ps")
+
+    assert stale_label not in res
+    assert "service" in res

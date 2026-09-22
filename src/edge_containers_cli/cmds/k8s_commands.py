@@ -166,10 +166,12 @@ class K8sCommands(Commands):
         if self.sts_dicts["items"]:
             for sts in self.sts_dicts["items"]:
                 name = sts["metadata"]["name"]
-                try:
-                    label = sts["metadata"]["labels"]["description"]
-                except KeyError:
-                    label = "service"
+                # descriptions are now an Argo CD Application annotation only
+                # (see DESC_UNSUPPORTED above) - the plain-k8s backend has no
+                # per-service label to show here, so `label` is a fixed
+                # placeholder, just enough to satisfy the shared
+                # ServicesSchema that both backends' `ps` output share.
+                label = "service"
                 time_stamp = datetime.strptime(
                     sts["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%SZ"
                 )
