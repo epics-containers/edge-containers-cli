@@ -74,7 +74,7 @@ Commands fall into three slices:
 | :--- | :---: | :---: | :---: | :--- |
 | `env` | ✅ | ✅ | ✅ | List the `EC_*` environment variables and their current values. |
 | `list` | ✅ | ✅ | ✅ | List every service available in the repository. |
-| `instances` | ✅ | ✅ | ✅ | List all versions of one service in the repository. |
+| `versions` | ✅ | ✅ | ✅ | List all versions of one service in the repository. (`instances` is a deprecated alias.) |
 | `ps` | ✅ | ✅ | ✅ | List the services running in the current target. |
 | `monitor` | ✅ | ✅ | ✅ | Open the interactive TUI monitor. |
 | `logs` | ✅ | ✅ | ✅ | Show current (or previous) logs for a service. |
@@ -124,13 +124,14 @@ $ ec list
 
 List every service available in the service repository (`--repo`).
 
-#### `ec instances SERVICE`
+#### `ec versions SERVICE`
 
 ```
-$ ec instances SERVICE
+$ ec versions SERVICE
 ```
 
-List all tagged versions of `SERVICE` found in the repository.
+List all tagged versions of `SERVICE` found in the repository. `ec instances`
+is a deprecated alias for this command.
 
 #### `ec ps`
 

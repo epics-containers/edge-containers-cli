@@ -43,7 +43,7 @@ EC_LOG_URL=Not Defined
 
 ### `EC_SERVICES_REPO`
 
-The git repository that defines your services. Required by `list`, `instances`,
+The git repository that defines your services. Required by `list`, `versions`,
 `deploy` and any command that resolves a service version. If unset, those
 commands fail with *"Please set `EC_SERVICES_REPO` or pass --repo"*.
 
