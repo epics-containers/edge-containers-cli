@@ -45,4 +45,4 @@ def test_versions(mock_run, CLI, data: Path, command: str):
     TMPDIR.mkdir()
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     res = mock_run.run_cli(f"{command} bl01t-ea-test-01")
-    assert expect in res
+    assert res == expect

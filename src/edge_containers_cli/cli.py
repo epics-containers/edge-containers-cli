@@ -208,6 +208,7 @@ async def instances(
     ),
 ):
     """Deprecated alias for `ec versions`"""
+    typer.echo("Use `ec versions` instead of `ec instances`.", err=True)
     await _print_versions(service_name)
 
 
