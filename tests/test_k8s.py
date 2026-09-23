@@ -36,6 +36,23 @@ def test_deploy(mock_run, K8S, data: Path):
     mock_run.run_cli("deploy bl01t-ea-test-01")
 
 
+def test_deploy_missing_service(mock_run, K8S):
+    # the clone succeeds but has no services/<name> folder: report that
+    # rather than failing with a traceback from chdir
+    mock_run.set_seq(
+        [
+            {"cmd": "kubectl get namespace bl01t", "rsp": ""},
+            {
+                "cmd": "git clone https://github.com/epics-containers/bl01t-services "
+                "/tmp/ec_tests --depth=1 --single-branch --branch=1.0",
+                "rsp": "",
+            },
+        ]
+    )
+    with pytest.raises(CommandError, match="Service 'no-service' not found"):
+        mock_run.run_cli("deploy no-service 1.0")
+
+
 def test_deploy_desc_unsupported(mock_run, K8S):
     # descriptions are an Argo CD Application feature only - the plain-k8s
     # backend must refuse --desc with a clear error rather than silently
