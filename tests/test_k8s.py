@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from edge_containers_cli.cmds.commands import CommandError
+from edge_containers_cli.shell import ShellError
 from tests.conftest import TMPDIR
 
 
@@ -34,6 +35,40 @@ def test_deploy(mock_run, K8S, data: Path):
     # prep what deploy expects to find after it cloned bl01t repo
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     mock_run.run_cli("deploy bl01t-ea-test-01")
+
+
+def test_deploy_missing_service(mock_run, K8S):
+    # the clone succeeds but has no services/<name> folder: report that
+    # rather than failing with a traceback from chdir
+    mock_run.set_seq(
+        [
+            {"cmd": "kubectl get namespace bl01t", "rsp": ""},
+            {
+                "cmd": "git clone https://github.com/epics-containers/bl01t-services "
+                "/tmp/ec_tests --depth=1 --single-branch --branch=1.0",
+                "rsp": "",
+            },
+        ]
+    )
+    with pytest.raises(CommandError, match="Service 'no-service' not found"):
+        mock_run.run_cli("deploy no-service 1.0")
+
+
+def test_deploy_missing_version(mock_run, K8S):
+    # the clone fails because the branch/tag does not exist: report that
+    # rather than dumping git's stderr
+    mock_run.set_seq(
+        [
+            {"cmd": "kubectl get namespace bl01t", "rsp": ""},
+            {
+                "cmd": "git clone https://github.com/epics-containers/bl01t-services "
+                "/tmp/ec_tests --depth=1 --single-branch --branch=nope",
+                "rsp": ShellError("fatal: Remote branch nope not found"),
+            },
+        ]
+    )
+    with pytest.raises(CommandError, match="Could not clone branch/tag 'nope'"):
+        mock_run.run_cli("deploy bl01t-ea-test-01 nope")
 
 
 def test_deploy_desc_unsupported(mock_run, K8S):
