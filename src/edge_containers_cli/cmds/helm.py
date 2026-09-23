@@ -77,7 +77,13 @@ class Helm:
             f"git clone {self.repo} {self.tmp} --depth=1 "
             f"--single-branch --branch={self.version}",
         )
-        await self._do_deploy(self.tmp / "services" / self.service_name)
+        service_folder = self.tmp / "services" / self.service_name
+        if not service_folder.is_dir():
+            raise CommandError(
+                f"Service '{self.service_name}' not found in repo "
+                f"'{self.repo}' with branch/tag '{self.version}'"
+            )
+        await self._do_deploy(service_folder)
 
     async def _do_deploy(self, service_folder: Path):
         """
