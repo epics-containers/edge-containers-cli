@@ -185,7 +185,7 @@ async def exec(
 
 @cli.command()
 @async_command
-async def instances(
+async def versions(
     service_name: str = typer.Argument(
         ...,
         help="Name of the service to inspect",
@@ -194,6 +194,24 @@ async def instances(
     ),
 ):
     """List all versions of the specified service in the repository"""
+    await _print_versions(service_name)
+
+
+@cli.command(hidden=True, deprecated=True)
+@async_command
+async def instances(
+    service_name: str = typer.Argument(
+        ...,
+        help="Name of the service to inspect",
+        autocompletion=avail_services,
+        show_default=False,
+    ),
+):
+    """Deprecated alias for `ec versions`"""
+    await _print_versions(service_name)
+
+
+async def _print_versions(service_name: str) -> None:
     print(
         await list_instances(
             service_name,
