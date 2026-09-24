@@ -139,7 +139,7 @@ class Commands(ABC):
     async def attach(self, service_name: str) -> None:
         raise NotImplementedError
 
-    async def delete(self, service_name: str) -> None:
+    async def delete(self, service_name: str, message: str | None = None) -> None:
         raise NotImplementedError
 
     async def deploy(
@@ -149,6 +149,7 @@ class Commands(ABC):
         description: str | None,
         args: str,
         confirm_callback: Callable[[str, str | None], None] | None = None,
+        message: str | None = None,
     ) -> None:
         raise NotImplementedError
 
@@ -182,15 +183,20 @@ class Commands(ABC):
         service_name: str,
         description: str,
         confirm_callback: Callable[[str | None, str], None] | None = None,
+        message: str | None = None,
     ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def start(self, service_name: str, commit: bool = False) -> None:
+    async def start(
+        self, service_name: str, commit: bool = False, message: str | None = None
+    ) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def stop(self, service_name: str, commit: bool = False) -> None:
+    async def stop(
+        self, service_name: str, commit: bool = False, message: str | None = None
+    ) -> None:
         raise NotImplementedError
 
     async def template(self, svc_instance: Path, args: str) -> None:

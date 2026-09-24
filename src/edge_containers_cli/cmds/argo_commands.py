@@ -179,8 +179,24 @@ async def _unset_key_and_children(target: str, key: str):
             await shell.run_command(cmd_unset_child, skip_on_dryrun=True)
 
 
+def _require_commit_for_message(commit: bool, message: str | None) -> None:
+    """
+    A note can only be recorded on a commit. Without --commit, start/stop
+    patch the live Argo CD app and write nothing to git, so a note would be
+    silently discarded - refuse instead of pretending it was recorded.
+    """
+    if message and not commit:
+        raise CommandError(
+            "--message needs --commit: without it the change is patched onto "
+            "the Argo CD app and never reaches git, so there is nowhere to "
+            "record the note."
+        )
+
+
 @do_retry
-async def push_value(target: str, key: str, value: YamlTypes):
+async def push_value(
+    target: str, key: str, value: YamlTypes, message: str | None = None
+):
     # Get source details
     app_resp = await shell.run_command(
         f"argocd app get {target} -o yaml",
@@ -189,7 +205,7 @@ async def push_value(target: str, key: str, value: YamlTypes):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    await set_value(repo_url, path / "values.yaml", key, value)
+    await set_value(repo_url, path / "values.yaml", key, value, message=message)
 
     # Free a possible patched value, its children & refresh repo
     await _unset_key_and_children(target, key)
@@ -204,6 +220,7 @@ async def push_values(
     keys: dict[str, YamlTypes],
     require_keys: list[str] | None = None,
     require_chart_version: tuple[str, str, str] | None = None,
+    message: str | None = None,
 ):
     """
     Like push_value, but sets several keys in a single commit. Any key
@@ -230,6 +247,7 @@ async def push_values(
         keys,
         require_keys=require_keys,
         require_chart_version=require_chart_version,
+        message=message,
     )
 
     # Free any possible patched values, their children & refresh repo
@@ -241,7 +259,7 @@ async def push_values(
 
 
 @do_retry
-async def push_remove_key(target: str, key: str):
+async def push_remove_key(target: str, key: str, message: str | None = None):
     # Get source details
     app_resp = await shell.run_command(
         f"argocd app get {target} -o yaml",
@@ -250,7 +268,7 @@ async def push_remove_key(target: str, key: str):
     repo_url = app_dicts["spec"]["source"]["repoURL"]
     path = Path(app_dicts["spec"]["source"]["path"])
 
-    await del_key(repo_url, path / "values.yaml", key)
+    await del_key(repo_url, path / "values.yaml", key, message=message)
 
     # Free a possible patched value, its children & refresh repo
     await _unset_key_and_children(target, key)
@@ -281,12 +299,18 @@ class ArgoCommands(Commands):
 
         self.app_dicts: list[dict] = []
 
-    async def delete(self, service_name: str) -> None:
+    async def delete(self, service_name: str, message: str | None = None) -> None:
         await self._check_service(service_name)
-        await push_remove_key(self.target, f"services.{service_name}")
+        await push_remove_key(self.target, f"services.{service_name}", message=message)
 
     async def deploy(
-        self, service_name, version, description, args, confirm_callback=None
+        self,
+        service_name,
+        version,
+        description,
+        args,
+        confirm_callback=None,
+        message: str | None = None,
     ) -> None:
         if not version:
             latest_version = await self._get_latest_version(service_name)
@@ -332,11 +356,18 @@ class ArgoCommands(Commands):
             require_chart_version = (*CHART_VERSION_GATES["description"], "description")
 
         await push_values(
-            self.target, deploy_dict, require_chart_version=require_chart_version
+            self.target,
+            deploy_dict,
+            require_chart_version=require_chart_version,
+            message=message,
         )
 
     async def set_description(
-        self, service_name: str, description: str, confirm_callback=None
+        self,
+        service_name: str,
+        description: str,
+        confirm_callback=None,
+        message: str | None = None,
     ) -> None:
         # Only ever touches the description leaf key - never enabled or
         # targetRevision, so this can never roll the service to another
@@ -358,6 +389,7 @@ class ArgoCommands(Commands):
             {f"{parent_key}.description": description},
             require_keys=[parent_key],
             require_chart_version=(*CHART_VERSION_GATES["description"], "description"),
+            message=message,
         )
 
     async def logs(self, service_name, prev):
@@ -418,17 +450,23 @@ class ArgoCommands(Commands):
         cmd = f"argocd app delete-resource {namespace}/{service_name} --kind StatefulSet --all"
         await shell.run_command(cmd, skip_on_dryrun=True)
 
-    async def start(self, service_name, commit=False):
+    async def start(self, service_name, commit=False, message: str | None = None):
         await self._check_stoppable(service_name)
+        _require_commit_for_message(commit, message)
         if commit:
-            await push_value(self.target, f"services.{service_name}.enabled", True)
+            await push_value(
+                self.target, f"services.{service_name}.enabled", True, message=message
+            )
         else:
             await patch_value(self.target, f"services.{service_name}.enabled", True)
 
-    async def stop(self, service_name, commit=False):
+    async def stop(self, service_name, commit=False, message: str | None = None):
         await self._check_stoppable(service_name)
+        _require_commit_for_message(commit, message)
         if commit:
-            await push_value(self.target, f"services.{service_name}.enabled", False)
+            await push_value(
+                self.target, f"services.{service_name}.enabled", False, message=message
+            )
         else:
             await patch_value(self.target, f"services.{service_name}.enabled", False)
 

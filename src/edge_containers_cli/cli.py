@@ -72,6 +72,14 @@ async def delete(
         show_default=False,
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+    message: str | None = typer.Option(
+        None,
+        "-m",
+        "--message",
+        help="Note recorded as the subject of the git commit ec makes "
+        "(Argo CD backend only). The generated summary is kept as the "
+        "commit body.",
+    ),
 ):
     """
     Remove a service from the cluster
@@ -80,7 +88,7 @@ async def delete(
         f"Remove {service_name} from the target `{backend.commands.target}`",
         yes,
     )
-    await backend.commands.delete(service_name)
+    await backend.commands.delete(service_name, message=message)
 
 
 @cli.command()
@@ -109,27 +117,35 @@ async def deploy(
     args: str = typer.Option(
         "", help="Additional args for helm or docker, 'must be quoted'"
     ),
+    message: str | None = typer.Option(
+        None,
+        "-m",
+        "--message",
+        help="Note recorded as the subject of the git commit ec makes "
+        "(Argo CD backend only). The generated summary is kept as the "
+        "commit body.",
+    ),
 ):
     """
     Add a service to the cluster from its source repository
     """
 
     def confirm_callback(svc_version: str, current_desc: str | None):
-        message = (
+        prompt = (
             f"[bold]Deploy [white]{service_name.lower()}[/white]"
             f" version [white]{svc_version}[/white] to target [white]{backend.commands.target}[/white] with \
 {'existing ' if description is None else ''}description [white]{current_desc}[/white][/bold]"
         )
 
         confirmation(
-            message,
+            prompt,
             yes,
         )
 
     args = args if not wait else args + " --wait"
     version = version if version != "latest tag" else ""
     await backend.commands.deploy(
-        service_name, version, description, args, confirm_callback
+        service_name, version, description, args, confirm_callback, message=message
     )
 
 
@@ -312,6 +328,14 @@ async def set_desc(
         show_default=False,
     ),
     yes: bool = typer.Option(False, "-y", "--yes", help="Skip confirmation prompt"),
+    message: str | None = typer.Option(
+        None,
+        "-m",
+        "--message",
+        help="Note recorded as the subject of the git commit ec makes "
+        "(Argo CD backend only). The generated summary is kept as the "
+        "commit body.",
+    ),
 ):
     """
     Change a service's description without a version or --desc round trip.
@@ -321,14 +345,16 @@ async def set_desc(
     """
 
     def confirm_callback(old_desc: str | None, new_desc: str):
-        message = (
+        prompt = (
             f"[bold]Set description of [white]{service_name.lower()}[/white]"
             f" on target [white]{backend.commands.target}[/white]"
             f" from [white]{old_desc}[/white] to [white]{new_desc}[/white][/bold]"
         )
-        confirmation(message, yes)
+        confirmation(prompt, yes)
 
-    await backend.commands.set_description(service_name, description, confirm_callback)
+    await backend.commands.set_description(
+        service_name, description, confirm_callback, message=message
+    )
 
 
 @cli.command()
@@ -343,10 +369,18 @@ async def start(
     commit: bool = typer.Option(
         False, help="Also commit the change to the git repo for an audit trail"
     ),
+    message: str | None = typer.Option(
+        None,
+        "-m",
+        "--message",
+        help="Note recorded as the subject of the git commit ec makes "
+        "(Argo CD backend only). The generated summary is kept as the "
+        "commit body.",
+    ),
 ):
     """Start a service"""
     try:
-        await backend.commands.start(service_name, commit=commit)
+        await backend.commands.start(service_name, commit=commit, message=message)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try 'ec start <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
@@ -364,10 +398,18 @@ async def stop(
     commit: bool = typer.Option(
         False, help="Also commit the change to the git repo for an audit trail"
     ),
+    message: str | None = typer.Option(
+        None,
+        "-m",
+        "--message",
+        help="Note recorded as the subject of the git commit ec makes "
+        "(Argo CD backend only). The generated summary is kept as the "
+        "commit body.",
+    ),
 ):
     """Stop a service"""
     try:
-        await backend.commands.stop(service_name, commit=commit)
+        await backend.commands.stop(service_name, commit=commit, message=message)
     except GitError as e:
         msg = f"{str(e)} - Commit failed. Try ec stop <service> --no-commit to set values without updating git"
         raise GitError(msg) from e
@@ -407,9 +449,15 @@ def drop_options(ctx: typer.Context, to_drop: dict[str, list[str]]):
     """Dynamically drop any cli options as specified"""
     typer_commands = ctx.command.commands  # type: ignore
     for cmd_name, drop_params in to_drop.items():
-        for i, param in enumerate(typer_commands[cmd_name].params):
-            if param.name in drop_params:
-                typer_commands[cmd_name].params.pop(i)
+        # drop_methods runs first, so a command the backend does not
+        # implement is already gone - nothing left to drop from it.
+        command = typer_commands.get(cmd_name)
+        if command is None:
+            continue
+        # Rebuild rather than pop in a loop: popping shifts the remaining
+        # indices, which silently skipped a param when a command dropped
+        # more than one.
+        command.params = [p for p in command.params if p.name not in drop_params]
 
 
 def set_optional(ctx: typer.Context, to_set: dict[str, list[str]]):
