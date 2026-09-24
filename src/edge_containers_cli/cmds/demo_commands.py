@@ -83,8 +83,12 @@ class DemoCommands(Commands):
         self,
         ctx: ECContext,
     ):
+        # the base class records repo / log_url from the context - without
+        # this the demo backend has no _repo or _log_url and any command
+        # using them fails with AttributeError instead of the intended
+        # "Please set ..." message (and ignores --repo / --log_url).
+        super().__init__(ctx)
         self._target = "Demo Beamline"
-        self._target_valid = False
         self._stateDF = SampleServicesDataFrame
 
         self.lorem_min = 10
