@@ -40,9 +40,15 @@ class K8sCommands(Commands):
     A class for implementing the Kubernetes based commands
     """
 
+    # --message records a note on the git commit ec makes. This backend
+    # never commits, so the option is dropped from the CLI entirely rather
+    # than offered and ignored.
     params_opt_out = {
-        "stop": ["commit"],
-        "start": ["commit"],
+        "stop": ["commit", "message"],
+        "start": ["commit", "message"],
+        "delete": ["message"],
+        "deploy": ["message"],
+        "set-desc": ["message"],
     }
 
     def __init__(
@@ -62,14 +68,20 @@ class K8sCommands(Commands):
             skip_on_dryrun=True,
         )
 
-    async def delete(self, service_name, commit=False):
+    async def delete(self, service_name, commit=False, message=None):
         await self._check_service(service_name)
         await shell.run_command(
             f"helm delete -n {self.target} {service_name}", skip_on_dryrun=True
         )
 
     async def deploy(
-        self, service_name, version, description, args, confirm_callback=None
+        self,
+        service_name,
+        version,
+        description,
+        args,
+        confirm_callback=None,
+        message=None,
     ):
         if description is not None:
             raise CommandError(DESC_UNSUPPORTED)
@@ -120,17 +132,19 @@ class K8sCommands(Commands):
             f"kubectl delete -n {self.target} {pod_name}", skip_on_dryrun=True
         )
 
-    async def set_description(self, service_name, description, confirm_callback=None):
+    async def set_description(
+        self, service_name, description, confirm_callback=None, message=None
+    ):
         raise CommandError(DESC_UNSUPPORTED)
 
-    async def start(self, service_name, commit=False):
+    async def start(self, service_name, commit=False, message=None):
         await self._check_service(service_name)
         await shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=1",
             skip_on_dryrun=True,
         )
 
-    async def stop(self, service_name, commit=False):
+    async def stop(self, service_name, commit=False, message=None):
         await self._check_service(service_name)
         await shell.run_command(
             f"kubectl scale -n {self.target} statefulset {service_name} --replicas=0 ",

@@ -8,6 +8,7 @@ import pytest
 from edge_containers_cli.git import (
     GitError,
     check_chart_dependency_version,
+    commit_args,
     del_key,
     set_value,
     set_values,
@@ -281,3 +282,86 @@ def test_set_values_require_keys_rejects_scalar_intermediate(tmp_path, mocker):
     assert values_file.read_text() == before
     assert not any(c.startswith("git commit") for c in calls)
     assert not any(c == "git push" for c in calls)
+
+
+def test_commit_args_without_message_keeps_generated_summary_alone():
+    assert shlex.split(commit_args("Set foo=bar in values.yaml", None)) == [
+        "-m",
+        "Set foo=bar in values.yaml",
+    ]
+
+
+def test_commit_args_with_message_puts_note_first():
+    # The note is the subject (what a log listing shows) and the
+    # generated summary becomes the body, so the machine-readable
+    # `Set ...` line survives for anyone grepping the history.
+    assert shlex.split(commit_args("Set foo=bar in values.yaml", "rolled back")) == [
+        "-m",
+        "rolled back",
+        "-m",
+        "Set foo=bar in values.yaml",
+    ]
+
+
+def test_commit_args_quotes_a_hostile_note():
+    # A note is free text straight from the command line, so it reaches
+    # the shell the same way the generated summary does and must be
+    # quoted just as thoroughly.
+    assert shlex.split(commit_args("Set foo=bar in values.yaml", MALICIOUS)) == [
+        "-m",
+        MALICIOUS,
+        "-m",
+        "Set foo=bar in values.yaml",
+    ]
+
+
+def test_set_value_records_the_note(tmp_path, mocker):
+    (tmp_path / "values.yaml").write_text("foo: old\n")
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(set_value(REPO_URL, Path("values.yaml"), "foo", "new", message=MALICIOUS))
+
+    assert _commit_tokens(calls) == [
+        "git",
+        "commit",
+        "-m",
+        MALICIOUS,
+        "-m",
+        "Set foo=new in values.yaml",
+    ]
+
+
+def test_del_key_records_the_note(tmp_path, mocker):
+    (tmp_path / "values.yaml").write_text("foo: old\n")
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(del_key(REPO_URL, Path("values.yaml"), "foo", message="decommissioned"))
+
+    assert _commit_tokens(calls) == [
+        "git",
+        "commit",
+        "-m",
+        "decommissioned",
+        "-m",
+        "Remove foo in values.yaml",
+    ]
+
+
+def test_set_values_records_the_note(tmp_path, mocker):
+    (tmp_path / "values.yaml").write_text("foo: old\n")
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL, Path("values.yaml"), {"foo": "new"}, message="ticket EC-123"
+        )
+    )
+
+    assert _commit_tokens(calls) == [
+        "git",
+        "commit",
+        "-m",
+        "ticket EC-123",
+        "-m",
+        "Set foo=new in values.yaml",
+    ]

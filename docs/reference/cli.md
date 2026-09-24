@@ -95,6 +95,21 @@ A few options also vary by backend:
   rollout and arguments itself).
 - `start` and `stop` drop `--commit`/`--no-commit` on the `K8S` backend (there is
   no GitOps repository to commit to).
+- `delete`, `deploy`, `set-desc`, `start` and `stop` drop `-m`/`--message` on the
+  `K8S` and `DEMO` backends, which never commit, so there would be no commit for
+  the note to land on.
+:::
+
+(ec-message)=
+:::{note}
+`-m`/`--message` records a free-text note explaining *why* a change was made. The
+note becomes the subject of the commit `ec` writes, and the generated summary
+(`Set services.foo.enabled=false in values.yaml`) is kept as the commit body, so
+the machine-readable line stays greppable.
+
+On `start` and `stop` it requires `--commit`: without it the change is patched
+onto the live ArgoCD application and never reaches git, so `ec` refuses rather
+than discarding the note.
 :::
 
 ## Commands
@@ -206,26 +221,29 @@ Restart `SERVICE`.
 #### `ec start SERVICE`
 
 ```
-$ ec start SERVICE [--commit/--no-commit]
+$ ec start SERVICE [--commit/--no-commit] [-m/--message TEXT]
 ```
 
 Start `SERVICE`. `--commit` also records the change in the git repository for an
 audit trail (available on `ARGOCD` and `DEMO`; not on `K8S`).
+`-m`/`--message` adds a note to that commit and requires `--commit`
+(see [above](ec-message)).
 
 #### `ec stop SERVICE`
 
 ```
-$ ec stop SERVICE [--commit/--no-commit]
+$ ec stop SERVICE [--commit/--no-commit] [-m/--message TEXT]
 ```
 
-Stop `SERVICE`. `--commit` behaves as for [`start`](ec-start).
+Stop `SERVICE`. `--commit` and `-m`/`--message` behave as for
+[`start`](ec-start).
 
 ### Deployment commands (ARGOCD and K8S)
 
 #### `ec deploy SERVICE [VERSION]`
 
 ```
-$ ec deploy SERVICE [VERSION] [--desc TEXT] [--wait] [-y/--yes] [--args "..."]
+$ ec deploy SERVICE [VERSION] [--desc TEXT] [--wait] [-y/--yes] [--args "..."] [-m/--message TEXT]
 ```
 
 Add `SERVICE` to the target from its source repository. `VERSION` defaults to the
@@ -241,7 +259,7 @@ latest tag. Options:
 #### `ec delete SERVICE`
 
 ```
-$ ec delete SERVICE [-y/--yes]
+$ ec delete SERVICE [-y/--yes] [-m/--message TEXT]
 ```
 
 Remove `SERVICE` from the target. `-y/--yes` skips the confirmation prompt.
