@@ -79,6 +79,14 @@ class DemoCommands(Commands):
     A class for implementing the Kubernetes based commands
     """
 
+    # The demo backend has no git repo behind it, so there is no commit for
+    # --message to annotate - drop it from the CLI as K8sCommands does.
+    params_opt_out = {
+        "stop": ["message"],
+        "start": ["message"],
+        "set-desc": ["message"],
+    }
+
     def __init__(
         self,
         ctx: ECContext,
@@ -110,7 +118,9 @@ class DemoCommands(Commands):
         await self._start(service_name, commit=False)
 
     @demo_message
-    async def set_description(self, service_name, description, confirm_callback=None):
+    async def set_description(
+        self, service_name, description, confirm_callback=None, message=None
+    ):
         # Descriptions are stored as an Argo CD Application annotation -
         # the demo backend has no such store, so there's nothing to
         # persist here. Still validate the service and run the same
@@ -121,7 +131,7 @@ class DemoCommands(Commands):
             confirm_callback(None, description)
 
     @demo_message
-    async def start(self, service_name, commit=False):
+    async def start(self, service_name, commit=False, message=None):
         await self._start(service_name, commit=commit)
 
     async def _start(self, service_name, commit=False):
@@ -135,7 +145,7 @@ class DemoCommands(Commands):
         )
 
     @demo_message
-    async def stop(self, service_name, commit=False):
+    async def stop(self, service_name, commit=False, message=None):
         await self._stop(service_name, commit=commit)
 
     async def _stop(self, service_name, commit=False):

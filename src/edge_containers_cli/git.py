@@ -163,11 +163,26 @@ def _dump(file_data: YamlFile, file: Path) -> None:
         raise GitError(f"{e} - nothing was written to {file}") from e
 
 
+def commit_args(generated: str, message: str | None) -> str:
+    """
+    Build the -m arguments for a commit.
+
+    Without a note the generated summary is the whole message. With one the
+    note becomes the subject, because that is what shows up in a log listing,
+    and the generated summary is kept as the body so the machine-readable
+    `Set ...` / `Remove ...` line stays greppable.
+    """
+    if message:
+        return f"-m {shlex.quote(message)} -m {shlex.quote(generated)}"
+    return f"-m {shlex.quote(generated)}"
+
+
 async def set_value(
     repo_url: str,
     file: Path,
     key: str,
     value: YamlTypes,
+    message: str | None = None,
 ) -> None:
     """
     sets a key,value pair in a yaml file and push the changes
@@ -195,7 +210,9 @@ async def set_value(
 
                 commit_msg = f"Set {key}={value} in {file}"
                 await shell.run_command("git add .")
-                await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
+                await shell.run_command(
+                    f"git commit {commit_args(commit_msg, message)}"
+                )
                 await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
@@ -210,6 +227,7 @@ async def set_values(
     require_chart_version: tuple[str, str, str] | None = None,
     deploy_target_revision: tuple[str, str] | None = None,
     remove_keys: list[str] | None = None,
+    message: str | None = None,
 ) -> None:
     """
     sets several key,value pairs in a yaml file in a single commit and
@@ -357,14 +375,18 @@ async def set_values(
                 else:
                     commit_msg = f"Remove {', '.join(removed_keys)} in {file}"
                 await shell.run_command("git add .")
-                await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
+                await shell.run_command(
+                    f"git commit {commit_args(commit_msg, message)}"
+                )
                 await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
             raise GitError(str(e)) from e
 
 
-async def del_key(repo_url: str, file: Path, key: str) -> None:
+async def del_key(
+    repo_url: str, file: Path, key: str, message: str | None = None
+) -> None:
     """
     remove a key from a yaml file and push the changes
     """
@@ -378,7 +400,9 @@ async def del_key(repo_url: str, file: Path, key: str) -> None:
 
                 commit_msg = f"Remove {key} in {file}"
                 await shell.run_command("git add .")
-                await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
+                await shell.run_command(
+                    f"git commit {commit_args(commit_msg, message)}"
+                )
                 await shell.run_command("git push", skip_on_dryrun=True)
 
         except (FileNotFoundError, ShellError) as e:
