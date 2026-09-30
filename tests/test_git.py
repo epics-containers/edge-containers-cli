@@ -4,14 +4,17 @@ import shlex
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from edge_containers_cli.git import (
     GitError,
     check_chart_dependency_version,
     del_key,
+    resolve_target_revision,
     set_value,
     set_values,
 )
+from edge_containers_cli.utils import YamlFile
 
 DEPENDENCY = "argocd-apps"
 MIN_VERSION = "5.10.0"
@@ -281,3 +284,274 @@ def test_set_values_require_keys_rejects_scalar_intermediate(tmp_path, mocker):
     assert values_file.read_text() == before
     assert not any(c.startswith("git commit") for c in calls)
     assert not any(c == "git push" for c in calls)
+
+
+# --- deploy_target_revision: group-aware pin removal (ec-268) ------------
+#
+# `ec deploy <service> <revision>` must not write a redundant per-service
+# `targetRevision` when `<revision>` is already the line the service
+# follows: `versions[services.<service>.group]` if it has a `group`, else
+# `source.targetRevision` (ec-helm-charts#135's own resolution order,
+# https://github.com/epics-containers/edge-containers-cli/issues/268).
+# `set_values(..., deploy_target_revision=(service_name, requested_version))`
+# is the single entry point that decides this - see resolve_target_revision.
+
+SERVICE = "bl01t-ea-test-01"
+
+
+def test_deploy_target_revision_no_group_equals_global_removes_existing_pin(
+    tmp_path, mocker
+):
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  repoURL: https://example.invalid/services.git\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+        "    targetRevision: old-pin\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {f"services.{SERVICE}.enabled": True},
+            deploy_target_revision=(SERVICE, "main"),
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"][SERVICE]
+    assert "targetRevision" not in entry
+    assert entry["enabled"] is True  # never left as `null`/absent
+    assert entry == {"enabled": True}
+
+    # No `enabled` write was actually needed (already true) - the whole
+    # commit is the removal, so the message reads as a removal, not a
+    # no-op "Set" with nothing in it.
+    commit_tokens = _commit_tokens(calls)
+    assert (
+        commit_tokens[-1] == f"Remove services.{SERVICE}.targetRevision in values.yaml"
+    )
+
+
+def test_deploy_target_revision_no_group_equals_global_never_creates_pin(
+    tmp_path, mocker
+):
+    # A service with only a bare (null) entry - valid YAML shorthand for
+    # "use every default", the same shape set_values' require_keys
+    # handling already treats as an empty mapping (see
+    # test_set_values_require_keys_accepts_null_intermediate): deploying
+    # to the revision it would follow anyway must create only the keys
+    # actually asked for (enabled) - never an explicit targetRevision.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        f"source:\n  targetRevision: main\nservices:\n  {SERVICE}:\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {f"services.{SERVICE}.enabled": True},
+            deploy_target_revision=(SERVICE, "main"),
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {"enabled": True}
+
+
+def test_deploy_target_revision_group_equals_versions_removes_pin(tmp_path, mocker):
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "versions:\n"
+        "  daq: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+        "    group: daq\n"
+        "    targetRevision: main\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {f"services.{SERVICE}.enabled": True},
+            deploy_target_revision=(SERVICE, "main"),
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"][SERVICE]
+    assert "targetRevision" not in entry
+    assert entry["group"] == "daq"  # group is read, never touched
+
+
+def test_deploy_target_revision_group_differs_writes_pin(tmp_path, mocker):
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "versions:\n"
+        "  daq: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+        "    group: daq\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {f"services.{SERVICE}.enabled": True},
+            deploy_target_revision=(SERVICE, "release/2026-1"),
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"][SERVICE]
+    assert entry["targetRevision"] == "release/2026-1"
+    assert entry["group"] == "daq"
+
+
+def test_deploy_target_revision_adhoc_group_name(tmp_path, mocker):
+    # Group names are arbitrary, not just daq/techui - an ad-hoc line
+    # (e.g. for a slice test) is a supported pattern, never hard-coded.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "versions:\n"
+        "  motion-fix: fix-motor-timeouts\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+        "    group: motion-fix\n"
+        "    targetRevision: fix-motor-timeouts\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {f"services.{SERVICE}.enabled": True},
+            deploy_target_revision=(SERVICE, "fix-motor-timeouts"),
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert "targetRevision" not in written["services"][SERVICE]
+
+
+def test_deploy_target_revision_unknown_group_raises(tmp_path, mocker):
+    # The group has no entry in `versions` at all - the chart render would
+    # fail on this regardless, so refuse clearly rather than silently
+    # writing or silently dropping the pin.
+    values_file = tmp_path / "values.yaml"
+    before = (
+        "source:\n"
+        "  targetRevision: main\n"
+        "versions:\n"
+        "  daq: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+        "    group: no-such-group\n"
+    )
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match="no-such-group"):
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {f"services.{SERVICE}.enabled": True},
+                deploy_target_revision=(SERVICE, "main"),
+            )
+        )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
+def test_deploy_target_revision_group_with_no_versions_key_raises(tmp_path, mocker):
+    # Same refusal when `versions` is missing entirely, not just missing
+    # this one group's entry.
+    values_file = tmp_path / "values.yaml"
+    before = (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+        "    group: daq\n"
+    )
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match="daq"):
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {f"services.{SERVICE}.enabled": True},
+                deploy_target_revision=(SERVICE, "main"),
+            )
+        )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+
+
+def test_deploy_target_revision_no_versions_no_group_backward_compatible(
+    tmp_path, mocker
+):
+    # A deployment repo shaped exactly as before ec-helm-charts#135 (no
+    # `versions`, no service ever has a `group`): the only comparison
+    # available is against `source.targetRevision`, and a version that
+    # differs from it is written exactly as it always was.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        f"source:\n  targetRevision: main\nservices:\n  {SERVICE}:\n    enabled: true\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {f"services.{SERVICE}.enabled": True},
+            deploy_target_revision=(SERVICE, "custom-version"),
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE]["targetRevision"] == "custom-version"
+
+
+def test_deploy_target_revision_no_source_key_always_writes(tmp_path, mocker):
+    # No top-level `source.targetRevision` at all (shouldn't happen in a
+    # real deployment repo, but resolve_target_revision must fail safe,
+    # not crash or silently drop a pin it can't prove is redundant).
+    file_data = YamlFile(_write_minimal(tmp_path, SERVICE))
+    assert resolve_target_revision(file_data, SERVICE, "main") == "main"
+
+
+def _write_minimal(tmp_path: Path, service: str) -> Path:
+    values_file = tmp_path / "values-minimal.yaml"
+    values_file.write_text(f"services:\n  {service}:\n    enabled: true\n")
+    return values_file

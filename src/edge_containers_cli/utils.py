@@ -166,7 +166,16 @@ class YamlFile:
         # Iterate through mappings to element
         for key in keys:
             if key == element:
-                del curser[key]
+                try:
+                    del curser[key]
+                except KeyError as e:
+                    raise YamlFileError(
+                        f"Entry '{key}' in '{key_path}' not found"
+                    ) from e
+                except TypeError as e:
+                    raise YamlFileError(
+                        f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
+                    ) from e
                 break
             try:
                 curser = curser[key]

@@ -102,6 +102,58 @@ def check_chart_dependency_version(
         )
 
 
+def resolve_target_revision(
+    file_data: YamlFile,
+    service_name: str,
+    requested_version: str,
+) -> str | None:
+    """
+    What `services.<service_name>.targetRevision` should become in the
+    deployment repo's values file for a `deploy` to `requested_version`:
+    `requested_version` itself if it differs from the shared revision
+    line the service already follows, or None if it's the same - meaning
+    the caller should remove any existing per-service pin instead of
+    writing a redundant one.
+
+    The line a service follows (ec-helm-charts#135's `argocd-apps`
+    resolution order, minus the per-service override this call is about
+    to decide the fate of): `versions[services.<service_name>.group]` if
+    the service has a `group`, else the file's top-level
+    `source.targetRevision`. A deployment repo with neither `versions`
+    nor `group` (pre ec-helm-charts#135) falls straight through to that
+    `source.targetRevision` comparison, unchanged from today.
+
+    Raises GitError if the service has a non-empty `group` with no
+    matching entry in `versions` - the chart render fails on that
+    combination regardless (a typo must not be silently written over, or
+    silently left as a dangling pin), so this refuses clearly rather
+    than guessing.
+    """
+    try:
+        group = file_data.get_key(f"services.{service_name}.group")
+    except YamlFileError:
+        group = None
+
+    if group:
+        try:
+            line_revision = file_data.get_key(f"versions.{group}")
+        except YamlFileError as e:
+            raise GitError(
+                f"service '{service_name}' has group '{group}' but "
+                f"'versions.{group}' is not set in {file_data.file} - "
+                "the chart render would fail on this; refusing to deploy"
+            ) from e
+    else:
+        try:
+            line_revision = file_data.get_key("source.targetRevision")
+        except YamlFileError:
+            # No top-level `source.targetRevision` at all - can't prove
+            # the requested version is redundant, so always write it.
+            line_revision = None
+
+    return None if line_revision == requested_version else requested_version
+
+
 async def set_value(
     repo_url: str,
     file: Path,
@@ -142,6 +194,7 @@ async def set_values(
     keys: dict[str, YamlTypes],
     require_keys: list[str] | None = None,
     require_chart_version: tuple[str, str, str] | None = None,
+    deploy_target_revision: tuple[str, str] | None = None,
 ) -> None:
     """
     sets several key,value pairs in a yaml file in a single commit and
@@ -169,6 +222,17 @@ async def set_values(
     against the Chart.yaml beside `file` - if `dependency` isn't pinned to
     at least `min_version`, nothing is written, committed or pushed and a
     GitError is raised instead.
+
+    `deploy_target_revision`, if given, is `(service_name,
+    requested_version)`. `services.<service_name>.targetRevision` is
+    resolved via resolve_target_revision against this same clone before
+    anything is written: if `requested_version` is already the shared
+    revision line the service follows, any existing per-service pin is
+    removed instead of a redundant one being written; otherwise
+    `requested_version` is set, exactly as though `keys` had carried
+    `services.<service_name>.targetRevision: requested_version` directly.
+    Raises GitError (nothing written) if the service's `group` has no
+    matching entry in `versions` - see resolve_target_revision.
     """
     with new_workdir() as path:
         try:
@@ -200,6 +264,18 @@ async def set_values(
                             "nothing was written"
                         )
 
+                remove_key_path: str | None = None
+                if deploy_target_revision is not None:
+                    service_name, requested_version = deploy_target_revision
+                    resolved = resolve_target_revision(
+                        file_data, service_name, requested_version
+                    )
+                    target_revision_key = f"services.{service_name}.targetRevision"
+                    if resolved is None:
+                        remove_key_path = target_revision_key
+                    else:
+                        keys = {**keys, target_revision_key: resolved}
+
                 changed: dict[str, YamlTypes] = {}
                 for key, value in keys.items():
                     try:
@@ -219,13 +295,30 @@ async def set_values(
                     file_data.set_key(key, value)
                     changed[key] = value
 
-                if not changed:
+                removed = False
+                if remove_key_path is not None:
+                    try:
+                        file_data.remove_key(remove_key_path)
+                    except YamlFileError:
+                        # Nothing to remove - the service already had no
+                        # per-service pin, so it was already following its
+                        # line. Not an error, just nothing to do here.
+                        pass
+                    else:
+                        removed = True
+
+                if not changed and not removed:
                     return None
 
                 file_data.dump_file()
 
-                changes = ", ".join(f"{k}={v}" for k, v in changed.items())
-                commit_msg = f"Set {changes} in {file}"
+                parts = [f"{k}={v}" for k, v in changed.items()]
+                if removed:
+                    parts.append(f"remove {remove_key_path}")
+                if changed:
+                    commit_msg = f"Set {', '.join(parts)} in {file}"
+                else:
+                    commit_msg = f"Remove {remove_key_path} in {file}"
                 await shell.run_command("git add .")
                 await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
                 await shell.run_command("git push", skip_on_dryrun=True)
