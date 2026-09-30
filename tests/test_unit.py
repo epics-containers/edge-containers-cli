@@ -51,3 +51,25 @@ def test_yaml_processor_remove(data):
     processor.remove_key(test_key)
     with pytest.raises(YamlFileError):
         processor.get_key(test_key)
+
+
+def test_yaml_processor_remove_missing_leaf_raises_yamlfileerror(data):
+    # The leaf itself (as opposed to an intermediate mapping) not existing
+    # must raise the same YamlFileError every other failure mode of
+    # remove_key raises - not a bare KeyError leaking out of the `del`.
+    processor = YamlFile(data / "yaml.yaml")
+    with pytest.raises(YamlFileError):
+        processor.remove_key("trunk_A.branch_A.leaf_D")
+
+
+def test_yaml_processor_remove_leaves_empty_mapping_not_null(tmp_path):
+    # A mapping whose only key gets removed must dump as `{}`, never a
+    # bare `null` - Helm v4 drops keys whose value is null, so a null
+    # entry would make a service disappear and Argo CD prune it
+    # (edge-containers-cli#268 comment).
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text("services:\n  svc:\n    targetRevision: old-pin\n")
+    processor = YamlFile(values_file)
+    processor.remove_key("services.svc.targetRevision")
+    processor.dump_file()
+    assert values_file.read_text() == "services:\n  svc: {}\n"

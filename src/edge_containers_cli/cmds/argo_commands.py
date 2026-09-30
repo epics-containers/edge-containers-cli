@@ -204,6 +204,7 @@ async def push_values(
     keys: dict[str, YamlTypes],
     require_keys: list[str] | None = None,
     require_chart_version: tuple[str, str, str] | None = None,
+    deploy_target_revision: tuple[str, str] | None = None,
 ):
     """
     Like push_value, but sets several keys in a single commit. Any key
@@ -215,6 +216,14 @@ async def push_values(
 
     `require_chart_version`, if given, is (dependency, min_version,
     feature) - see set_values.
+
+    `deploy_target_revision`, if given, is (service_name,
+    requested_version) - see set_values. Its targetRevision leaf key is
+    always freed below alongside `keys`, whether set_values ends up
+    writing or removing it in the values repo - either way, a stale
+    `argocd app set -p services.<service_name>.targetRevision=...`
+    parameter override (unrelated to what's committed) must not survive
+    a deploy.
     """
     # Get source details
     app_resp = await shell.run_command(
@@ -230,10 +239,15 @@ async def push_values(
         keys,
         require_keys=require_keys,
         require_chart_version=require_chart_version,
+        deploy_target_revision=deploy_target_revision,
     )
 
     # Free any possible patched values, their children & refresh repo
-    for key in keys:
+    freed_keys = list(keys)
+    if deploy_target_revision is not None:
+        service_name, _ = deploy_target_revision
+        freed_keys.append(f"services.{service_name}.targetRevision")
+    for key in freed_keys:
         await _unset_key_and_children(target, key)
     cmd_refresh = f"argocd app get {target} --refresh"
     await shell.run_command(cmd_refresh, skip_on_dryrun=True)
@@ -315,9 +329,14 @@ class ArgoCommands(Commands):
         # Only write the keys we were asked to change - any other
         # per-service metadata in the values repo (including any labels,
         # or fields added in future) must survive a deploy untouched.
+        # targetRevision itself is never listed here: push_values resolves
+        # it via deploy_target_revision below, against the shared revision
+        # line the service follows (its group's versions[] entry, or
+        # source.targetRevision) - a version that already equals that line
+        # gets any existing per-service pin removed rather than a
+        # redundant one written.
         deploy_dict: dict[str, YamlTypes] = {
             f"services.{service_name}.enabled": True,
-            f"services.{service_name}.targetRevision": version,
         }
         # only gate the write on the argocd-apps chart version when a
         # description is actually being written - a version-only deploy
@@ -332,7 +351,10 @@ class ArgoCommands(Commands):
             require_chart_version = (*CHART_VERSION_GATES["description"], "description")
 
         await push_values(
-            self.target, deploy_dict, require_chart_version=require_chart_version
+            self.target,
+            deploy_dict,
+            require_chart_version=require_chart_version,
+            deploy_target_revision=(service_name, version),
         )
 
     async def set_description(

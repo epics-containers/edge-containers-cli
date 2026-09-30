@@ -389,6 +389,65 @@ def test_deploy_clears_enabled_override(mock_run, ARGOCD, data: Path):
     mock_run.run_cli("deploy bl01t-ea-test-01")
 
 
+def test_deploy_drops_pin_matching_source_target_revision(mock_run, ARGOCD, data: Path):
+    # ec#268, no group: `_get_latest_version` resolves this deploy to
+    # "1.0" (same tags/services fixture as test_deploy). The deployment
+    # repo already follows "1.0" via source.targetRevision, so the
+    # existing per-service pin (a stale override) must be removed rather
+    # than rewritten - it reuses ARGOCD.deploy's exact shell sequence,
+    # proving the targetRevision parameter is still unset regardless of
+    # whether the git write ends up being a set or a remove.
+    mock_run.set_seq(ARGOCD.deploy)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: '1.0'\n"
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: false\n"
+        "    targetRevision: old-pin\n"
+    )
+
+    mock_run.run_cli("deploy bl01t-ea-test-01")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"]["bl01t-ea-test-01"]
+    assert "targetRevision" not in entry
+    assert entry["enabled"] is True
+
+
+def test_deploy_writes_pin_that_differs_from_source_target_revision(
+    mock_run, ARGOCD, data: Path
+):
+    # Same resolution, opposite outcome: an explicit --version that
+    # differs from source.targetRevision is still written as a pin, same
+    # as before ec#268.
+    mock_run.set_seq(ARGOCD.deploy_pinned_version)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "    enabled: false\n"
+    )
+
+    mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"]["bl01t-ea-test-01"]
+    assert entry["targetRevision"] == "2.0"
+    assert entry["enabled"] is True
+
+
 def test_logs(mock_run, ARGOCD):
     mock_run.set_seq(ARGOCD.checks + ARGOCD.logs)
     mock_run.run_cli("logs bl01t-ea-test-01")
