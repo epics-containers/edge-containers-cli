@@ -615,6 +615,59 @@ def test_set_values_remove_keys_absent_key_is_a_noop(tmp_path, mocker):
     assert not any(c == "git push" for c in calls)
 
 
+def test_set_values_remove_keys_refuses_unknown_service(tmp_path, mocker):
+    # THE CASE THAT MATTERS MOST (edge-containers-cli#271 regression): the
+    # service has no `services.<name>` entry at all - not merely a missing
+    # `enabled` leaf on an existing entry (the no-op case above). A
+    # mistyped or never-deployed service name must fail loudly, not be
+    # swallowed as "nothing to remove" and report success with nothing
+    # written.
+    values_file = tmp_path / "values.yaml"
+    before = "services:\n  some-other-service:\n    enabled: true\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match=SERVICE):
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {},
+                remove_keys=[f"services.{SERVICE}.enabled"],
+            )
+        )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
+def test_set_values_refuses_unknown_service_when_writing_a_key(tmp_path, mocker):
+    # Same refusal as test_set_values_remove_keys_refuses_unknown_service,
+    # reached through the other write path `set_values` has: an ordinary
+    # `keys` entry (e.g. a targetRevision pin that differs from the line,
+    # so it's written rather than removed) for a service with no
+    # `services.<name>` entry at all must raise GitError too, not a bare
+    # YamlFileError that escapes uncaught.
+    values_file = tmp_path / "values.yaml"
+    before = "services:\n  some-other-service:\n    enabled: true\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match=SERVICE):
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {f"services.{SERVICE}.targetRevision": "custom-version"},
+            )
+        )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
 def test_set_values_remove_keys_true_or_false_both_removed(tmp_path, mocker):
     # "deploy means run it" - an explicit `enabled: false` left over from a
     # committed stop is just as much removed by a deploy as `enabled: true`

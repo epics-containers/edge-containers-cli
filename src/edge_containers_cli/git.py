@@ -17,6 +17,7 @@ from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import (
     YamlFile,
     YamlFileError,
+    YamlPathNotFoundError,
     YamlTypes,
     chdir,
     is_partial_match,
@@ -299,13 +300,29 @@ async def set_values(
                         log.debug(f"{key} already set as {value}")
                         continue
 
-                    file_data.set_key(key, value)
+                    try:
+                        file_data.set_key(key, value)
+                    except YamlPathNotFoundError as e:
+                        raise GitError(
+                            f"'{key}' not found in {file} - nothing was written"
+                        ) from e
                     changed[key] = value
 
                 removed_keys: list[str] = []
                 for remove_key_path in remove_key_paths:
                     try:
                         file_data.remove_key(remove_key_path)
+                    except YamlPathNotFoundError as e:
+                        # Unlike the leaf itself being absent (below), a
+                        # missing intermediate segment means the thing
+                        # being changed - e.g. the service itself - was
+                        # never in the file at all. A mistyped or
+                        # never-deployed service name must fail loudly,
+                        # not be swallowed as a harmless no-op.
+                        raise GitError(
+                            f"'{remove_key_path}' not found in {file} - "
+                            "nothing was written"
+                        ) from e
                     except YamlFileError:
                         # Nothing to remove - already absent (e.g. the
                         # service already had no per-service targetRevision

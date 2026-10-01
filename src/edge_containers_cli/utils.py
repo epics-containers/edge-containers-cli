@@ -127,6 +127,19 @@ class YamlFileError(Exception):
     pass
 
 
+class YamlPathNotFoundError(YamlFileError):
+    """
+    A key path can't be resolved at all because an intermediate segment
+    (not the leaf itself) is missing - e.g. `services.<svc>.enabled` where
+    `<svc>` has no entry under `services`. Distinct from the leaf itself
+    being absent (plain YamlFileError), which a caller like
+    `set_values(..., remove_keys=[...])` treats as "nothing to remove,
+    already absent" - a missing intermediate means the thing being
+    changed doesn't exist at all, which must never be swallowed as a
+    harmless no-op.
+    """
+
+
 class YamlFile:
     def __init__(self, file: Path) -> None:
         self.file = file
@@ -180,9 +193,11 @@ class YamlFile:
             try:
                 curser = curser[key]
             except KeyError as e:
-                raise YamlFileError(f"Entry '{key}' in '{key_path}' not found") from e
+                raise YamlPathNotFoundError(
+                    f"Entry '{key}' in '{key_path}' not found"
+                ) from e
             except TypeError as e:
-                raise YamlFileError(
+                raise YamlPathNotFoundError(
                     f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
                 ) from e
             prev_key = key
@@ -210,9 +225,11 @@ class YamlFile:
                     curser[key] = {element: None}
                 curser = curser[key]
             except KeyError as e:
-                raise YamlFileError(f"Entry '{key}' in '{key_path}' not found") from e
+                raise YamlPathNotFoundError(
+                    f"Entry '{key}' in '{key_path}' not found"
+                ) from e
             except TypeError as e:
-                raise YamlFileError(
+                raise YamlPathNotFoundError(
                     f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
                 ) from e
             prev_key = key

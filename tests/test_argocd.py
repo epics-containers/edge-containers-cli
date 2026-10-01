@@ -451,6 +451,39 @@ def test_deploy_writes_pin_that_differs_from_source_target_revision(
     assert "enabled" not in entry  # chart defaults it true - deploy drops it
 
 
+def test_deploy_refuses_unknown_service(mock_run, ARGOCD, data: Path):
+    # edge-containers-cli#271 regression: a service that exists in the
+    # services repo (so check_exists passes) but was never added to the
+    # deployment repo's values.yaml at all - not merely missing one leaf
+    # key - must refuse with a clear error and write nothing, exactly like
+    # a mistyped service name should. Deploying at the version equal to
+    # the shared revision line (so the only writes attempted are via
+    # remove_keys - enabled, and the now-redundant targetRevision pin that
+    # was never there) is the case that silently committed nothing and
+    # reported success before the fix.
+    mock_run.set_seq(ARGOCD.deploy_unknown_service)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    before = (
+        "source:\n"
+        '  targetRevision: "2.0"\n'
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: true\n"
+    )
+    values_file.write_text(before)
+
+    with pytest.raises(GitError, match="bl01t-ea-test-01"):
+        mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+
+    assert values_file.read_text() == before
+    assert "CMD: git commit" not in mock_run.log
+    assert "CMD: git push" not in mock_run.log
+
+
 def test_logs(mock_run, ARGOCD):
     mock_run.set_seq(ARGOCD.checks + ARGOCD.logs)
     mock_run.run_cli("logs bl01t-ea-test-01")

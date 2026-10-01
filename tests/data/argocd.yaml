@@ -564,6 +564,43 @@ deploy_pinned_version:
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
+# edge-containers-cli#271 regression: `ec deploy <service>` for a service
+# with no `services.<name>` entry in the deployment repo's values.yaml at
+# all (never deployed before - not merely missing one leaf key on an
+# existing entry) must refuse with a clear error and write nothing, same
+# as 5.4.1/5.5.0-beta.1 - never silently commit nothing and report
+# success. Stops right after cloning the deployment repo, before any
+# add/commit/push/unset.
+deploy_unknown_service:
+  - cmd: git clone https://github.com/epics-containers/bl01t-services -b 2.0 /tmp/ec_tests
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: some-other-service
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: some-other-service
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+
 deploy_clears_override:
   # Same flow as `deploy`, but there's a lingering
   # `services.bl01t-ea-test-01.enabled.legacy=false` child parameter
