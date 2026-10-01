@@ -8,6 +8,10 @@
     "url": "https://epics-containers.github.io/edge-containers-cli/5.5.0-beta.1/"
   },
   {
+    "version": "5.5.0",
+    "url": "https://epics-containers.github.io/edge-containers-cli/5.5.0/"
+  },
+  {
     "version": "5.4.1",
     "url": "https://epics-containers.github.io/edge-containers-cli/5.4.1/"
   },
