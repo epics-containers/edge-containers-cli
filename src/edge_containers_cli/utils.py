@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import functools
 import gc
+import io
 import json
 import os
 import shutil
@@ -16,7 +17,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Union
 
-from ruamel.yaml import YAML, scalarint
+from ruamel.yaml import YAML, YAMLError, scalarint
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.error import CommentMark
+from ruamel.yaml.tokens import CommentToken
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
@@ -127,6 +131,19 @@ class YamlFileError(Exception):
     pass
 
 
+class YamlPathNotFoundError(YamlFileError):
+    """
+    A key path can't be resolved at all because an intermediate segment
+    (not the leaf itself) is missing - e.g. `services.<svc>.enabled` where
+    `<svc>` has no entry under `services`. Distinct from the leaf itself
+    being absent (plain YamlFileError), which a caller like
+    `set_values(..., remove_keys=[...])` treats as "nothing to remove,
+    already absent" - a missing intermediate means the thing being
+    changed doesn't exist at all, which must never be swallowed as a
+    harmless no-op.
+    """
+
+
 class YamlFile:
     def __init__(self, file: Path) -> None:
         self.file = file
@@ -135,8 +152,23 @@ class YamlFile:
             self._yaml_data = self._processor.load(fp)
 
     def dump_file(self, output_path: Path | None = None):
-        with open(output_path if output_path else self.file, "wb") as file_w:
-            self._processor.dump(self._yaml_data, file_w)
+        """
+        Write the data back out. The emitted YAML is parsed back first and
+        nothing is written if it doesn't parse - a comment ruamel places
+        badly must never reach the file.
+        """
+        output_path = output_path if output_path else self.file
+        stream = io.BytesIO()
+        self._processor.dump(self._yaml_data, stream)
+        try:
+            YAML(typ="safe").load(stream.getvalue())
+        except YAMLError as e:
+            raise YamlFileError(
+                f"Refusing to write {output_path}: the YAML produced does not "
+                f"parse ({e})"
+            ) from e
+        with open(output_path, "wb") as file_w:
+            file_w.write(stream.getvalue())
 
     def get_key(self, key_path: str) -> YamlTypes:
         curser = self._yaml_data
@@ -158,34 +190,40 @@ class YamlFile:
         return curser
 
     def remove_key(self, key_path: str):
-        curser = self._yaml_data
-        prev_key = ""
         keys = key_path.split(".")
         element = keys[-1]
+        parent: Any = None
+        parent_key: Any = None
+        curser = self._yaml_data
+        prev_key = ""
 
-        # Iterate through mappings to element
-        for key in keys:
-            if key == element:
-                try:
-                    del curser[key]
-                except KeyError as e:
-                    raise YamlFileError(
-                        f"Entry '{key}' in '{key_path}' not found"
-                    ) from e
-                except TypeError as e:
-                    raise YamlFileError(
-                        f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
-                    ) from e
-                break
+        # Iterate through mappings to the one holding element
+        for key in keys[:-1]:
             try:
-                curser = curser[key]
+                parent, parent_key, curser = curser, key, curser[key]
             except KeyError as e:
-                raise YamlFileError(f"Entry '{key}' in '{key_path}' not found") from e
+                raise YamlPathNotFoundError(
+                    f"Entry '{key}' in '{key_path}' not found"
+                ) from e
             except TypeError as e:
-                raise YamlFileError(
+                raise YamlPathNotFoundError(
                     f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
                 ) from e
             prev_key = key
+
+        try:
+            curser[element]
+        except KeyError as e:
+            raise YamlFileError(f"Entry '{element}' in '{key_path}' not found") from e
+        except TypeError as e:
+            raise YamlFileError(
+                f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
+            ) from e
+
+        if isinstance(curser, CommentedMap):
+            _remove_commented_key(curser, element, parent, parent_key)
+        else:
+            del curser[element]
 
         log.debug(f"Removed '{element}' from '{key_path}'")
 
@@ -210,9 +248,11 @@ class YamlFile:
                     curser[key] = {element: None}
                 curser = curser[key]
             except KeyError as e:
-                raise YamlFileError(f"Entry '{key}' in '{key_path}' not found") from e
+                raise YamlPathNotFoundError(
+                    f"Entry '{key}' in '{key_path}' not found"
+                ) from e
             except TypeError as e:
-                raise YamlFileError(
+                raise YamlPathNotFoundError(
                     f"'{prev_key}' in '{key_path}' is type: {type(curser)}",
                 ) from e
             prev_key = key
@@ -228,6 +268,105 @@ class YamlFile:
             curser[element] = value
 
         log.debug(f"Set '{element}' in '{key_path}' to {value}")
+
+
+# ruamel's round-trip loader keeps the comment lines that follow a value
+# (an end-of-line comment plus any whole comment and blank lines up to the
+# next key) on the deepest last key of that value, and the comment lines
+# above a mapping's first key on the parent's entry for that mapping. The
+# helpers below move those comments when a key is removed, so they stay
+# where they were in the file instead of leaving with the key.
+
+_EMPTY_COMMENT_SLOT = [None, None, None, None]
+
+
+def _following_comment_slot(container: Any, key: Any) -> tuple[list, int]:
+    """
+    The `ca.items` entry, and the index in it, of the comment that follows
+    `container[key]` - the deepest last key of a non-empty collection value.
+    """
+    value = container[key]
+    if isinstance(value, CommentedMap) and len(value) > 0:
+        return _following_comment_slot(value, list(value.keys())[-1])
+    if isinstance(value, CommentedSeq) and len(value) > 0:
+        return _following_comment_slot(value, len(value) - 1)
+    slot = container.ca.items.setdefault(key, list(_EMPTY_COMMENT_SLOT))
+    return slot, 0 if isinstance(container, CommentedSeq) else 2
+
+
+def _append_following_comment(
+    container: Any, key: Any, token: CommentToken, text: str
+) -> None:
+    """
+    Add `text` (starting with the newline that ends `container[key]`'s
+    last line) after `container[key]`'s existing following comment.
+    """
+    slot, index = _following_comment_slot(container, key)
+    existing = slot[index]
+    if existing is None:
+        token.value = text
+        slot[index] = token
+    else:
+        existing.value = existing.value + text[1:]
+
+
+def _comment_lines_as_tokens(text: str) -> list[CommentToken]:
+    """`text` (starting with a line-ending newline) as one token per line."""
+    tokens = []
+    for line in text[1:].splitlines(keepends=True):
+        stripped = line.lstrip(" ")
+        column = len(line) - len(stripped) if stripped.strip() else 0
+        tokens.append(CommentToken(stripped, CommentMark(column), None))
+    return tokens
+
+
+def _remove_commented_key(
+    mapping: CommentedMap, key: Any, parent: Any, parent_key: Any
+) -> None:
+    """
+    Delete `mapping[key]`, keeping the comment and blank lines that follow
+    it (they introduce whatever comes next). The removed line's own
+    end-of-line comment goes with it. An emptied mapping is replaced by a
+    fresh one: ruamel emits a leftover comment on an empty mapping at
+    column 0, which does not parse.
+    """
+    keys = list(mapping.keys())
+    position = keys.index(key)
+
+    slot, index = _following_comment_slot(mapping, key)
+    token = slot[index]
+    slot[index] = None
+    following = None
+    if token is not None:
+        text = token.value
+        text = text[text.index("\n") :] if "\n" in text else ""
+        if text not in ("", "\n"):
+            following = text
+
+    del mapping[key]
+    mapping.ca.items.pop(key, None)
+
+    if len(mapping) == 0 and parent is not None:
+        parent[parent_key] = mapping = CommentedMap()
+
+    if following is None or token is None:
+        return
+
+    if position > 0:
+        _append_following_comment(mapping, keys[position - 1], token, following)
+    elif len(mapping) == 0:
+        if parent is not None:
+            _append_following_comment(parent, parent_key, token, following)
+    elif parent is not None:
+        # nothing before it in this mapping: the comment now leads the
+        # mapping's new first key
+        slot = parent.ca.items.setdefault(parent_key, list(_EMPTY_COMMENT_SLOT))
+        slot[3] = (slot[3] or []) + _comment_lines_as_tokens(following)
+    else:
+        mapping.ca.comment = mapping.ca.comment or [None, []]
+        mapping.ca.comment[1] = (mapping.ca.comment[1] or []) + (
+            _comment_lines_as_tokens(following)
+        )
 
 
 def is_partial_match(query: str, target_list: list[str]) -> bool:

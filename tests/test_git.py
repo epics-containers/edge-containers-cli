@@ -555,3 +555,430 @@ def _write_minimal(tmp_path: Path, service: str) -> Path:
     values_file = tmp_path / "values-minimal.yaml"
     values_file.write_text(f"services:\n  {service}:\n    enabled: true\n")
     return values_file
+
+
+# --- remove_keys: drop `enabled` entirely rather than writing it ---------
+#
+# The chart defaults `services.<svc>.enabled` to true and only acts on an
+# explicit `false`, so `ec deploy`/`ec start --commit` must remove the key
+# (whatever it currently holds) rather than ever writing `enabled: true` -
+# `ec stop --commit` is the only path left that writes it, and only to
+# `false`. `set_values(..., remove_keys=[...])` is the entry point both
+# deploy and start use for this.
+
+
+def test_set_values_remove_keys_removes_present_key(tmp_path, mocker):
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        f"services:\n  {SERVICE}:\n    enabled: true\n    extra: keepme\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"][SERVICE]
+    assert "enabled" not in entry
+    assert entry["extra"] == "keepme"
+
+    commit_tokens = _commit_tokens(calls)
+    assert commit_tokens[-1] == f"Remove services.{SERVICE}.enabled in values.yaml"
+    assert any(c == "git push" for c in calls)
+
+
+def test_set_values_remove_keys_absent_key_is_a_noop(tmp_path, mocker):
+    # Deploying a service that's already enabled (no explicit key at all)
+    # must not create a spurious commit just to "remove" nothing.
+    values_file = tmp_path / "values.yaml"
+    before = f"services:\n  {SERVICE}:\n    extra: keepme\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
+def test_set_values_remove_keys_refuses_unknown_service(tmp_path, mocker):
+    # THE CASE THAT MATTERS MOST (edge-containers-cli#271 regression): the
+    # service has no `services.<name>` entry at all - not merely a missing
+    # `enabled` leaf on an existing entry (the no-op case above). A
+    # mistyped or never-deployed service name must fail loudly, not be
+    # swallowed as "nothing to remove" and report success with nothing
+    # written.
+    values_file = tmp_path / "values.yaml"
+    before = "services:\n  some-other-service:\n    enabled: true\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match=SERVICE):
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {},
+                remove_keys=[f"services.{SERVICE}.enabled"],
+            )
+        )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
+def test_set_values_refuses_unknown_service_when_writing_a_key(tmp_path, mocker):
+    # Same refusal as test_set_values_remove_keys_refuses_unknown_service,
+    # reached through the other write path `set_values` has: an ordinary
+    # `keys` entry (e.g. a targetRevision pin that differs from the line,
+    # so it's written rather than removed) for a service with no
+    # `services.<name>` entry at all must raise GitError too, not a bare
+    # YamlFileError that escapes uncaught.
+    values_file = tmp_path / "values.yaml"
+    before = "services:\n  some-other-service:\n    enabled: true\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match=SERVICE):
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {f"services.{SERVICE}.targetRevision": "custom-version"},
+            )
+        )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
+def test_set_values_remove_keys_true_or_false_both_removed(tmp_path, mocker):
+    # "deploy means run it" - an explicit `enabled: false` left over from a
+    # committed stop is just as much removed by a deploy as `enabled: true`
+    # would be; the value never matters, only that the key is dropped.
+    for existing_value in ("true", "false"):
+        values_file = tmp_path / "values.yaml"
+        values_file.write_text(
+            f"services:\n  {SERVICE}:\n    enabled: {existing_value}\n"
+        )
+        _mock_shell(mocker, tmp_path)
+
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {},
+                remove_keys=[f"services.{SERVICE}.enabled"],
+            )
+        )
+
+        written = YAML(typ="safe").load(values_file.read_text())
+        assert "enabled" not in written["services"][SERVICE]
+
+
+def test_set_values_remove_keys_leaves_empty_mapping_as_empty_dict(tmp_path, mocker):
+    # A service whose only key was `enabled` must serialise as `{}`, never
+    # a bare `null` - Helm v4 drops a null-valued key, which would prune
+    # the service from the chart's render entirely.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(f"services:\n  {SERVICE}:\n    enabled: true\n")
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    assert values_file.read_text() == f"services:\n  {SERVICE}: {{}}\n"
+
+
+def test_set_values_remove_keys_combines_with_deploy_target_revision(tmp_path, mocker):
+    # A real `ec deploy` call: enabled is dropped via remove_keys in the
+    # same commit that resolve_target_revision decides to drop the
+    # redundant targetRevision pin in - both land in one commit, and an
+    # entry left with neither key serialises as `{}`.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: false\n"
+        "    targetRevision: old-pin\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            deploy_target_revision=(SERVICE, "main"),
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {}
+
+    commit_tokens = _commit_tokens(calls)
+    assert commit_tokens[2] == "-m"
+    assert commit_tokens[3].startswith("Remove ")
+
+
+# --- comments around a removed key ---------------------------------------
+#
+# ruamel keeps the comment lines that follow a key's value attached to that
+# key, and the comment lines above a mapping's first key on the mapping
+# itself. Removing a key (every deploy removes `enabled`, and at the line
+# revision also the pin) must neither take a following section's comments
+# with it nor leave a comment where it turns the emptied entry into
+# unparseable YAML.
+
+
+def test_set_values_emptied_entry_with_leading_comment_stays_valid(tmp_path, mocker):
+    # b01-1-deployment's b01-1-tiled shape: a parked pin commented out
+    # above the live one, which is the entry's only key. Deploying at the
+    # line revision empties the entry - the file written must still parse
+    # and keep the parked pin.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    #targetRevision: enable-tiled\n"
+        "    targetRevision: hyperrealist/tiled-test\n"
+        "  other-service:\n"
+        "    enabled: false\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            deploy_target_revision=(SERVICE, "hyperrealist/tiled-test"),
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+    # the pin differs from the line, so it was rewritten in place - now
+    # deploy at the line revision to empty the entry
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            deploy_target_revision=(SERVICE, "main"),
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    text = values_file.read_text()
+    written = YAML(typ="safe").load(text)
+    assert written["services"] == {SERVICE: {}, "other-service": {"enabled": False}}
+    assert "#targetRevision: enable-tiled" in text
+    assert any(c.startswith("git commit") for c in calls)
+
+
+def test_set_values_keeps_section_comment_after_removed_key(tmp_path, mocker):
+    # i19-deployment's shape: a blank line and a section header follow the
+    # last key of the entry above it. Removing that key must leave the
+    # header where it was.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+        "\n"
+        "  # DAQ services, targeting main in i19-services (default)\n"
+        "  daq-service:\n"
+        "    group: daq\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    assert values_file.read_text() == (
+        "services:\n"
+        f"  {SERVICE}: {{}}\n"
+        "\n"
+        "  # DAQ services, targeting main in i19-services (default)\n"
+        "  daq-service:\n"
+        "    group: daq\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "before, key, after",
+    [
+        pytest.param(
+            "services:\n"
+            "  svc-a:\n"
+            "    description: keep\n"
+            "    enabled: true  # removed with its line\n"
+            "  # introduces svc-b\n"
+            "  svc-b: {}\n",
+            "services.svc-a.enabled",
+            "services:\n"
+            "  svc-a:\n"
+            "    description: keep\n"
+            "  # introduces svc-b\n"
+            "  svc-b: {}\n",
+            id="last-key-with-sibling-before",
+        ),
+        pytest.param(
+            "services:\n"
+            "  svc-a:\n"
+            "    enabled: true\n"
+            "    # about description\n"
+            "    description: keep\n",
+            "services.svc-a.enabled",
+            "services:\n  svc-a:\n    # about description\n    description: keep\n",
+            id="first-key-comment-introduces-kept-key",
+        ),
+        pytest.param(
+            "services:\n"
+            "  svc-a:\n"
+            "    description: keep\n"
+            "    labels:\n"
+            "      team: x\n"
+            "    enabled: true\n"
+            "\n"
+            "  # ---- DAQ services ----\n"
+            "  svc-b:\n"
+            "    group: daq\n",
+            "services.svc-a.enabled",
+            "services:\n"
+            "  svc-a:\n"
+            "    description: keep\n"
+            "    labels:\n"
+            "      team: x\n"
+            "\n"
+            "  # ---- DAQ services ----\n"
+            "  svc-b:\n"
+            "    group: daq\n",
+            id="previous-sibling-is-a-mapping",
+        ),
+        pytest.param(
+            "services:\n"
+            "  svc-a:\n"
+            "    enabled: true\n"
+            "  svc-b:\n"
+            "    description: x\n"
+            "\n"
+            "  # ---- DAQ services ----\n"
+            "  svc-c: {}\n",
+            "services.svc-b",
+            "services:\n"
+            "  svc-a:\n"
+            "    enabled: true\n"
+            "\n"
+            "  # ---- DAQ services ----\n"
+            "  svc-c: {}\n",
+            id="whole-entry-removed",
+        ),
+    ],
+)
+def test_remove_key_keeps_following_comments(tmp_path, before, key, after):
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(before)
+
+    file_data = YamlFile(values_file)
+    file_data.remove_key(key)
+    file_data.dump_file()
+
+    assert values_file.read_text() == after
+
+
+def _unparseable_dump(self, data, stream):
+    stream.write(b"services:\n  svc:\n    #pin\n{}\n  other: {}\n")
+
+
+@pytest.mark.parametrize(
+    "write",
+    [
+        pytest.param(
+            lambda: set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {},
+                remove_keys=[f"services.{SERVICE}.enabled"],
+            ),
+            id="set_values",
+        ),
+        pytest.param(
+            lambda: set_value(
+                REPO_URL, Path("values.yaml"), f"services.{SERVICE}.enabled", False
+            ),
+            id="set_value",
+        ),
+        pytest.param(
+            lambda: del_key(REPO_URL, Path("values.yaml"), f"services.{SERVICE}"),
+            id="del_key",
+        ),
+    ],
+)
+def test_unparseable_output_is_never_committed(tmp_path, mocker, write):
+    # Whatever ruamel emits is parsed back before anything is written or
+    # committed - output that doesn't parse raises GitError and leaves the
+    # file, the commit and the push alone.
+    values_file = tmp_path / "values.yaml"
+    before = f"services:\n  {SERVICE}:\n    enabled: true\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+    mocker.patch("ruamel.yaml.YAML.dump", _unparseable_dump)
+
+    with pytest.raises(GitError, match="values.yaml"):
+        _run(write())
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
+def test_set_value_refuses_unknown_service(tmp_path, mocker):
+    # `ec stop <svc> --commit` writes through set_value - a service with no
+    # `services.<name>` entry must give the same GitError as deploy/start.
+    values_file = tmp_path / "values.yaml"
+    before = "services:\n  some-other-service:\n    enabled: true\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match=SERVICE):
+        _run(
+            set_value(
+                REPO_URL, Path("values.yaml"), f"services.{SERVICE}.enabled", False
+            )
+        )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)

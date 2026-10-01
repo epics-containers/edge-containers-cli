@@ -17,6 +17,7 @@ from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import (
     YamlFile,
     YamlFileError,
+    YamlPathNotFoundError,
     YamlTypes,
     chdir,
     is_partial_match,
@@ -154,6 +155,14 @@ def resolve_target_revision(
     return None if line_revision == requested_version else requested_version
 
 
+def _dump(file_data: YamlFile, file: Path) -> None:
+    """Write `file_data` back, as a GitError if the output doesn't parse."""
+    try:
+        file_data.dump_file()
+    except YamlFileError as e:
+        raise GitError(f"{e} - nothing was written to {file}") from e
+
+
 async def set_value(
     repo_url: str,
     file: Path,
@@ -176,8 +185,13 @@ async def set_value(
                 except YamlFileError:
                     pass
 
-                file_data.set_key(key, value)
-                file_data.dump_file()
+                try:
+                    file_data.set_key(key, value)
+                except YamlPathNotFoundError as e:
+                    raise GitError(
+                        f"'{key}' not found in {file} - nothing was written"
+                    ) from e
+                _dump(file_data, file)
 
                 commit_msg = f"Set {key}={value} in {file}"
                 await shell.run_command("git add .")
@@ -195,6 +209,7 @@ async def set_values(
     require_keys: list[str] | None = None,
     require_chart_version: tuple[str, str, str] | None = None,
     deploy_target_revision: tuple[str, str] | None = None,
+    remove_keys: list[str] | None = None,
 ) -> None:
     """
     sets several key,value pairs in a yaml file in a single commit and
@@ -233,6 +248,12 @@ async def set_values(
     `services.<service_name>.targetRevision: requested_version` directly.
     Raises GitError (nothing written) if the service's `group` has no
     matching entry in `versions` - see resolve_target_revision.
+
+    `remove_keys`, if given, are key paths removed from the file instead
+    of being set - a key already absent is not an error, there's simply
+    nothing to do for it. This is how a caller drops e.g.
+    `services.<service_name>.enabled` from the file entirely rather than
+    writing an explicit `true`/`false` to it.
     """
     with new_workdir() as path:
         try:
@@ -264,7 +285,7 @@ async def set_values(
                             "nothing was written"
                         )
 
-                remove_key_path: str | None = None
+                remove_key_paths: list[str] = list(remove_keys or [])
                 if deploy_target_revision is not None:
                     service_name, requested_version = deploy_target_revision
                     resolved = resolve_target_revision(
@@ -272,7 +293,7 @@ async def set_values(
                     )
                     target_revision_key = f"services.{service_name}.targetRevision"
                     if resolved is None:
-                        remove_key_path = target_revision_key
+                        remove_key_paths.append(target_revision_key)
                     else:
                         keys = {**keys, target_revision_key: resolved}
 
@@ -292,33 +313,49 @@ async def set_values(
                         log.debug(f"{key} already set as {value}")
                         continue
 
-                    file_data.set_key(key, value)
+                    try:
+                        file_data.set_key(key, value)
+                    except YamlPathNotFoundError as e:
+                        raise GitError(
+                            f"'{key}' not found in {file} - nothing was written"
+                        ) from e
                     changed[key] = value
 
-                removed = False
-                if remove_key_path is not None:
+                removed_keys: list[str] = []
+                for remove_key_path in remove_key_paths:
                     try:
                         file_data.remove_key(remove_key_path)
+                    except YamlPathNotFoundError as e:
+                        # Unlike the leaf itself being absent (below), a
+                        # missing intermediate segment means the thing
+                        # being changed - e.g. the service itself - was
+                        # never in the file at all. A mistyped or
+                        # never-deployed service name must fail loudly,
+                        # not be swallowed as a harmless no-op.
+                        raise GitError(
+                            f"'{remove_key_path}' not found in {file} - "
+                            "nothing was written"
+                        ) from e
                     except YamlFileError:
-                        # Nothing to remove - the service already had no
-                        # per-service pin, so it was already following its
-                        # line. Not an error, just nothing to do here.
+                        # Nothing to remove - already absent (e.g. the
+                        # service already had no per-service targetRevision
+                        # pin, so it was already following its line). Not
+                        # an error, just nothing to do here.
                         pass
                     else:
-                        removed = True
+                        removed_keys.append(remove_key_path)
 
-                if not changed and not removed:
+                if not changed and not removed_keys:
                     return None
 
-                file_data.dump_file()
+                _dump(file_data, file)
 
                 parts = [f"{k}={v}" for k, v in changed.items()]
-                if removed:
-                    parts.append(f"remove {remove_key_path}")
+                parts.extend(f"remove {k}" for k in removed_keys)
                 if changed:
                     commit_msg = f"Set {', '.join(parts)} in {file}"
                 else:
-                    commit_msg = f"Remove {remove_key_path} in {file}"
+                    commit_msg = f"Remove {', '.join(removed_keys)} in {file}"
                 await shell.run_command("git add .")
                 await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
                 await shell.run_command("git push", skip_on_dryrun=True)
@@ -337,7 +374,7 @@ async def del_key(repo_url: str, file: Path, key: str) -> None:
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
                 file_data.remove_key(key)
-                file_data.dump_file()
+                _dump(file_data, file)
 
                 commit_msg = f"Remove {key} in {file}"
                 await shell.run_command("git add .")
