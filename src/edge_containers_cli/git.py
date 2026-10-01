@@ -155,6 +155,14 @@ def resolve_target_revision(
     return None if line_revision == requested_version else requested_version
 
 
+def _dump(file_data: YamlFile, file: Path) -> None:
+    """Write `file_data` back, as a GitError if the output doesn't parse."""
+    try:
+        file_data.dump_file()
+    except YamlFileError as e:
+        raise GitError(f"{e} - nothing was written to {file}") from e
+
+
 async def set_value(
     repo_url: str,
     file: Path,
@@ -177,8 +185,13 @@ async def set_value(
                 except YamlFileError:
                     pass
 
-                file_data.set_key(key, value)
-                file_data.dump_file()
+                try:
+                    file_data.set_key(key, value)
+                except YamlPathNotFoundError as e:
+                    raise GitError(
+                        f"'{key}' not found in {file} - nothing was written"
+                    ) from e
+                _dump(file_data, file)
 
                 commit_msg = f"Set {key}={value} in {file}"
                 await shell.run_command("git add .")
@@ -335,7 +348,7 @@ async def set_values(
                 if not changed and not removed_keys:
                     return None
 
-                file_data.dump_file()
+                _dump(file_data, file)
 
                 parts = [f"{k}={v}" for k, v in changed.items()]
                 parts.extend(f"remove {k}" for k in removed_keys)
@@ -361,7 +374,7 @@ async def del_key(repo_url: str, file: Path, key: str) -> None:
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
                 file_data.remove_key(key)
-                file_data.dump_file()
+                _dump(file_data, file)
 
                 commit_msg = f"Remove {key} in {file}"
                 await shell.run_command("git add .")
