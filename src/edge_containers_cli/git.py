@@ -195,6 +195,7 @@ async def set_values(
     require_keys: list[str] | None = None,
     require_chart_version: tuple[str, str, str] | None = None,
     deploy_target_revision: tuple[str, str] | None = None,
+    remove_keys: list[str] | None = None,
 ) -> None:
     """
     sets several key,value pairs in a yaml file in a single commit and
@@ -233,6 +234,12 @@ async def set_values(
     `services.<service_name>.targetRevision: requested_version` directly.
     Raises GitError (nothing written) if the service's `group` has no
     matching entry in `versions` - see resolve_target_revision.
+
+    `remove_keys`, if given, are key paths removed from the file instead
+    of being set - a key already absent is not an error, there's simply
+    nothing to do for it. This is how a caller drops e.g.
+    `services.<service_name>.enabled` from the file entirely rather than
+    writing an explicit `true`/`false` to it.
     """
     with new_workdir() as path:
         try:
@@ -264,7 +271,7 @@ async def set_values(
                             "nothing was written"
                         )
 
-                remove_key_path: str | None = None
+                remove_key_paths: list[str] = list(remove_keys or [])
                 if deploy_target_revision is not None:
                     service_name, requested_version = deploy_target_revision
                     resolved = resolve_target_revision(
@@ -272,7 +279,7 @@ async def set_values(
                     )
                     target_revision_key = f"services.{service_name}.targetRevision"
                     if resolved is None:
-                        remove_key_path = target_revision_key
+                        remove_key_paths.append(target_revision_key)
                     else:
                         keys = {**keys, target_revision_key: resolved}
 
@@ -295,30 +302,30 @@ async def set_values(
                     file_data.set_key(key, value)
                     changed[key] = value
 
-                removed = False
-                if remove_key_path is not None:
+                removed_keys: list[str] = []
+                for remove_key_path in remove_key_paths:
                     try:
                         file_data.remove_key(remove_key_path)
                     except YamlFileError:
-                        # Nothing to remove - the service already had no
-                        # per-service pin, so it was already following its
-                        # line. Not an error, just nothing to do here.
+                        # Nothing to remove - already absent (e.g. the
+                        # service already had no per-service targetRevision
+                        # pin, so it was already following its line). Not
+                        # an error, just nothing to do here.
                         pass
                     else:
-                        removed = True
+                        removed_keys.append(remove_key_path)
 
-                if not changed and not removed:
+                if not changed and not removed_keys:
                     return None
 
                 file_data.dump_file()
 
                 parts = [f"{k}={v}" for k, v in changed.items()]
-                if removed:
-                    parts.append(f"remove {remove_key_path}")
+                parts.extend(f"remove {k}" for k in removed_keys)
                 if changed:
                     commit_msg = f"Set {', '.join(parts)} in {file}"
                 else:
-                    commit_msg = f"Remove {remove_key_path} in {file}"
+                    commit_msg = f"Remove {', '.join(removed_keys)} in {file}"
                 await shell.run_command("git add .")
                 await shell.run_command(f"git commit -m {shlex.quote(commit_msg)}")
                 await shell.run_command("git push", skip_on_dryrun=True)

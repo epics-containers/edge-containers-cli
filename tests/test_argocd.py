@@ -73,7 +73,7 @@ def test_deploy_preserves_service_keys(mock_run, ARGOCD, data: Path):
     assert entry["description"] == "existing description"
     assert entry["labels"] == {"foo": "bar"}
     assert entry["extra"] == "keepme"
-    assert entry["enabled"] is True
+    assert "enabled" not in entry  # chart defaults it true - deploy drops it
     assert entry["targetRevision"] == "1.0"
 
 
@@ -95,7 +95,7 @@ def test_deploy_no_desc_pushes_neither_description_nor_labels(
     entry = written["services"]["bl01t-ea-test-01"]
     assert "description" not in entry
     assert "labels" not in entry
-    assert entry["enabled"] is True
+    assert "enabled" not in entry  # chart defaults it true - deploy drops it
     assert entry["targetRevision"] == "1.0"
 
 
@@ -134,7 +134,7 @@ def test_deploy_desc_leaves_labels_untouched(mock_run, ARGOCD, data: Path):
         "foo": "bar",
     }
     assert entry["extra"] == "keepme"
-    assert entry["enabled"] is True
+    assert "enabled" not in entry  # chart defaults it true - deploy drops it
     assert entry["targetRevision"] == "1.0"
 
 
@@ -416,8 +416,11 @@ def test_deploy_drops_pin_matching_source_target_revision(mock_run, ARGOCD, data
 
     written = YAML(typ="safe").load(values_file.read_text())
     entry = written["services"]["bl01t-ea-test-01"]
-    assert "targetRevision" not in entry
-    assert entry["enabled"] is True
+    # Both keys the entry held are dropped by this deploy (the
+    # redundant targetRevision pin, and enabled since the chart
+    # defaults it true) - the mapping must serialise as `{}`, never a
+    # bare `null` (Helm v4 drops a null-valued key, pruning the service).
+    assert entry == {}
 
 
 def test_deploy_writes_pin_that_differs_from_source_target_revision(
@@ -445,7 +448,7 @@ def test_deploy_writes_pin_that_differs_from_source_target_revision(
     written = YAML(typ="safe").load(values_file.read_text())
     entry = written["services"]["bl01t-ea-test-01"]
     assert entry["targetRevision"] == "2.0"
-    assert entry["enabled"] is True
+    assert "enabled" not in entry  # chart defaults it true - deploy drops it
 
 
 def test_logs(mock_run, ARGOCD):

@@ -555,3 +555,139 @@ def _write_minimal(tmp_path: Path, service: str) -> Path:
     values_file = tmp_path / "values-minimal.yaml"
     values_file.write_text(f"services:\n  {service}:\n    enabled: true\n")
     return values_file
+
+
+# --- remove_keys: drop `enabled` entirely rather than writing it ---------
+#
+# The chart defaults `services.<svc>.enabled` to true and only acts on an
+# explicit `false`, so `ec deploy`/`ec start --commit` must remove the key
+# (whatever it currently holds) rather than ever writing `enabled: true` -
+# `ec stop --commit` is the only path left that writes it, and only to
+# `false`. `set_values(..., remove_keys=[...])` is the entry point both
+# deploy and start use for this.
+
+
+def test_set_values_remove_keys_removes_present_key(tmp_path, mocker):
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        f"services:\n  {SERVICE}:\n    enabled: true\n    extra: keepme\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    entry = written["services"][SERVICE]
+    assert "enabled" not in entry
+    assert entry["extra"] == "keepme"
+
+    commit_tokens = _commit_tokens(calls)
+    assert commit_tokens[-1] == f"Remove services.{SERVICE}.enabled in values.yaml"
+    assert any(c == "git push" for c in calls)
+
+
+def test_set_values_remove_keys_absent_key_is_a_noop(tmp_path, mocker):
+    # Deploying a service that's already enabled (no explicit key at all)
+    # must not create a spurious commit just to "remove" nothing.
+    values_file = tmp_path / "values.yaml"
+    before = f"services:\n  {SERVICE}:\n    extra: keepme\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert not any(c == "git push" for c in calls)
+
+
+def test_set_values_remove_keys_true_or_false_both_removed(tmp_path, mocker):
+    # "deploy means run it" - an explicit `enabled: false` left over from a
+    # committed stop is just as much removed by a deploy as `enabled: true`
+    # would be; the value never matters, only that the key is dropped.
+    for existing_value in ("true", "false"):
+        values_file = tmp_path / "values.yaml"
+        values_file.write_text(
+            f"services:\n  {SERVICE}:\n    enabled: {existing_value}\n"
+        )
+        _mock_shell(mocker, tmp_path)
+
+        _run(
+            set_values(
+                REPO_URL,
+                Path("values.yaml"),
+                {},
+                remove_keys=[f"services.{SERVICE}.enabled"],
+            )
+        )
+
+        written = YAML(typ="safe").load(values_file.read_text())
+        assert "enabled" not in written["services"][SERVICE]
+
+
+def test_set_values_remove_keys_leaves_empty_mapping_as_empty_dict(tmp_path, mocker):
+    # A service whose only key was `enabled` must serialise as `{}`, never
+    # a bare `null` - Helm v4 drops a null-valued key, which would prune
+    # the service from the chart's render entirely.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(f"services:\n  {SERVICE}:\n    enabled: true\n")
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    assert values_file.read_text() == f"services:\n  {SERVICE}: {{}}\n"
+
+
+def test_set_values_remove_keys_combines_with_deploy_target_revision(tmp_path, mocker):
+    # A real `ec deploy` call: enabled is dropped via remove_keys in the
+    # same commit that resolve_target_revision decides to drop the
+    # redundant targetRevision pin in - both land in one commit, and an
+    # entry left with neither key serialises as `{}`.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: false\n"
+        "    targetRevision: old-pin\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            deploy_target_revision=(SERVICE, "main"),
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {}
+
+    commit_tokens = _commit_tokens(calls)
+    assert commit_tokens[2] == "-m"
+    assert commit_tokens[3].startswith("Remove ")

@@ -205,6 +205,7 @@ async def push_values(
     require_keys: list[str] | None = None,
     require_chart_version: tuple[str, str, str] | None = None,
     deploy_target_revision: tuple[str, str] | None = None,
+    remove_keys: list[str] | None = None,
 ):
     """
     Like push_value, but sets several keys in a single commit. Any key
@@ -224,6 +225,12 @@ async def push_values(
     `argocd app set -p services.<service_name>.targetRevision=...`
     parameter override (unrelated to what's committed) must not survive
     a deploy.
+
+    `remove_keys`, if given, are key paths removed from the values repo
+    instead of being set - see set_values. Each is freed below alongside
+    `keys`, exactly like a set key, so a stale `argocd app set -p
+    <key>=...` override on a key being dropped from the file doesn't
+    survive either.
     """
     # Get source details
     app_resp = await shell.run_command(
@@ -240,10 +247,11 @@ async def push_values(
         require_keys=require_keys,
         require_chart_version=require_chart_version,
         deploy_target_revision=deploy_target_revision,
+        remove_keys=remove_keys,
     )
 
     # Free any possible patched values, their children & refresh repo
-    freed_keys = list(keys)
+    freed_keys = list(remove_keys or []) + list(keys)
     if deploy_target_revision is not None:
         service_name, _ = deploy_target_revision
         freed_keys.append(f"services.{service_name}.targetRevision")
@@ -334,10 +342,12 @@ class ArgoCommands(Commands):
         # line the service follows (its group's versions[] entry, or
         # source.targetRevision) - a version that already equals that line
         # gets any existing per-service pin removed rather than a
-        # redundant one written.
-        deploy_dict: dict[str, YamlTypes] = {
-            f"services.{service_name}.enabled": True,
-        }
+        # redundant one written. `enabled` is never listed here either:
+        # the chart defaults it to true and only acts on an explicit
+        # `false`, so a deploy removes any existing enabled key (via
+        # remove_keys below) rather than asserting `true` - deploying a
+        # service means running it, whatever its enabled key held before.
+        deploy_dict: dict[str, YamlTypes] = {}
         # only gate the write on the argocd-apps chart version when a
         # description is actually being written - a version-only deploy
         # must work regardless of how old the deployment's argocd-apps
@@ -355,6 +365,7 @@ class ArgoCommands(Commands):
             deploy_dict,
             require_chart_version=require_chart_version,
             deploy_target_revision=(service_name, version),
+            remove_keys=[f"services.{service_name}.enabled"],
         )
 
     async def set_description(
@@ -443,7 +454,12 @@ class ArgoCommands(Commands):
     async def start(self, service_name, commit=False):
         await self._check_stoppable(service_name)
         if commit:
-            await push_value(self.target, f"services.{service_name}.enabled", True)
+            # The chart defaults enabled to true - drop any explicit
+            # override committed by a previous stop rather than writing
+            # one back, same rule as deploy.
+            await push_values(
+                self.target, {}, remove_keys=[f"services.{service_name}.enabled"]
+            )
         else:
             await patch_value(self.target, f"services.{service_name}.enabled", True)
 
