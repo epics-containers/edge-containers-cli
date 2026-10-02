@@ -124,6 +124,76 @@ def test_yaml_processor_set_new_key_moves_trailing_comment_past_it(tmp_path):
     )
 
 
+def test_yaml_processor_set_new_key_keeps_end_of_line_comment_in_place(tmp_path):
+    # An end-of-line comment on the last key of the mapping gaining a new
+    # key belongs to that line: it stays there, and only the comment lines
+    # that follow it move past the new key.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  svc:\n"
+        "    description: camera  # Manta G-235\n"
+        "  # svc stopped by fred\n"
+        "  next-svc:\n"
+        "    group: bar\n"
+        "  other-svc:\n"
+        "    group: baz  # last line\n"
+    )
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.svc.enabled", False)
+    processor.set_key("services.other-svc.enabled", False)
+    processor.dump_file()
+
+    assert values_file.read_text() == (
+        "services:\n"
+        "  svc:\n"
+        "    description: camera  # Manta G-235\n"
+        "    enabled: false\n"
+        "  # svc stopped by fred\n"
+        "  next-svc:\n"
+        "    group: bar\n"
+        "  other-svc:\n"
+        "    group: baz  # last line\n"
+        "    enabled: false\n"
+    )
+
+
+def test_yaml_processor_set_bool_over_quoted_string_writes_bool(tmp_path):
+    # `enabled: "true"` is a string; setting it to False must write a real
+    # boolean - the string "False" is truthy to Helm, so the stop would do
+    # nothing.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text('services:\n  svc:\n    enabled: "true"\n')
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.svc.enabled", False)
+    processor.dump_file()
+
+    assert values_file.read_text() == "services:\n  svc:\n    enabled: false\n"
+
+
+@pytest.mark.parametrize(
+    "sequences",
+    [
+        "  paths:\n    - a\n    # b next\n    - b\n",
+        "  paths:\n  - a\n  # b next\n  - b\n",
+    ],
+)
+def test_yaml_processor_set_keeps_sequence_indentation(tmp_path, sequences):
+    # A write must keep the file's own block sequence indentation, whichever
+    # of the two common styles it uses.
+    values_file = tmp_path / "values.yaml"
+    text = f"global:\n{sequences}services:\n  svc:\n    group: foo\n"
+    values_file.write_text(text)
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.svc.group", "bar")
+    processor.dump_file()
+
+    assert values_file.read_text() == text.replace("group: foo", "group: bar")
+
+
 def test_yaml_processor_set_preserves_existing_quote_style(tmp_path):
     # A value quoted in the source file (e.g. `targetRevision: "main"`)
     # must stay quoted on a rewrite that doesn't touch it, not be dropped

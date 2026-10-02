@@ -22,6 +22,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.error import CommentMark
 from ruamel.yaml.scalarstring import ScalarString
 from ruamel.yaml.tokens import CommentToken
+from ruamel.yaml.util import load_yaml_guess_indent
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
@@ -159,7 +160,14 @@ class YamlFile:
         # itself where a plain scalar would be misread (see set_key).
         self._processor.preserve_quotes = True
         with open(file) as fp:
-            self._yaml_data = self._processor.load(fp)
+            self._yaml_data, sequence, offset = load_yaml_guess_indent(
+                fp, yaml=self._processor
+            )
+        # Emit block sequences with the file's own indentation (e.g.
+        # `    - x` under a key at column 2) rather than ruamel's default,
+        # which would re-indent every sequence in the file on any write.
+        if sequence is not None and offset is not None:
+            self._processor.indent(sequence=sequence, offset=offset)
 
     def dump_file(self, output_path: Path | None = None):
         """
@@ -282,13 +290,21 @@ class YamlFile:
                 _move_trailing_comment(curser, element)
             curser[element] = value
         else:
-            if existing and not isinstance(value, str):
+            if (
+                existing
+                and not isinstance(value, str)
+                and not isinstance(existing, str)
+            ):
                 # Preserve the existing scalar's type/format (e.g. a
                 # ruamel hex int or a yes/no-style bool) for a same-kind
                 # value. A string value - every version/revision ec writes
                 # is one - is set as a plain string instead: coercing it
                 # through whatever type the existing scalar happened to be
                 # can raise (`float("1.0.1")`) or silently change meaning.
+                # A non-string value over an existing string (e.g.
+                # `enabled: "true"` set to False) is written as itself:
+                # coercing it would write the string "False", which Helm
+                # treats as true.
                 curser[element] = type(existing)(value)
             else:
                 curser[element] = value
@@ -414,9 +430,20 @@ def _move_trailing_comment(mapping: CommentedMap, new_key: Any) -> None:
     if token is None:
         return
 
-    slot[index] = None
+    # The token starts with the old last line's own end-of-line comment (or
+    # just "\n" when it has none); only what follows that line moves.
+    text = token.value
+    newline = text.find("\n")
+    following = text[newline:] if newline >= 0 else ""
+    if following in ("", "\n"):
+        return
+    eol = text[: newline + 1]
+    if eol == "\n":
+        slot[index] = None
+    else:
+        token.value = eol
     new_slot = mapping.ca.items.setdefault(new_key, list(_EMPTY_COMMENT_SLOT))
-    new_slot[2] = token
+    new_slot[2] = CommentToken(following, token.start_mark, None)
 
 
 def is_partial_match(query: str, target_list: list[str]) -> bool:
