@@ -20,7 +20,9 @@ from typing import Any, Union
 from ruamel.yaml import YAML, YAMLError, scalarint
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.error import CommentMark
+from ruamel.yaml.scalarstring import ScalarString
 from ruamel.yaml.tokens import CommentToken
+from ruamel.yaml.util import load_yaml_guess_indent
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.logging import log
@@ -148,8 +150,24 @@ class YamlFile:
     def __init__(self, file: Path) -> None:
         self.file = file
         self._processor = YAML(typ="rt")  # 'rt' slower but preserves comments
+        # Default width (80) wraps any line ec didn't touch that happens to
+        # be longer, e.g. `source.repoURL: https://...` - a far wider line
+        # width makes that wrap effectively never happen without changing
+        # how short lines are emitted.
+        self._processor.width = 4096
+        # Keep a value's original quote style (e.g. `"main"`) on a rewrite
+        # instead of dropping to plain style - ruamel only *adds* quotes
+        # itself where a plain scalar would be misread (see set_key).
+        self._processor.preserve_quotes = True
         with open(file) as fp:
-            self._yaml_data = self._processor.load(fp)
+            self._yaml_data, sequence, offset = load_yaml_guess_indent(
+                fp, yaml=self._processor
+            )
+        # Emit block sequences with the file's own indentation (e.g.
+        # `    - x` under a key at column 2) rather than ruamel's default,
+        # which would re-indent every sequence in the file on any write.
+        if sequence is not None and offset is not None:
+            self._processor.indent(sequence=sequence, offset=offset)
 
     def dump_file(self, output_path: Path | None = None):
         """
@@ -187,6 +205,12 @@ class YamlFile:
 
         if type(curser) is scalarint.ScalarInt:
             curser = int(curser)
+        elif isinstance(curser, ScalarString):
+            # preserve_quotes keeps quoted scalars as a ScalarString
+            # subclass (for round-trip style) - callers compare/store this
+            # as a plain string, same as get_key already normalises
+            # ScalarInt to a plain int.
+            curser = str(curser)
         return curser
 
     def remove_key(self, key_path: str):
@@ -259,13 +283,31 @@ class YamlFile:
 
         # Set element if exists or create it
         try:
-            if curser[element]:  # Preserve type if existing
-                curser[element] = type(curser[element])(value)
-            else:
-                curser[element] = value
+            existing = curser[element]
         except KeyError:
             log.debug(f"Entry '{element}' in '{key_path}' not found - Creating")
+            if isinstance(curser, CommentedMap):
+                _move_trailing_comment(curser, element)
             curser[element] = value
+        else:
+            if (
+                existing
+                and not isinstance(value, str)
+                and not isinstance(existing, str)
+            ):
+                # Preserve the existing scalar's type/format (e.g. a
+                # ruamel hex int or a yes/no-style bool) for a same-kind
+                # value. A string value - every version/revision ec writes
+                # is one - is set as a plain string instead: coercing it
+                # through whatever type the existing scalar happened to be
+                # can raise (`float("1.0.1")`) or silently change meaning.
+                # A non-string value over an existing string (e.g.
+                # `enabled: "true"` set to False) is written as itself:
+                # coercing it would write the string "False", which Helm
+                # treats as true.
+                curser[element] = type(existing)(value)
+            else:
+                curser[element] = value
 
         log.debug(f"Set '{element}' in '{key_path}' to {value}")
 
@@ -367,6 +409,41 @@ def _remove_commented_key(
         mapping.ca.comment[1] = (mapping.ca.comment[1] or []) + (
             _comment_lines_as_tokens(following)
         )
+
+
+def _move_trailing_comment(mapping: CommentedMap, new_key: Any) -> None:
+    """
+    `mapping` is about to gain `new_key` as a brand-new entry, appended
+    after its current last key. If that current last key has a comment
+    following it (e.g. a section comment that actually precedes whatever
+    comes after `mapping` itself - see `_following_comment_slot`), move it
+    so it keeps following `mapping`'s content, i.e. after `new_key`, rather
+    than being emitted between the old last key and `new_key` where it
+    reads as if it were about the newly added entry.
+    """
+    keys = list(mapping.keys())
+    if not keys:
+        return
+
+    slot, index = _following_comment_slot(mapping, keys[-1])
+    token = slot[index]
+    if token is None:
+        return
+
+    # The token starts with the old last line's own end-of-line comment (or
+    # just "\n" when it has none); only what follows that line moves.
+    text = token.value
+    newline = text.find("\n")
+    following = text[newline:] if newline >= 0 else ""
+    if following in ("", "\n"):
+        return
+    eol = text[: newline + 1]
+    if eol == "\n":
+        slot[index] = None
+    else:
+        token.value = eol
+    new_slot = mapping.ca.items.setdefault(new_key, list(_EMPTY_COMMENT_SLOT))
+    new_slot[2] = CommentToken(following, token.start_mark, None)
 
 
 def is_partial_match(query: str, target_list: list[str]) -> bool:
