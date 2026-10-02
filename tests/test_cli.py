@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from edge_containers_cli import __version__
 from tests.conftest import TMPDIR
 
@@ -29,7 +31,9 @@ def test_list(mock_run, CLI, data: Path):
     assert res == expect
 
 
-def test_instances(mock_run, CLI, data: Path):
+@pytest.mark.parametrize("command", ["versions", "instances"])
+def test_versions(mock_run, CLI, data: Path, command: str):
+    # `instances` is the deprecated name for `versions`
     expect = (
         "| version |\n"  # Stops reformating
         "|---------|\n"
@@ -37,8 +41,8 @@ def test_instances(mock_run, CLI, data: Path):
         "| 1.0     |\n"
     )
     mock_run.set_seq(CLI.instances)
-    # prep what instances expects to find after it cloned bl01t repo
+    # prep what versions expects to find after it cloned bl01t repo
     TMPDIR.mkdir()
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
-    res = mock_run.run_cli("instances bl01t-ea-test-01")
+    res = mock_run.run_cli(f"{command} bl01t-ea-test-01")
     assert res == expect
