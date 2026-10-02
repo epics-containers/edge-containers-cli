@@ -669,6 +669,305 @@ def test_set_values_refuses_unknown_service_when_writing_a_key(tmp_path, mocker)
     assert not any(c == "git push" for c in calls)
 
 
+def _deploy_new(values_file: Path, version: str, **kwargs):
+    """set_values exactly as `ec deploy` calls it."""
+    _run(
+        set_values(
+            REPO_URL,
+            Path(values_file.name),
+            {},
+            deploy_target_revision=(SERVICE, version),
+            remove_keys=[f"services.{SERVICE}.enabled"],
+            add_entry=f"services.{SERVICE}",
+            **kwargs,
+        )
+    )
+
+
+def test_set_values_add_entry_at_line_revision(tmp_path, mocker):
+    # A service the deployment repo does not list yet, deployed at the
+    # revision of the line it would follow: the entry is added as `{}`.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: true  # keep\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "main")
+
+    assert values_file.read_text() == (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: true  # keep\n"
+        f"  {SERVICE}: {{}}\n"
+    )
+    assert _commit_tokens(calls)[-1] == f"Add services.{SERVICE} in values.yaml"
+    assert "git push" in calls
+
+
+def test_set_values_add_entry_at_branch(tmp_path, mocker):
+    # The same service deployed at a version that is not its line's
+    # revision: the added entry holds the per-service targetRevision.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n  targetRevision: main\nservices:\n  some-other-service: {}\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {"targetRevision": "fix-x"}
+    assert written["services"]["some-other-service"] == {}
+    assert _commit_tokens(calls)[-1] == (
+        f"Add services.{SERVICE}, set services.{SERVICE}.targetRevision=fix-x "
+        "in values.yaml"
+    )
+
+
+def test_set_values_add_entry_keeps_trailing_comment_after_entry(tmp_path, mocker):
+    # The last existing entry is itself a non-empty mapping (its own
+    # trailing comment lives on its deepest nested key, not on
+    # `services`' own slot for it - see `_following_comment_slot`),
+    # followed by a whole-comment line. A `{}` add (at the line revision)
+    # already kept the comment after the new entry before this fix; this
+    # guards against a regression.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        "  # end of services\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "main")
+
+    assert values_file.read_text() == (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        f"  {SERVICE}: {{}}\n"
+        "  # end of services\n"
+    )
+
+
+def test_set_values_add_entry_pinned_keeps_trailing_comment_after_entry(
+    tmp_path, mocker
+):
+    # Same shape, but the add is pinned (`targetRevision` is set under
+    # the new entry): `_move_trailing_comment` parks "# end of services"
+    # on the new entry's own slot in `services` when it is still empty,
+    # which is right for `{}` but wrong once `targetRevision` is nested
+    # under it - it must sink down to follow the entry's content instead
+    # of sitting between `<svc>:` and `    targetRevision: ...`.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        "  # end of services\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+
+    assert values_file.read_text() == (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        f"  {SERVICE}:\n"
+        "    targetRevision: fix-x\n"
+        "  # end of services\n"
+    )
+
+
+def test_set_values_add_entry_pinned_keeps_trailing_blank_line_after_entry(
+    tmp_path, mocker
+):
+    # Same defect, with a trailing blank line (then EOF) instead of a
+    # comment following the last existing entry.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        "\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+
+    assert values_file.read_text() == (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        f"  {SERVICE}:\n"
+        "    targetRevision: fix-x\n"
+        "\n"
+    )
+
+
+def test_set_values_add_entry_later_edit_does_not_move_comment_again(tmp_path, mocker):
+    # Once the comment has sunk to follow the added entry's content, a
+    # later deploy that changes that entry's targetRevision - including
+    # emptying it back to `{}` - must leave the comment where it is, not
+    # move it a second time.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        "  # end of services\n"
+    )
+    _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+    _deploy_new(values_file, "2.0")
+    assert values_file.read_text() == (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        f"  {SERVICE}:\n"
+        "    targetRevision: '2.0'\n"
+        "  # end of services\n"
+    )
+
+    _deploy_new(values_file, "main")
+    assert values_file.read_text() == (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: false\n"
+        f"  {SERVICE}: {{}}\n"
+        "  # end of services\n"
+    )
+
+
+def test_set_values_add_entry_existing_service_unchanged(tmp_path, mocker):
+    # An entry already present is not re-created: its other keys survive
+    # and the commit is the ordinary deploy commit, with no "Add".
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: false\n"
+        "    description: keep me\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {
+        "description": "keep me",
+        "targetRevision": "fix-x",
+    }
+    assert _commit_tokens(calls)[-1] == (
+        f"Set services.{SERVICE}.targetRevision=fix-x, "
+        f"remove services.{SERVICE}.enabled in values.yaml"
+    )
+
+
+def test_set_values_add_entry_existing_service_already_current_no_commit(
+    tmp_path, mocker
+):
+    # An existing `{}` entry deployed at its line revision has nothing to
+    # change: no commit, no push.
+    values_file = tmp_path / "values.yaml"
+    before = f"source:\n  targetRevision: main\nservices:\n  {SERVICE}: {{}}\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "main")
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert "git push" not in calls
+
+
+def test_set_values_add_entry_normalizes_null_entry_at_line_revision(tmp_path, mocker):
+    # A bare `<service>:` entry (YAML null) is left untouched by every
+    # leaf-level write below it (there's nothing under a null value to
+    # set or remove), so without add_entry normalizing it too, a deploy
+    # at the line revision with nothing else to change would leave it
+    # null. Helm v4 drops a null-valued key, which would remove the
+    # service - the entry must become `{}` instead, same as a missing one.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        f"source:\n  targetRevision: main\nservices:\n  {SERVICE}:\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "main")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {}
+    # It already existed (as null) - this is a repair, not an addition,
+    # so it reads like any other value being set, not "Add ...".
+    assert _commit_tokens(calls)[-1] == f"Set services.{SERVICE}={{}} in values.yaml"
+    assert "git push" in calls
+
+
+def test_set_values_add_entry_normalizes_null_entry_at_branch(tmp_path, mocker):
+    # Same repair, but at a version that also sets a per-service pin: the
+    # "Set" wording for the repair and for the pin combine, still no "Add".
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        f"source:\n  targetRevision: main\nservices:\n  {SERVICE}:\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {"targetRevision": "fix-x"}
+    assert _commit_tokens(calls)[-1] == (
+        f"Set services.{SERVICE}={{}}, "
+        f"services.{SERVICE}.targetRevision=fix-x in values.yaml"
+    )
+
+
+def test_set_values_add_entry_without_services_key_raises(tmp_path, mocker):
+    # The entry's parent must exist: a values file with no `services`
+    # mapping is not one ec can add a service to.
+    values_file = tmp_path / "values.yaml"
+    before = "source:\n  targetRevision: main\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match=f"services.{SERVICE}"):
+        _deploy_new(values_file, "main")
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+
+
 def test_set_values_remove_keys_true_or_false_both_removed(tmp_path, mocker):
     # "deploy means run it" - an explicit `enabled: false` left over from a
     # committed stop is just as much removed by a deploy as `enabled: true`

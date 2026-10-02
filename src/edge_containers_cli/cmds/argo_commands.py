@@ -222,6 +222,7 @@ async def push_values(
     require_chart_version: tuple[str, str, str] | None = None,
     deploy_target_revision: tuple[str, str] | None = None,
     remove_keys: list[str] | None = None,
+    add_entry: str | None = None,
     message: str | None = None,
 ):
     """
@@ -248,6 +249,9 @@ async def push_values(
     `keys`, exactly like a set key, so a stale `argocd app set -p
     <key>=...` override on a key being dropped from the file doesn't
     survive either.
+
+    `add_entry`, if given, is a key path created as an empty mapping when
+    the values repo has no entry there - see set_values.
     """
     # Get source details
     app_resp = await shell.run_command(
@@ -265,6 +269,7 @@ async def push_values(
         require_chart_version=require_chart_version,
         deploy_target_revision=deploy_target_revision,
         remove_keys=remove_keys,
+        add_entry=add_entry,
         message=message,
     )
 
@@ -371,6 +376,10 @@ class ArgoCommands(Commands):
         # `false`, so a deploy removes any existing enabled key (via
         # remove_keys below) rather than asserting `true` - deploying a
         # service means running it, whatever its enabled key held before.
+        # A service the values repo does not list yet is added (add_entry
+        # below): check_exists above has already proved it exists in the
+        # services repo at this version, so it is a real service, not a
+        # typo, and deploying it means listing it.
         deploy_dict: dict[str, YamlTypes] = {}
         # only gate the write on the argocd-apps chart version when a
         # description is actually being written - a version-only deploy
@@ -390,6 +399,7 @@ class ArgoCommands(Commands):
             require_chart_version=require_chart_version,
             deploy_target_revision=(service_name, version),
             remove_keys=[f"services.{service_name}.enabled"],
+            add_entry=f"services.{service_name}",
             message=message,
         )
 

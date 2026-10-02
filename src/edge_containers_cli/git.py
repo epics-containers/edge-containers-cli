@@ -11,6 +11,7 @@ from pathlib import Path
 import polars
 from natsort import natsorted
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
@@ -227,6 +228,7 @@ async def set_values(
     require_chart_version: tuple[str, str, str] | None = None,
     deploy_target_revision: tuple[str, str] | None = None,
     remove_keys: list[str] | None = None,
+    add_entry: str | None = None,
     message: str | None = None,
 ) -> None:
     """
@@ -272,6 +274,18 @@ async def set_values(
     nothing to do for it. This is how a caller drops e.g.
     `services.<service_name>.enabled` from the file entirely rather than
     writing an explicit `true`/`false` to it.
+
+    `add_entry`, if given, is a key path (e.g. `services.<service_name>`)
+    that is created as an empty mapping when the file has no entry there,
+    or the entry it already has is YAML null (a bare `<service_name>:`,
+    which Helm v4 drops as if the key were absent), before `keys`,
+    `deploy_target_revision` and `remove_keys` are applied to it - this is
+    how `ec deploy` adds a service the deployment repo does not list yet,
+    or repairs one that is listed but null. An entry already present as
+    anything other than null is left as it is. Its parent (e.g.
+    `services`) must already exist, or GitError is raised with nothing
+    written. Without `add_entry`, a missing entry is an error for every
+    write, as above.
     """
     with new_workdir() as path:
         try:
@@ -302,6 +316,40 @@ async def set_values(
                             f"(found {type(req_value).__name__}) - "
                             "nothing was written"
                         )
+
+                added_entry = False
+                repaired_null_entry = False
+                if add_entry is not None:
+                    try:
+                        existing_entry = file_data.get_key(add_entry)
+                        entry_present = True
+                    except YamlFileError:
+                        existing_entry = None
+                        entry_present = False
+
+                    # A bare `<service_name>:` entry (YAML null) is left
+                    # as null by a write that only ever removes/replaces
+                    # leaves below it (nothing to remove/replace under a
+                    # null value), so without this it would survive a
+                    # deploy untouched. Helm v4 drops a null-valued key
+                    # as though it were absent, which would remove the
+                    # service - treat it exactly like a missing entry.
+                    if not entry_present or existing_entry is None:
+                        try:
+                            file_data.set_key(add_entry, CommentedMap())
+                        except YamlPathNotFoundError as e:
+                            raise GitError(
+                                f"'{add_entry}' cannot be added to {file} - "
+                                "nothing was written"
+                            ) from e
+                        if entry_present:
+                            # It was already there, as null - this is a
+                            # repair, not an addition, so the commit
+                            # message below reads like any other value
+                            # being set, not "Add ...".
+                            repaired_null_entry = True
+                        else:
+                            added_entry = True
 
                 remove_key_paths: list[str] = list(remove_keys or [])
                 if deploy_target_revision is not None:
@@ -363,17 +411,42 @@ async def set_values(
                     else:
                         removed_keys.append(remove_key_path)
 
-                if not changed and not removed_keys:
+                if (
+                    not added_entry
+                    and not repaired_null_entry
+                    and not changed
+                    and not removed_keys
+                ):
                     return None
+
+                if add_entry is not None and (added_entry or repaired_null_entry):
+                    # The entry was just created (possibly still empty) -
+                    # any comment that followed the previous last entry
+                    # now sits on this entry's own slot
+                    # (`_move_trailing_comment`); if nested keys were set
+                    # above, sink it onto this entry's deepest last key so
+                    # it still reads as following the entry's content.
+                    file_data.sink_entry_comment(add_entry)
 
                 _dump(file_data, file)
 
                 parts = [f"{k}={v}" for k, v in changed.items()]
                 parts.extend(f"remove {k}" for k in removed_keys)
-                if changed:
-                    commit_msg = f"Set {', '.join(parts)} in {file}"
+                if repaired_null_entry:
+                    # Reads like any other value being set (below), not
+                    # like an addition - the entry already existed.
+                    parts.insert(0, f"{add_entry}={{}}")
+                if changed or repaired_null_entry:
+                    summary = f"Set {', '.join(parts)}"
+                elif removed_keys:
+                    summary = f"Remove {', '.join(removed_keys)}"
                 else:
-                    commit_msg = f"Remove {', '.join(removed_keys)} in {file}"
+                    summary = ""
+                if added_entry:
+                    summary = f"Add {add_entry}" + (
+                        f", {summary[0].lower()}{summary[1:]}" if summary else ""
+                    )
+                commit_msg = f"{summary} in {file}"
                 await shell.run_command("git add .")
                 await shell.run_command(
                     f"git commit {commit_args(commit_msg, message)}"

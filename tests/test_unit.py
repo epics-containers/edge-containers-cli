@@ -212,6 +212,31 @@ def test_yaml_processor_set_preserves_existing_quote_style(tmp_path):
     )
 
 
+def test_yaml_processor_set_handles_service_named_like_the_leaf_key(tmp_path):
+    # A middle path segment that happens to equal the leaf key's name (e.g.
+    # a service literally called `targetRevision`) must not stop the walk
+    # to the parent early - CodeRabbit's finding on
+    # edge-containers-cli#274. The old code broke out of the loop as soon
+    # as it saw a segment matching the leaf name, leaving `curser` pointing
+    # at `services` instead of at the service's own mapping, and so wrote
+    # the new value over the whole service entry instead of its
+    # `targetRevision` leaf.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  targetRevision:\n"
+        "    description: a service literally named targetRevision\n"
+    )
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.targetRevision.targetRevision", "2.0")
+
+    assert processor.get_key("services.targetRevision.targetRevision") == "2.0"
+    assert processor.get_key("services.targetRevision.description") == (
+        "a service literally named targetRevision"
+    )
+
+
 def test_yaml_processor_remove_leaves_empty_mapping_not_null(tmp_path):
     # A mapping whose only key gets removed must dump as `{}`, never a
     # bare `null` - Helm v4 drops keys whose value is null, so a null

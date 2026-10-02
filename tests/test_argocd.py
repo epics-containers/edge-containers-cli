@@ -7,6 +7,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from edge_containers_cli.__main__ import cli
+from edge_containers_cli.cmds.commands import CommandError
 from edge_containers_cli.git import GitError
 from edge_containers_cli.logging import log
 from tests.conftest import TMPDIR
@@ -469,35 +470,95 @@ def test_deploy_writes_pin_that_differs_from_source_target_revision(
     assert "enabled" not in entry  # chart defaults it true - deploy drops it
 
 
-def test_deploy_refuses_unknown_service(mock_run, ARGOCD, data: Path):
-    # edge-containers-cli#271 regression: a service that exists in the
-    # services repo (so check_exists passes) but was never added to the
-    # deployment repo's values.yaml at all - not merely missing one leaf
-    # key - must refuse with a clear error and write nothing, exactly like
-    # a mistyped service name should. Deploying at the version equal to
-    # the shared revision line (so the only writes attempted are via
-    # remove_keys - enabled, and the now-redundant targetRevision pin that
-    # was never there) is the case that silently committed nothing and
-    # reported success before the fix.
+OTHER_SERVICE_VALUES = "services:\n  some-other-service:\n    enabled: true\n"
+
+
+def test_deploy_adds_service_missing_from_values(mock_run, ARGOCD, data: Path):
+    # A service in the services repo (check_exists passes) with no
+    # `services.<name>` entry in the deployment repo's values.yaml: deploy
+    # adds the entry and pushes. At the line revision the entry is `{}`,
+    # so the service follows its line - no `enabled`, no targetRevision.
+    mock_run.set_seq(ARGOCD.deploy_adds_service)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text('source:\n  targetRevision: "2.0"\n' + OTHER_SERVICE_VALUES)
+
+    mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"]["bl01t-ea-test-01"] == {}
+    assert written["services"]["some-other-service"] == {"enabled": True}
+
+
+def test_deploy_adds_service_missing_from_values_pinned(mock_run, ARGOCD, data: Path):
+    # Same, at a version that is not the line revision: the added entry
+    # holds the per-service targetRevision an existing service would get.
+    mock_run.set_seq(ARGOCD.deploy_adds_service_pinned)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text("source:\n  targetRevision: main\n" + OTHER_SERVICE_VALUES)
+
+    mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"]["bl01t-ea-test-01"] == {"targetRevision": "2.0"}
+
+
+def test_deploy_normalizes_null_service_entry_to_empty_mapping(
+    mock_run, ARGOCD, data: Path
+):
+    # A `services.<name>:` entry already in the deployment repo but
+    # holding YAML null (e.g. hand-edited, or left behind by an older ec
+    # release) must become `{}` on deploy, not stay null - Helm v4 drops
+    # a null-valued key, which would silently remove the service. It
+    # existed already, so the commit reads "Set ...", not "Add ...".
+    mock_run.set_seq(ARGOCD.deploy_repairs_null_service)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        'source:\n  targetRevision: "2.0"\n'
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "  some-other-service:\n"
+        "    enabled: true\n"
+    )
+
+    mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"]["bl01t-ea-test-01"] == {}
+    assert written["services"]["some-other-service"] == {"enabled": True}
+
+
+def test_deploy_refuses_service_missing_from_services_repo(
+    mock_run, ARGOCD, data: Path
+):
+    # A service with no services/<name>/ folder in the services repo at
+    # the requested version (e.g. a typo) is an error: nothing is added to
+    # the deployment repo, which is never even cloned.
     mock_run.set_seq(ARGOCD.deploy_unknown_service)
     TMPDIR.mkdir()
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
 
     values_file = TMPDIR / "apps" / "values.yaml"
-    before = (
-        "source:\n"
-        '  targetRevision: "2.0"\n'
-        "services:\n"
-        "  some-other-service:\n"
-        "    enabled: true\n"
-    )
+    before = 'source:\n  targetRevision: "2.0"\n' + OTHER_SERVICE_VALUES
     values_file.write_text(before)
 
-    with pytest.raises(GitError, match="bl01t-ea-test-01"):
-        mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+    with pytest.raises(CommandError, match="bl01t-ea-typo-01"):
+        mock_run.run_cli("deploy bl01t-ea-typo-01 2.0")
 
     assert values_file.read_text() == before
+    assert "example-deployment" not in mock_run.log
     assert "CMD: git commit" not in mock_run.log
     assert "CMD: git push" not in mock_run.log
 
