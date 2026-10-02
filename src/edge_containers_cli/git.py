@@ -389,13 +389,27 @@ async def del_key(
 ) -> None:
     """
     remove a key from a yaml file and push the changes
+
+    A key already absent from the file is not an error: nothing is
+    committed and a note says so, so a caller can still do its follow-up
+    steps (e.g. refresh the Argo CD app that renders the file). A missing
+    intermediate segment means the file lacks the structure the key lives
+    in, and raises GitError with nothing written.
     """
     with new_workdir() as path:
         try:
             await shell.run_command(f"git clone --depth=1 {repo_url} {path}")
             with chdir(path):  # From python 3.11 can use contextlib.chdir(working_dir)
                 file_data = YamlFile(file)
-                file_data.remove_key(key)
+                try:
+                    file_data.remove_key(key)
+                except YamlPathNotFoundError as e:
+                    raise GitError(
+                        f"'{key}' not found in {file} - nothing was written"
+                    ) from e
+                except YamlFileError:
+                    log.warning(f"{key} already absent from {file} - no commit made")
+                    return None
                 _dump(file_data, file)
 
                 commit_msg = f"Remove {key} in {file}"
