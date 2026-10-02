@@ -62,6 +62,86 @@ def test_yaml_processor_remove_missing_leaf_raises_yamlfileerror(data):
         processor.remove_key("trunk_A.branch_A.leaf_D")
 
 
+def test_yaml_processor_set_unquoted_float_pin_with_incompatible_string(tmp_path):
+    # A hand-edited `targetRevision: 1.0` parses as a YAML float. Setting a
+    # new value that isn't itself a valid float (e.g. the next patch
+    # version "1.0.1") must not coerce the new value through the old
+    # scalar's type - versions are always written as plain strings.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text("services:\n  svc:\n    targetRevision: 1.0\n")
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.svc.targetRevision", "1.0.1")
+
+    assert processor.get_key("services.svc.targetRevision") == "1.0.1"
+    processor.dump_file()
+    assert "1.0.1" in values_file.read_text()
+
+
+def test_yaml_processor_set_unquoted_float_pin_with_same_looking_string(tmp_path):
+    # Same shape, but the new value happens to be valid float syntax too
+    # ("2.0") - it must still land as a string, not be coerced back into a
+    # float (which would silently reintroduce the unquoted float pin).
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text("services:\n  svc:\n    targetRevision: 1.0\n")
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.svc.targetRevision", "2.0")
+
+    assert processor.get_key("services.svc.targetRevision") == "2.0"
+    assert type(processor.get_key("services.svc.targetRevision")) is str
+
+
+def test_yaml_processor_set_new_key_moves_trailing_comment_past_it(tmp_path):
+    # ruamel attaches a comment between two sibling mapping entries (here,
+    # between "svc" and "next-svc") as the comment following "svc"'s last
+    # existing key. Adding a brand-new key to "svc" (e.g. `ec stop
+    # --commit` setting `enabled` for the first time) must not leave that
+    # comment sitting between the old last key and the new one - it
+    # belongs after "svc" altogether, introducing "next-svc".
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "services:\n"
+        "  svc:\n"
+        "    group: foo\n"
+        "  # svc stopped by fred\n"
+        "  next-svc:\n"
+        "    group: bar\n"
+    )
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.svc.enabled", False)
+    processor.dump_file()
+
+    assert values_file.read_text() == (
+        "services:\n"
+        "  svc:\n"
+        "    group: foo\n"
+        "    enabled: false\n"
+        "  # svc stopped by fred\n"
+        "  next-svc:\n"
+        "    group: bar\n"
+    )
+
+
+def test_yaml_processor_set_preserves_existing_quote_style(tmp_path):
+    # A value quoted in the source file (e.g. `targetRevision: "main"`)
+    # must stay quoted on a rewrite that doesn't touch it, not be dropped
+    # to plain style just because another key in the same file was set.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        'services:\n  svc:\n    targetRevision: "main"\n    other: unquoted\n'
+    )
+    processor = YamlFile(values_file)
+
+    processor.set_key("services.svc.other", "changed")
+    processor.dump_file()
+
+    assert values_file.read_text() == (
+        'services:\n  svc:\n    targetRevision: "main"\n    other: changed\n'
+    )
+
+
 def test_yaml_processor_remove_leaves_empty_mapping_not_null(tmp_path):
     # A mapping whose only key gets removed must dump as `{}`, never a
     # bare `null` - Helm v4 drops keys whose value is null, so a null

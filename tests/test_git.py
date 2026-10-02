@@ -965,6 +965,78 @@ def test_unparseable_output_is_never_committed(tmp_path, mocker, write):
     assert not any(c == "git push" for c in calls)
 
 
+# --- long lines must round-trip untouched --------------------------------
+#
+# ruamel's default emitter width (80) wraps any line longer than that, even
+# one `set_values`/`set_value` never touched - a real deployment repo's
+# `source.repoURL` routinely exceeds it. Writing any key must leave every
+# other line byte-identical.
+
+LONG_REPO_URL = (
+    "https://github.com/epics-containers/some-very-long-organisation-name/"
+    "a-services-repo-with-a-rather-long-name.git"
+)
+assert len(f"  repoURL: {LONG_REPO_URL}") > 80  # the line this guards against
+
+
+def test_set_values_does_not_rewrap_long_repo_url(tmp_path, mocker):
+    values_file = tmp_path / "values.yaml"
+    before = (
+        "source:\n"
+        f"  repoURL: {LONG_REPO_URL}\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: true\n"
+    )
+    values_file.write_text(before)
+    _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_values(
+            REPO_URL,
+            Path("values.yaml"),
+            {},
+            remove_keys=[f"services.{SERVICE}.enabled"],
+        )
+    )
+
+    after = values_file.read_text()
+    assert f"  repoURL: {LONG_REPO_URL}\n" in after
+    assert after == before.replace(
+        f"  {SERVICE}:\n    enabled: true\n", f"  {SERVICE}: {{}}\n"
+    )
+
+
+# --- an unquoted float-like pin must never crash a write ------------------
+#
+# `targetRevision: 1.0` (no quotes) parses as a YAML float. Deploying to a
+# version that isn't itself valid float syntax (e.g. "1.0.1") must set it as
+# a plain string, not raise from coercing the new value through the old
+# scalar's type.
+
+
+def test_set_value_unquoted_float_pin_with_incompatible_version_does_not_raise(
+    tmp_path, mocker
+):
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(f"services:\n  {SERVICE}:\n    targetRevision: 1.0\n")
+    calls = _mock_shell(mocker, tmp_path)
+
+    _run(
+        set_value(
+            REPO_URL,
+            Path("values.yaml"),
+            f"services.{SERVICE}.targetRevision",
+            "1.0.1",
+        )
+    )
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE]["targetRevision"] == "1.0.1"
+    assert any(c.startswith("git commit") for c in calls)
+
+
 def test_set_value_refuses_unknown_service(tmp_path, mocker):
     # `ec stop <svc> --commit` writes through set_value - a service with no
     # `services.<name>` entry must give the same GitError as deploy/start.
