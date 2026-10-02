@@ -510,6 +510,34 @@ def test_deploy_adds_service_missing_from_values_pinned(mock_run, ARGOCD, data: 
     assert written["services"]["bl01t-ea-test-01"] == {"targetRevision": "2.0"}
 
 
+def test_deploy_normalizes_null_service_entry_to_empty_mapping(
+    mock_run, ARGOCD, data: Path
+):
+    # A `services.<name>:` entry already in the deployment repo but
+    # holding YAML null (e.g. hand-edited, or left behind by an older ec
+    # release) must become `{}` on deploy, not stay null - Helm v4 drops
+    # a null-valued key, which would silently remove the service.
+    mock_run.set_seq(ARGOCD.deploy_adds_service)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+
+    values_file = TMPDIR / "apps" / "values.yaml"
+    values_file.write_text(
+        'source:\n  targetRevision: "2.0"\n'
+        "services:\n"
+        "  bl01t-ea-test-01:\n"
+        "  some-other-service:\n"
+        "    enabled: true\n"
+    )
+
+    mock_run.run_cli("deploy bl01t-ea-test-01 2.0")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"]["bl01t-ea-test-01"] == {}
+    assert written["services"]["some-other-service"] == {"enabled": True}
+
+
 def test_deploy_refuses_service_missing_from_services_repo(
     mock_run, ARGOCD, data: Path
 ):

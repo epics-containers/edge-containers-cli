@@ -775,6 +775,27 @@ def test_set_values_add_entry_existing_service_already_current_no_commit(
     assert "git push" not in calls
 
 
+def test_set_values_add_entry_normalizes_null_entry_at_line_revision(tmp_path, mocker):
+    # A bare `<service>:` entry (YAML null) is left untouched by every
+    # leaf-level write below it (there's nothing under a null value to
+    # set or remove), so without add_entry normalizing it too, a deploy
+    # at the line revision with nothing else to change would leave it
+    # null. Helm v4 drops a null-valued key, which would remove the
+    # service - the entry must become `{}` instead, same as a missing one.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        f"source:\n  targetRevision: main\nservices:\n  {SERVICE}:\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "main")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {}
+    assert _commit_tokens(calls)[-1] == f"Add services.{SERVICE} in values.yaml"
+    assert "git push" in calls
+
+
 def test_set_values_add_entry_without_services_key_raises(tmp_path, mocker):
     # The entry's parent must exist: a values file with no `services`
     # mapping is not one ec can add a service to.

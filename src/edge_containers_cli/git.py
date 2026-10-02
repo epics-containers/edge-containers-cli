@@ -277,12 +277,15 @@ async def set_values(
 
     `add_entry`, if given, is a key path (e.g. `services.<service_name>`)
     that is created as an empty mapping when the file has no entry there,
-    before `keys`, `deploy_target_revision` and `remove_keys` are applied
-    to it - this is how `ec deploy` adds a service the deployment repo
-    does not list yet. An entry already present (including a bare
-    `name:`) is left as it is. Its parent (e.g. `services`) must already
-    exist, or GitError is raised with nothing written. Without
-    `add_entry`, a missing entry is an error for every write, as above.
+    or the entry it already has is YAML null (a bare `<service_name>:`,
+    which Helm v4 drops as if the key were absent), before `keys`,
+    `deploy_target_revision` and `remove_keys` are applied to it - this is
+    how `ec deploy` adds a service the deployment repo does not list yet,
+    or repairs one that is listed but null. An entry already present as
+    anything other than null is left as it is. Its parent (e.g.
+    `services`) must already exist, or GitError is raised with nothing
+    written. Without `add_entry`, a missing entry is an error for every
+    write, as above.
     """
     with new_workdir() as path:
         try:
@@ -317,8 +320,20 @@ async def set_values(
                 added_entry = False
                 if add_entry is not None:
                     try:
-                        file_data.get_key(add_entry)
+                        existing_entry = file_data.get_key(add_entry)
+                        entry_present = True
                     except YamlFileError:
+                        existing_entry = None
+                        entry_present = False
+
+                    # A bare `<service_name>:` entry (YAML null) is left
+                    # as null by a write that only ever removes/replaces
+                    # leaves below it (nothing to remove/replace under a
+                    # null value), so without this it would survive a
+                    # deploy untouched. Helm v4 drops a null-valued key
+                    # as though it were absent, which would remove the
+                    # service - treat it exactly like a missing entry.
+                    if not entry_present or existing_entry is None:
                         try:
                             file_data.set_key(add_entry, CommentedMap())
                         except YamlPathNotFoundError as e:
