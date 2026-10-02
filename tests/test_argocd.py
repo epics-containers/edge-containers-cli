@@ -36,6 +36,24 @@ def test_delete(mock_run, ARGOCD, data: Path):
     mock_run.run_cli("delete bl01t-ea-test-01")
 
 
+def test_delete_already_absent_still_refreshes(mock_run, ARGOCD, data: Path):
+    # The service is still an Argo CD app but its values.yaml entry is
+    # already gone (removed by a direct commit): no commit is made, and the
+    # unset and root app refresh still run so Argo CD can prune the app.
+    mock_run.set_seq(ARGOCD.checks + ARGOCD.delete_absent)
+    TMPDIR.mkdir()
+    shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")
+    values_file = TMPDIR / "apps" / "values.yaml"
+    before = "services:\n  some-other-service:\n    enabled: true\n"
+    values_file.write_text(before)
+
+    mock_run.run_cli("delete bl01t-ea-test-01")
+
+    assert values_file.read_text() == before
+    assert "CMD: git commit" not in mock_run.log
+    assert "CMD: git push" not in mock_run.log
+
+
 def test_deploy(mock_run, ARGOCD, data: Path):
     mock_run.set_seq(ARGOCD.deploy)
     TMPDIR.mkdir()

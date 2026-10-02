@@ -1120,6 +1120,34 @@ def test_del_key_records_the_note(tmp_path, mocker):
     ]
 
 
+def test_del_key_already_absent_makes_no_commit(tmp_path, mocker, caplog):
+    # A service already removed from values.yaml (e.g. by a direct commit)
+    # is not an error: nothing to commit, and the caller goes on to its
+    # refresh step.
+    before = "services:\n  other-svc:\n    enabled: true\n"
+    (tmp_path / "values.yaml").write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with caplog.at_level("WARNING"):
+        _run(del_key(REPO_URL, Path("values.yaml"), "services.gone-svc"))
+
+    assert (tmp_path / "values.yaml").read_text() == before
+    assert not [c for c in calls if c.startswith(("git commit", "git push"))]
+    assert "services.gone-svc already absent from values.yaml" in caplog.text
+
+
+def test_del_key_missing_parent_raises(tmp_path, mocker):
+    before = "source:\n  targetRevision: main\n"
+    (tmp_path / "values.yaml").write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match="services.gone-svc"):
+        _run(del_key(REPO_URL, Path("values.yaml"), "services.gone-svc"))
+
+    assert (tmp_path / "values.yaml").read_text() == before
+    assert not [c for c in calls if c.startswith(("git commit", "git push"))]
+
+
 def test_set_values_records_the_note(tmp_path, mocker):
     (tmp_path / "values.yaml").write_text("foo: old\n")
     calls = _mock_shell(mocker, tmp_path)

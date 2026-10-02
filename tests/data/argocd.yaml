@@ -38,6 +38,22 @@ delete:
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
+delete_absent:
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01
+    rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
+  - cmd: argocd app get namespace/bl01t --refresh
+    rsp: ""
+
 deploy:
   - cmd: git clone https://github.com/epics-containers/bl01t-services /tmp/.*
     rsp: Cloning into /tmp/xxxx...
