@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Command line reference &#8212; edge-containers-cli 5.5.1.dev3+gc6a1f8822 documentation</title>
+    <title>Command line reference &#8212; edge-containers-cli 5.5.1.dev6+g1ef067d94 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="../_static/documentation_options.js?v=224bca78"></script>
+    <script src="../_static/documentation_options.js?v=f66dfb51"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -731,7 +731,20 @@ access.</p></li>
 rollout and arguments itself).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">start</span></code> and <code class="docutils literal notranslate"><span class="pre">stop</span></code> drop <code class="docutils literal notranslate"><span class="pre">--commit</span></code>/<code class="docutils literal notranslate"><span class="pre">--no-commit</span></code> on the <code class="docutils literal notranslate"><span class="pre">K8S</span></code> backend (there is
 no GitOps repository to commit to).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">delete</span></code>, <code class="docutils literal notranslate"><span class="pre">deploy</span></code>, <code class="docutils literal notranslate"><span class="pre">set-desc</span></code>, <code class="docutils literal notranslate"><span class="pre">start</span></code> and <code class="docutils literal notranslate"><span class="pre">stop</span></code> drop <code class="docutils literal notranslate"><span class="pre">-m</span></code>/<code class="docutils literal notranslate"><span class="pre">--message</span></code> on the
+<code class="docutils literal notranslate"><span class="pre">K8S</span></code> and <code class="docutils literal notranslate"><span class="pre">DEMO</span></code> backends, which never commit, so there would be no commit for
+the note to land on.</p></li>
 </ul>
+</div>
+<div class="admonition note" id="ec-message">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">-m</span></code>/<code class="docutils literal notranslate"><span class="pre">--message</span></code> records a free-text note explaining <em>why</em> a change was made. The
+note becomes the subject of the commit <code class="docutils literal notranslate"><span class="pre">ec</span></code> writes, and the generated summary
+(<code class="docutils literal notranslate"><span class="pre">Set</span> <span class="pre">services.foo.enabled=false</span> <span class="pre">in</span> <span class="pre">values.yaml</span></code>) is kept as the commit body, so
+the machine-readable line stays greppable.</p>
+<p>On <code class="docutils literal notranslate"><span class="pre">start</span></code> and <code class="docutils literal notranslate"><span class="pre">stop</span></code> it requires <code class="docutils literal notranslate"><span class="pre">--commit</span></code>: without it the change is patched
+onto the live ArgoCD application and never reaches git, so <code class="docutils literal notranslate"><span class="pre">ec</span></code> refuses rather
+than discarding the note.</p>
 </div>
 </section>
 <section id="commands">
@@ -846,25 +859,28 @@ instance instead of the current one.</p>
 </section>
 <section id="ec-start-service">
 <span id="ec-start"></span><h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">start</span> <span class="pre">SERVICE</span></code><a class="headerlink" href="#ec-start-service" title="Link to this heading">#</a></h4>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec start SERVICE [--commit/--no-commit]
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec start SERVICE [--commit/--no-commit] [-m/--message TEXT]
 </pre></div>
 </div>
 <p>Start <code class="docutils literal notranslate"><span class="pre">SERVICE</span></code>. <code class="docutils literal notranslate"><span class="pre">--commit</span></code> also records the change in the git repository for an
-audit trail (available on <code class="docutils literal notranslate"><span class="pre">ARGOCD</span></code> and <code class="docutils literal notranslate"><span class="pre">DEMO</span></code>; not on <code class="docutils literal notranslate"><span class="pre">K8S</span></code>).</p>
+audit trail (available on <code class="docutils literal notranslate"><span class="pre">ARGOCD</span></code> and <code class="docutils literal notranslate"><span class="pre">DEMO</span></code>; not on <code class="docutils literal notranslate"><span class="pre">K8S</span></code>).
+<code class="docutils literal notranslate"><span class="pre">-m</span></code>/<code class="docutils literal notranslate"><span class="pre">--message</span></code> adds a note to that commit and requires <code class="docutils literal notranslate"><span class="pre">--commit</span></code>
+(see <a class="reference internal" href="#ec-message"><span class="std std-ref">above</span></a>).</p>
 </section>
 <section id="ec-stop-service">
 <h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">stop</span> <span class="pre">SERVICE</span></code><a class="headerlink" href="#ec-stop-service" title="Link to this heading">#</a></h4>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec stop SERVICE [--commit/--no-commit]
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec stop SERVICE [--commit/--no-commit] [-m/--message TEXT]
 </pre></div>
 </div>
-<p>Stop <code class="docutils literal notranslate"><span class="pre">SERVICE</span></code>. <code class="docutils literal notranslate"><span class="pre">--commit</span></code> behaves as for <a class="reference internal" href="#ec-start"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">start</span></code></span></a>.</p>
+<p>Stop <code class="docutils literal notranslate"><span class="pre">SERVICE</span></code>. <code class="docutils literal notranslate"><span class="pre">--commit</span></code> and <code class="docutils literal notranslate"><span class="pre">-m</span></code>/<code class="docutils literal notranslate"><span class="pre">--message</span></code> behave as for
+<a class="reference internal" href="#ec-start"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">start</span></code></span></a>.</p>
 </section>
 </section>
 <section id="deployment-commands-argocd-and-k8s">
 <h3>Deployment commands (ARGOCD and K8S)<a class="headerlink" href="#deployment-commands-argocd-and-k8s" title="Link to this heading">#</a></h3>
 <section id="ec-deploy-service-version">
 <h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">deploy</span> <span class="pre">SERVICE</span> <span class="pre">[VERSION]</span></code><a class="headerlink" href="#ec-deploy-service-version" title="Link to this heading">#</a></h4>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec deploy SERVICE [VERSION] [--desc TEXT] [--wait] [-y/--yes] [--args &quot;...&quot;]
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec deploy SERVICE [VERSION] [--desc TEXT] [--wait] [-y/--yes] [--args &quot;...&quot;] [-m/--message TEXT]
 </pre></div>
 </div>
 <p>Add <code class="docutils literal notranslate"><span class="pre">SERVICE</span></code> to the target from its source repository. <code class="docutils literal notranslate"><span class="pre">VERSION</span></code> defaults to the
@@ -894,7 +910,7 @@ latest tag. Options:</p>
 </section>
 <section id="ec-delete-service">
 <h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">delete</span> <span class="pre">SERVICE</span></code><a class="headerlink" href="#ec-delete-service" title="Link to this heading">#</a></h4>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec delete SERVICE [-y/--yes]
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec delete SERVICE [-y/--yes] [-m/--message TEXT]
 </pre></div>
 </div>
 <p>Remove <code class="docutils literal notranslate"><span class="pre">SERVICE</span></code> from the target. <code class="docutils literal notranslate"><span class="pre">-y/--yes</span></code> skips the confirmation prompt.</p>
