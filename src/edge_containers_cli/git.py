@@ -11,6 +11,7 @@ from pathlib import Path
 import polars
 from natsort import natsorted
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 
 from edge_containers_cli.logging import log
 from edge_containers_cli.shell import ShellError, shell
@@ -227,6 +228,7 @@ async def set_values(
     require_chart_version: tuple[str, str, str] | None = None,
     deploy_target_revision: tuple[str, str] | None = None,
     remove_keys: list[str] | None = None,
+    add_entry: str | None = None,
     message: str | None = None,
 ) -> None:
     """
@@ -272,6 +274,15 @@ async def set_values(
     nothing to do for it. This is how a caller drops e.g.
     `services.<service_name>.enabled` from the file entirely rather than
     writing an explicit `true`/`false` to it.
+
+    `add_entry`, if given, is a key path (e.g. `services.<service_name>`)
+    that is created as an empty mapping when the file has no entry there,
+    before `keys`, `deploy_target_revision` and `remove_keys` are applied
+    to it - this is how `ec deploy` adds a service the deployment repo
+    does not list yet. An entry already present (including a bare
+    `name:`) is left as it is. Its parent (e.g. `services`) must already
+    exist, or GitError is raised with nothing written. Without
+    `add_entry`, a missing entry is an error for every write, as above.
     """
     with new_workdir() as path:
         try:
@@ -302,6 +313,20 @@ async def set_values(
                             f"(found {type(req_value).__name__}) - "
                             "nothing was written"
                         )
+
+                added_entry = False
+                if add_entry is not None:
+                    try:
+                        file_data.get_key(add_entry)
+                    except YamlFileError:
+                        try:
+                            file_data.set_key(add_entry, CommentedMap())
+                        except YamlPathNotFoundError as e:
+                            raise GitError(
+                                f"'{add_entry}' cannot be added to {file} - "
+                                "nothing was written"
+                            ) from e
+                        added_entry = True
 
                 remove_key_paths: list[str] = list(remove_keys or [])
                 if deploy_target_revision is not None:
@@ -363,7 +388,7 @@ async def set_values(
                     else:
                         removed_keys.append(remove_key_path)
 
-                if not changed and not removed_keys:
+                if not added_entry and not changed and not removed_keys:
                     return None
 
                 _dump(file_data, file)
@@ -371,9 +396,16 @@ async def set_values(
                 parts = [f"{k}={v}" for k, v in changed.items()]
                 parts.extend(f"remove {k}" for k in removed_keys)
                 if changed:
-                    commit_msg = f"Set {', '.join(parts)} in {file}"
+                    summary = f"Set {', '.join(parts)}"
+                elif removed_keys:
+                    summary = f"Remove {', '.join(removed_keys)}"
                 else:
-                    commit_msg = f"Remove {', '.join(removed_keys)} in {file}"
+                    summary = ""
+                if added_entry:
+                    summary = f"Add {add_entry}" + (
+                        f", {summary[0].lower()}{summary[1:]}" if summary else ""
+                    )
+                commit_msg = f"{summary} in {file}"
                 await shell.run_command("git add .")
                 await shell.run_command(
                     f"git commit {commit_args(commit_msg, message)}"

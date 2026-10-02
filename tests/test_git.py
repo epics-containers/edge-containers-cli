@@ -669,6 +669,127 @@ def test_set_values_refuses_unknown_service_when_writing_a_key(tmp_path, mocker)
     assert not any(c == "git push" for c in calls)
 
 
+def _deploy_new(values_file: Path, version: str, **kwargs):
+    """set_values exactly as `ec deploy` calls it."""
+    _run(
+        set_values(
+            REPO_URL,
+            Path(values_file.name),
+            {},
+            deploy_target_revision=(SERVICE, version),
+            remove_keys=[f"services.{SERVICE}.enabled"],
+            add_entry=f"services.{SERVICE}",
+            **kwargs,
+        )
+    )
+
+
+def test_set_values_add_entry_at_line_revision(tmp_path, mocker):
+    # A service the deployment repo does not list yet, deployed at the
+    # revision of the line it would follow: the entry is added as `{}`.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: true  # keep\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "main")
+
+    assert values_file.read_text() == (
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        "  some-other-service:\n"
+        "    enabled: true  # keep\n"
+        f"  {SERVICE}: {{}}\n"
+    )
+    assert _commit_tokens(calls)[-1] == f"Add services.{SERVICE} in values.yaml"
+    assert "git push" in calls
+
+
+def test_set_values_add_entry_at_branch(tmp_path, mocker):
+    # The same service deployed at a version that is not its line's
+    # revision: the added entry holds the per-service targetRevision.
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n  targetRevision: main\nservices:\n  some-other-service: {}\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {"targetRevision": "fix-x"}
+    assert written["services"]["some-other-service"] == {}
+    assert _commit_tokens(calls)[-1] == (
+        f"Add services.{SERVICE}, set services.{SERVICE}.targetRevision=fix-x "
+        "in values.yaml"
+    )
+
+
+def test_set_values_add_entry_existing_service_unchanged(tmp_path, mocker):
+    # An entry already present is not re-created: its other keys survive
+    # and the commit is the ordinary deploy commit, with no "Add".
+    values_file = tmp_path / "values.yaml"
+    values_file.write_text(
+        "source:\n"
+        "  targetRevision: main\n"
+        "services:\n"
+        f"  {SERVICE}:\n"
+        "    enabled: false\n"
+        "    description: keep me\n"
+    )
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "fix-x")
+
+    written = YAML(typ="safe").load(values_file.read_text())
+    assert written["services"][SERVICE] == {
+        "description": "keep me",
+        "targetRevision": "fix-x",
+    }
+    assert _commit_tokens(calls)[-1] == (
+        f"Set services.{SERVICE}.targetRevision=fix-x, "
+        f"remove services.{SERVICE}.enabled in values.yaml"
+    )
+
+
+def test_set_values_add_entry_existing_service_already_current_no_commit(
+    tmp_path, mocker
+):
+    # An existing `{}` entry deployed at its line revision has nothing to
+    # change: no commit, no push.
+    values_file = tmp_path / "values.yaml"
+    before = f"source:\n  targetRevision: main\nservices:\n  {SERVICE}: {{}}\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    _deploy_new(values_file, "main")
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+    assert "git push" not in calls
+
+
+def test_set_values_add_entry_without_services_key_raises(tmp_path, mocker):
+    # The entry's parent must exist: a values file with no `services`
+    # mapping is not one ec can add a service to.
+    values_file = tmp_path / "values.yaml"
+    before = "source:\n  targetRevision: main\n"
+    values_file.write_text(before)
+    calls = _mock_shell(mocker, tmp_path)
+
+    with pytest.raises(GitError, match=f"services.{SERVICE}"):
+        _deploy_new(values_file, "main")
+
+    assert values_file.read_text() == before
+    assert not any(c.startswith("git commit") for c in calls)
+
+
 def test_set_values_remove_keys_true_or_false_both_removed(tmp_path, mocker):
     # "deploy means run it" - an explicit `enabled: false` left over from a
     # committed stop is just as much removed by a deploy as `enabled: true`
