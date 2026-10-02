@@ -1,6 +1,8 @@
 import pytest
 
 from edge_containers_cli.cmds.commands import CommandError
+from edge_containers_cli.cmds.demo_commands import DemoCommands
+from edge_containers_cli.definitions import ECContext
 
 
 def test_logs(mock_run, DEMO):
@@ -55,3 +57,28 @@ def test_ps(mock_run, DEMO, wide_console):
     res = mock_run.run_cli("ps")
 
     assert expect in res
+
+
+def test_unset_repo_reports_cleanly():
+    # DemoCommands must chain to the base constructor - otherwise _repo /
+    # _log_url do not exist and the friendly "Please set ..." message
+    # becomes an AttributeError traceback.
+    commands = DemoCommands(ECContext())
+
+    with pytest.raises(CommandError, match="EC_SERVICES_REPO"):
+        _ = commands.repo
+
+    with pytest.raises(CommandError, match="EC_LOG_URL"):
+        _ = commands.log_url
+
+
+def test_context_is_honoured():
+    commands = DemoCommands(
+        ECContext(
+            repo="https://github.com/epics-containers/bl01t-services",
+            log_url="https://graylog2.diamond.ac.uk/{service_name}*",
+        )
+    )
+
+    assert commands.repo == "https://github.com/epics-containers/bl01t-services"
+    assert commands.log_url == "https://graylog2.diamond.ac.uk/{service_name}*"
