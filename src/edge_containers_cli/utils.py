@@ -261,11 +261,13 @@ class YamlFile:
         keys = key_path.split(".")
         element = keys[-1]
 
-        # Iterate through mappings to element
-        for key in keys:
-            if key == element:
-                break  # Exit early to have pointer into parent structure
-
+        # Iterate through mappings to element. Walk every segment except
+        # the last by position (keys[:-1]), not by comparing each segment's
+        # name to `element` - a middle segment can share the leaf's name
+        # (e.g. a service literally called `targetRevision`), which would
+        # stop the walk one level too early and leave `curser` pointing at
+        # the wrong parent.
+        for key in keys[:-1]:
             try:
                 if curser[key] is None:  # Handle empty keys as empty dicts
                     log.debug(f"Empty key '{element}' in '{key_path}'")
