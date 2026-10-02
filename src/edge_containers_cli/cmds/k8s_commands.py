@@ -68,7 +68,7 @@ class K8sCommands(Commands):
             skip_on_dryrun=True,
         )
 
-    async def delete(self, service_name, commit=False, message=None):
+    async def delete(self, service_name, message=None):
         await self._check_service(service_name)
         await shell.run_command(
             f"helm delete -n {self.target} {service_name}", skip_on_dryrun=True

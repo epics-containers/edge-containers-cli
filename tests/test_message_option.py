@@ -18,7 +18,7 @@ from edge_containers_cli.cmds.demo_commands import DemoCommands
 from edge_containers_cli.cmds.k8s_commands import K8sCommands
 
 
-def _params(command_name: str) -> list[str]:
+def _params(command_name: str) -> list[str | None]:
     group = typer.main.get_command(cli)
     assert isinstance(group, click.Group)
     return [p.name for p in group.commands[command_name].params]
@@ -52,7 +52,7 @@ def test_drop_options_removes_every_named_param():
     # one command survived. K8sCommands drops both `commit` and `message`
     # from start/stop, which is exactly that case.
     group = typer.main.get_command(cli)
-    ctx = click.Context(group)
+    ctx = typer.Context(group)
     drop_options(ctx, {"start": ["commit", "message"]})
     names = [p.name for p in group.commands["start"].params]  # type: ignore[attr-defined]
     assert "commit" not in names
@@ -65,7 +65,7 @@ def test_drop_options_ignores_a_command_the_backend_does_not_have():
     # drop_options must tolerate a name that is no longer registered
     # rather than raising KeyError.
     group = typer.main.get_command(cli)
-    ctx = click.Context(group)
+    ctx = typer.Context(group)
     drop_options(ctx, {"no-such-command": ["message"]})  # must not raise
 
 
