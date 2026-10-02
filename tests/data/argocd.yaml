@@ -678,6 +678,56 @@ deploy_adds_service_pinned:
   - cmd: argocd app get namespace/bl01t --refresh
     rsp: ""
 
+# Same flow as `deploy_adds_service`, but the entry already existed as
+# YAML null (e.g. hand-edited) rather than being absent - it's a repair,
+# not an addition, so the commit message reads like any other value
+# being set, not "Add ...".
+deploy_repairs_null_service:
+  - cmd: git clone https://github.com/epics-containers/bl01t-services -b 2.0 /tmp/ec_tests
+    rsp: ""
+  - cmd: argocd app get namespace/bl01t
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: argocd app list --app-namespace namespace -o yaml
+    rsp: |
+      - metadata:
+          creationTimestamp: "2024-07-12T13:42:50Z"
+          name: some-other-service
+        spec:
+          source:
+            targetRevision: main
+        status:
+          resources:
+            - kind: StatefulSet
+              name: some-other-service
+  - cmd: argocd app get namespace/bl01t -o yaml
+    rsp: |
+      spec:
+        source:
+          repoURL: https://github.com/test/example-deployment.git
+          path: apps
+  - cmd: git clone --depth=1 https://github.com/test/example-deployment.git /tmp/ec_tests
+    rsp: ""
+  - cmd: git add .
+    rsp: ""
+  - cmd: "git commit -m 'Set services.bl01t-ea-test-01={{}} in apps/values.yaml'"
+    rsp: ""
+  - cmd: git push
+    rsp: ""
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.enabled
+    rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
+  - cmd: argocd app unset namespace/bl01t -p services.bl01t-ea-test-01.targetRevision
+    rsp: ""
+  - cmd: argocd app get --show-params namespace/bl01t -o json
+    rsp: "{}"
+  - cmd: argocd app get namespace/bl01t --refresh
+    rsp: ""
+
 # `ec deploy <service>` for a service with no services/<name>/ folder in
 # the services repo at that version stops at check_exists, before the
 # deployment repo is cloned or anything is written.

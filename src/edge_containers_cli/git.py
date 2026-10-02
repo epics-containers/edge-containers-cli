@@ -318,6 +318,7 @@ async def set_values(
                         )
 
                 added_entry = False
+                repaired_null_entry = False
                 if add_entry is not None:
                     try:
                         existing_entry = file_data.get_key(add_entry)
@@ -341,7 +342,14 @@ async def set_values(
                                 f"'{add_entry}' cannot be added to {file} - "
                                 "nothing was written"
                             ) from e
-                        added_entry = True
+                        if entry_present:
+                            # It was already there, as null - this is a
+                            # repair, not an addition, so the commit
+                            # message below reads like any other value
+                            # being set, not "Add ...".
+                            repaired_null_entry = True
+                        else:
+                            added_entry = True
 
                 remove_key_paths: list[str] = list(remove_keys or [])
                 if deploy_target_revision is not None:
@@ -403,14 +411,32 @@ async def set_values(
                     else:
                         removed_keys.append(remove_key_path)
 
-                if not added_entry and not changed and not removed_keys:
+                if (
+                    not added_entry
+                    and not repaired_null_entry
+                    and not changed
+                    and not removed_keys
+                ):
                     return None
+
+                if add_entry is not None and (added_entry or repaired_null_entry):
+                    # The entry was just created (possibly still empty) -
+                    # any comment that followed the previous last entry
+                    # now sits on this entry's own slot
+                    # (`_move_trailing_comment`); if nested keys were set
+                    # above, sink it onto this entry's deepest last key so
+                    # it still reads as following the entry's content.
+                    file_data.sink_entry_comment(add_entry)
 
                 _dump(file_data, file)
 
                 parts = [f"{k}={v}" for k, v in changed.items()]
                 parts.extend(f"remove {k}" for k in removed_keys)
-                if changed:
+                if repaired_null_entry:
+                    # Reads like any other value being set (below), not
+                    # like an addition - the entry already existed.
+                    parts.insert(0, f"{add_entry}={{}}")
+                if changed or repaired_null_entry:
                     summary = f"Set {', '.join(parts)}"
                 elif removed_keys:
                     summary = f"Remove {', '.join(removed_keys)}"

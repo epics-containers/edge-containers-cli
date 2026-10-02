@@ -516,8 +516,9 @@ def test_deploy_normalizes_null_service_entry_to_empty_mapping(
     # A `services.<name>:` entry already in the deployment repo but
     # holding YAML null (e.g. hand-edited, or left behind by an older ec
     # release) must become `{}` on deploy, not stay null - Helm v4 drops
-    # a null-valued key, which would silently remove the service.
-    mock_run.set_seq(ARGOCD.deploy_adds_service)
+    # a null-valued key, which would silently remove the service. It
+    # existed already, so the commit reads "Set ...", not "Add ...".
+    mock_run.set_seq(ARGOCD.deploy_repairs_null_service)
     TMPDIR.mkdir()
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     shutil.copytree(data / "bl01t-deployment/apps", TMPDIR / "apps")

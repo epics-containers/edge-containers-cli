@@ -313,6 +313,26 @@ class YamlFile:
 
         log.debug(f"Set '{element}' in '{key_path}' to {value}")
 
+    def sink_entry_comment(self, key_path: str) -> None:
+        """
+        `key_path` names an entry that `set_key` just created as a
+        brand-new mapping (possibly empty) in its parent, moving whatever
+        comment followed the previous last entry onto this entry's own
+        slot (`_move_trailing_comment`). Nested keys may since have been
+        set under it. If the entry is no longer empty, that comment must
+        move again, from the entry's slot in its parent down onto the
+        entry's own deepest last key - otherwise it is emitted between
+        the entry's `key:` line and its first nested key instead of after
+        the entry's content, where it was originally.
+        """
+        keys = key_path.split(".")
+        element = keys[-1]
+        curser = self._yaml_data
+        for key in keys[:-1]:
+            curser = curser[key]
+        if isinstance(curser, CommentedMap):
+            _sink_entry_comment(curser, element)
+
 
 # ruamel's round-trip loader keeps the comment lines that follow a value
 # (an end-of-line comment plus any whole comment and blank lines up to the
@@ -446,6 +466,29 @@ def _move_trailing_comment(mapping: CommentedMap, new_key: Any) -> None:
         token.value = eol
     new_slot = mapping.ca.items.setdefault(new_key, list(_EMPTY_COMMENT_SLOT))
     new_slot[2] = CommentToken(following, token.start_mark, None)
+
+
+def _sink_entry_comment(parent: CommentedMap, key: Any) -> None:
+    """
+    `parent[key]` is an entry `_move_trailing_comment` parked a following
+    comment on (`parent.ca.items[key][2]`) when it was created empty. If
+    it has since gained nested content, move that comment down onto the
+    entry's own deepest last key (the same slot `_following_comment_slot`
+    would find for it) - ruamel emits a mapping-value key's own following
+    slot right after the `key:` line, before any of its nested keys, so
+    leaving the comment there would park it between `key:` and its first
+    nested line instead of after the entry's content.
+    """
+    slot = parent.ca.items.get(key)
+    if slot is None or slot[2] is None:
+        return
+    value = parent[key]
+    if not (isinstance(value, (CommentedMap, CommentedSeq)) and len(value) > 0):
+        return
+    token = slot[2]
+    slot[2] = None
+    target_slot, index = _following_comment_slot(parent, key)
+    target_slot[index] = token
 
 
 def is_partial_match(query: str, target_list: list[str]) -> bool:
