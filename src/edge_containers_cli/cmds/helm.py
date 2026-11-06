@@ -5,7 +5,7 @@ from ruamel.yaml import YAML
 
 import edge_containers_cli.globals as globals
 from edge_containers_cli.cmds.commands import CommandError
-from edge_containers_cli.shell import shell
+from edge_containers_cli.shell import ShellError, shell
 from edge_containers_cli.utils import (
     chdir,
     local_version,
@@ -71,13 +71,28 @@ class Helm:
         """
         Clone a helm chart and deploy it to the cluster
         """
+        # check the service exists at this version before asking the user to
+        # confirm, as the Argo CD backend does
+        try:
+            await shell.run_command(
+                f"git clone {self.repo} {self.tmp} --depth=1 "
+                f"--single-branch --branch={self.version}",
+            )
+        except ShellError as e:
+            log.debug(e)
+            raise CommandError(
+                f"Could not clone branch/tag '{self.version}' from repo "
+                f"'{self.repo}' - check that the version exists"
+            ) from e
+        service_folder = self.tmp / globals.SERVICES_DIR / self.service_name
+        if not service_folder.is_dir():
+            raise CommandError(
+                f"Service '{self.service_name}' not found in repo "
+                f"'{self.repo}' with branch/tag '{self.version}'"
+            )
         if confirm_callback:
             confirm_callback(self.version, self.description)
-        await shell.run_command(
-            f"git clone {self.repo} {self.tmp} --depth=1 "
-            f"--single-branch --branch={self.version}",
-        )
-        await self._do_deploy(self.tmp / "services" / self.service_name)
+        await self._do_deploy(service_folder)
 
     async def _do_deploy(self, service_folder: Path):
         """

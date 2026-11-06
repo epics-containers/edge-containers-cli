@@ -74,6 +74,9 @@ class MockRun:
         response.
         """
         rsp = self._str_command(command, error_OK)
+        if isinstance(rsp, Exception):
+            # lets a test simulate a failing shell command
+            raise rsp
         assert isinstance(rsp, str), "non-interactive commands must return str"
 
         return rsp
@@ -109,7 +112,7 @@ class MockRun:
 
         return rsp
 
-    def set_seq(self, cmd_rsp: list[dict[str, str | bool]]):
+    def set_seq(self, cmd_rsp: list[dict[str, str | bool | Exception]]):
         """
         Set up the expected sequence of commands that we expect to see come
         through the mock of run_command. Also supplies the response to
