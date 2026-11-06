@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Command line reference &#8212; edge-containers-cli 5.5.3.dev7+g29e1ce350 documentation</title>
+    <title>Command line reference &#8212; edge-containers-cli 5.5.3.dev11+g10d4ff8b1 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="../_static/documentation_options.js?v=7be3583a"></script>
+    <script src="../_static/documentation_options.js?v=62c1ede6"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -636,11 +636,11 @@ access.</p></li>
 <td class="text-center"><p>✅</p></td>
 <td class="text-left"><p>List every service available in the repository.</p></td>
 </tr>
-<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">instances</span></code></p></td>
+<tr class="row-even"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">versions</span></code></p></td>
 <td class="text-center"><p>✅</p></td>
 <td class="text-center"><p>✅</p></td>
 <td class="text-center"><p>✅</p></td>
-<td class="text-left"><p>List all versions of one service in the repository.</p></td>
+<td class="text-left"><p>List all versions of one service in the repository. (<code class="docutils literal notranslate"><span class="pre">instances</span></code> is a deprecated alias.)</p></td>
 </tr>
 <tr class="row-odd"><td class="text-left"><p><code class="docutils literal notranslate"><span class="pre">ps</span></code></p></td>
 <td class="text-center"><p>✅</p></td>
@@ -770,12 +770,13 @@ service and supports shell tab-completion.</p>
 </div>
 <p>List every service available in the service repository (<code class="docutils literal notranslate"><span class="pre">--repo</span></code>).</p>
 </section>
-<section id="ec-instances-service">
-<h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">instances</span> <span class="pre">SERVICE</span></code><a class="headerlink" href="#ec-instances-service" title="Link to this heading">#</a></h4>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec instances SERVICE
+<section id="ec-versions-service">
+<h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">versions</span> <span class="pre">SERVICE</span></code><a class="headerlink" href="#ec-versions-service" title="Link to this heading">#</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ ec versions SERVICE
 </pre></div>
 </div>
-<p>List all tagged versions of <code class="docutils literal notranslate"><span class="pre">SERVICE</span></code> found in the repository.</p>
+<p>List all tagged versions of <code class="docutils literal notranslate"><span class="pre">SERVICE</span></code> found in the repository. <code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">instances</span></code>
+is a deprecated alias for this command.</p>
 </section>
 <section id="ec-ps">
 <h4><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">ps</span></code><a class="headerlink" href="#ec-ps" title="Link to this heading">#</a></h4>
@@ -1007,7 +1008,7 @@ extra quoted arguments to <code class="docutils literal notranslate"><span class
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-commands">Shared commands</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-env"><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">env</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-list"><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">list</span></code></a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-instances-service"><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">instances</span> <span class="pre">SERVICE</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-versions-service"><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">versions</span> <span class="pre">SERVICE</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-ps"><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">ps</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-monitor"><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">monitor</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#ec-logs-service"><code class="docutils literal notranslate"><span class="pre">ec</span> <span class="pre">logs</span> <span class="pre">SERVICE</span></code></a></li>
