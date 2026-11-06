@@ -37,6 +37,7 @@ class MockRun:
         self._runner = CliRunner()
         self.log: str = ""
         self.params: list[str] = []
+        self.stderr = ""
 
     def _str_command(self, command: str, error_OK: bool = False):
         self.log += f"\n\nFNC: ec {' '.join(self.params)}"
@@ -155,6 +156,7 @@ class MockRun:
             log.error(self.log)
             raise AssertionError("not all commands were run")
 
+        self.stderr = result.stderr
         return result.stdout
 
 
