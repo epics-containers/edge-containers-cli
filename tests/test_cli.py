@@ -46,3 +46,5 @@ def test_versions(mock_run, CLI, data: Path, command: str):
     shutil.copytree(data / "bl01t-services/services", TMPDIR / "services")
     res = mock_run.run_cli(f"{command} bl01t-ea-test-01")
     assert res == expect
+    warning = "Use `ec versions` instead of `ec instances`.\n"
+    assert mock_run.stderr == (warning if command == "instances" else "")

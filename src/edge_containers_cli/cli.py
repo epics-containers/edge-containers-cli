@@ -213,7 +213,7 @@ async def versions(
     await _print_versions(service_name)
 
 
-@cli.command(hidden=True, deprecated=True)
+@cli.command(hidden=True)
 @async_command
 async def instances(
     service_name: str = typer.Argument(
